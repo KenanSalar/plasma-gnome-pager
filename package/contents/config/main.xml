@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GNOME Workspace Switcher — configuration schema.
+  Every entry is readable in QML via plasmoid.configuration.<name>.
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <!-- Behavior -->
+        <entry name="enableScroll" type="Bool">
+            <label>Scroll over the widget to switch desktops</label>
+            <default>true</default>
+        </entry>
+        <entry name="scrollWrap" type="Bool">
+            <label>Wrap around at the first/last desktop when scrolling</label>
+            <default>true</default>
+        </entry>
+        <entry name="enableAddRemove" type="Bool">
+            <label>Show Add/Remove Desktop actions</label>
+            <default>true</default>
+        </entry>
+        <entry name="showTooltips" type="Bool">
+            <label>Show desktop name on hover</label>
+            <default>true</default>
+        </entry>
+        <entry name="animationDuration" type="Int">
+            <label>Pill slide animation duration (ms)</label>
+            <default>150</default>
+        </entry>
+
+        <!-- Appearance -->
+        <entry name="dotSize" type="Int">
+            <label>Dot diameter (px)</label>
+            <default>8</default>
+        </entry>
+        <entry name="dotSpacing" type="Int">
+            <label>Spacing between dots (px)</label>
+            <default>6</default>
+        </entry>
+        <entry name="pillWidthFactor" type="Double">
+            <label>Active pill width as a multiple of the dot size</label>
+            <default>2.5</default>
+        </entry>
+        <entry name="inactiveOpacity" type="Double">
+            <label>Opacity of inactive dots</label>
+            <default>0.45</default>
+        </entry>
+        <entry name="followThemeColors" type="Bool">
+            <label>Use the current color scheme for the dots and pill</label>
+            <default>true</default>
+        </entry>
+        <entry name="activeColor" type="Color">
+            <label>Active pill color (used when not following the theme)</label>
+            <default>#3daee9</default>
+        </entry>
+        <entry name="inactiveColor" type="Color">
+            <label>Inactive dot color (used when not following the theme)</label>
+            <default>#eff0f1</default>
+        </entry>
+    </group>
+</kcfg>
