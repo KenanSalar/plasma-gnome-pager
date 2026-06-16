@@ -1,0 +1,148 @@
+===============================================================================
+ GNOME Workspace Switcher (plasma-gnome-pager) — Implementation TODO
+ id: com.github.kenansalar.plasma-gnome-pager   target: KDE Plasma 6.6+ / Qt 6
+===============================================================================
+
+Ordered by logical/chronological dependency. Build a working vertical slice first
+(data + switching), then the GNOME look, then interactions, then config, then ship.
+"Make it work -> make it look right -> make it configurable -> make it robust -> ship."
+
+LEGEND:  [ ] todo   [~] in progress   [x] done
+RULES :  guidance lives in .claude/rules/{robustness,plasmoid,virtual-desktops,
+         qml,kirigami,qml-performance}.md  — follow them, especially robustness.md.
+VERIFY:  per phase. Always run before calling a phase done:
+           qmllint package/contents/ui/*.qml          # no warnings
+           make dev && make test                      # plasmawindowed, watch terminal
+           make restart                               # confirm it works in a real panel
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 0 — Scaffold & groundwork                                   [x] DONE
+-------------------------------------------------------------------------------
+Goal: installable, loadable empty widget + project conventions.
+  [x] Project structure (package/ + contents/ui + contents/config)
+  [x] metadata.json (id, X-Plasma-API-Minimum-Version 6.0, provides virtualdesktops)
+  [x] Stub PlasmoidItem main.qml + WorkspaceIndicator/WorkspaceDot placeholders
+  [x] Config schema main.xml (all entries) + config.qml categories + stub pages
+  [x] README, Makefile (dev/test/restart/install), LICENSE, .gitignore
+  [x] .claude/rules/* best-practice rulesets
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [ ]
+-------------------------------------------------------------------------------
+Goal: N plain dots that reflect the real desktops and switch on click. Proves the
+public-API approach end-to-end before any polish. (ref: virtual-desktops.md)
+  [ ] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
+      desktopIds, desktopNames, numberOfDesktops)
+  [ ] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
+      "current" property (UUID). Keep legacy setCurrentDesktop(int) as commented fallback.
+  [ ] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
+  [ ] WorkspaceDot: required props (desktopId, active, index) + MouseArea -> activated()
+  [ ] Wire dot click -> root.switchTo(desktopId); guard empty/null ids (robustness.md)
+  [ ] Advertise size: implicitWidth/Height from dot count * size + spacing
+VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
+        keyboard (Ctrl+F1/F2) updates the active dot (reactive binding works).
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 2 — GNOME visual identity: dots + sliding pill                [ ]
+-------------------------------------------------------------------------------
+Goal: the signature look — dim circles + a wider pill on the current desktop that
+slides between positions. Horizontal panel first. (ref: kirigami.md, qml-performance.md)
+  [ ] Inactive dot: Rectangle radius=h/2, Kirigami.Theme.textColor @ ~0.45 opacity
+  [ ] Active pill: single overlay Rectangle (rounded, wider) over the active dot
+  [ ] Bind pill x/width to the active dot geometry; Behavior on x/width (NumberAnimation)
+      for the slide — duration from Kirigami.Units (guard 0 when animations disabled)
+  [ ] Pill color = Kirigami.Theme.highlightColor (theme-following by default)
+  [ ] Size everything via Kirigami.Units (HiDPI); no hardcoded px
+VERIFY: matches GNOME feel; pill slides smoothly on switch; follows color scheme;
+        looks correct on HiDPI / fractional scaling.
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 3 — Interactions                                              [ ]
+-------------------------------------------------------------------------------
+Goal: scroll, hover, add/remove. Read config keys directly (defaults from main.xml
+already apply even before the settings UI exists). (ref: virtual-desktops.md)
+  [ ] Scroll-to-switch: MouseArea onWheel -> step(+/-1); honor enableScroll + scrollWrap;
+      clamp index when not wrapping
+  [ ] Hover: dot brightens on containsMouse
+  [ ] Tooltips: show desktop name (vdi.desktopNames) on hover; honor showTooltips
+  [ ] Add Desktop / Remove Last Desktop: Plasmoid.contextualActions (PlasmaCore.Action)
+      wired to createDesktop / removeDesktop DBus; honor enableAddRemove; never remove
+      the last desktop
+VERIFY: scroll cycles (wrap per setting); hover highlights + tooltip; right-click
+        add/remove updates dot count live.
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 4 — Form factor & sizing robustness                          [ ]
+-------------------------------------------------------------------------------
+Goal: correct in every placement. (ref: plasmoid.md)
+  [ ] Horizontal panel -> Row; vertical panel -> Column (switch on Plasmoid.formFactor)
+  [ ] Pill orientation/animation adapts to axis (slide along the correct axis)
+  [ ] Correct implicit sizing in both orientations so the panel allocates space
+  [ ] Sensible behavior on the desktop containment (Planar) and when floating
+  [ ] Set Plasmoid.status (Passive) and backgroundHints (NoBackground or Configurable)
+VERIFY: move widget between top/bottom panel, a side panel, and the desktop — layout
+        and sizing stay correct.
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 5 — Configurability (settings UI wired to behavior)          [ ]
+-------------------------------------------------------------------------------
+Goal: expose every main.xml entry and make it actually drive the widget.
+(ref: plasmoid.md config section, kirigami.md)
+  [ ] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
+      showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases
+  [ ] ConfigAppearance.qml (Appearance): dotSize, dotSpacing, pillWidthFactor,
+      inactiveOpacity, followThemeColors, activeColor, inactiveColor
+  [ ] Make the widget read every key live from plasmoid.configuration.*
+  [ ] followThemeColors=false -> use activeColor/inactiveColor; true -> Kirigami.Theme
+  [ ] Hide/disable color pickers when followThemeColors is true
+VERIFY: every setting changes the widget immediately; settings persist across a
+        shell restart; defaults give the intended GNOME look out of the box.
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 6 — Robustness hardening & edge cases                        [ ]
+-------------------------------------------------------------------------------
+Goal: never break — the whole reason for this project. (ref: robustness.md)
+  [ ] Audit imports: public only, versionless, zero org.kde.plasma.private.*
+  [ ] Guard all desktopIds/currentDesktop access against transient empty/null
+  [ ] Edge cases: exactly 1 desktop (hide add/remove of last), many desktops
+      (overflow handling / min sizing), rapid repeated switching
+  [ ] Respect "reduce animations" (Kirigami.Units.longDuration === 0)
+  [ ] qmllint clean (treat warnings as errors); qmlformat applied
+  [ ] Re-test after a real plasmashell restart and (if possible) a Plasma point update
+VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes on
+        desktop add/remove storms.
+
+
+-------------------------------------------------------------------------------
+ MILESTONE 7 — Packaging & release                                      [ ]
+-------------------------------------------------------------------------------
+Goal: shippable to GitHub + KDE Store.
+  [ ] Replace LICENSE stub with full GPL-3.0 text
+  [ ] Finalize README (features, screenshots/GIF, install, config)
+  [ ] Bump Version in metadata.json; tag a release
+  [ ] kpackagetool6 package check + clean install/upgrade/remove test
+  [ ] (optional) CI: run qmllint on push (GitHub Actions)
+  [ ] Publish: GitHub repo (KenanSalar/plasma-gnome-pager) + KDE Store upload
+VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
+        appears in Add Widgets with correct name/icon/description.
+
+
+-------------------------------------------------------------------------------
+ BACKLOG / NICE-TO-HAVE (post-1.0, optional)
+-------------------------------------------------------------------------------
+  [ ] Click current desktop -> open KWin Overview/Desktop Grid effect
+  [ ] Optional occupied-desktop hint (subtle fill when windows present, via TasksModel)
+  [ ] Drag a window onto a dot to move it to that desktop (DnD)
+  [ ] Per-desktop rename from the widget
+  [ ] Configurable click action on current desktop (none / show desktop / overview)
+  [ ] Optional numbers/labels inside dots
+  [ ] Activities mode (switch Activities instead of Virtual Desktops)
+  [ ] Translations (i18n catalogs) for shipped strings
+===============================================================================

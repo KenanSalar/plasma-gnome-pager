@@ -1,0 +1,24 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.virtualdesktops"
+    ],
+    "KPlugin": {
+        "Id": "com.github.kenansalar.plasma-gnome-pager",
+        "Name": "GNOME Workspace Switcher",
+        "Description": "A GNOME-style virtual desktop switcher: dots with a pill on the current workspace.",
+        "Category": "Windows and Tasks",
+        "Icon": "user-desktop",
+        "Version": "0.1.0",
+        "License": "GPL-3.0-or-later",
+        "Website": "https://github.com/KenanSalar/plasma-gnome-pager",
+        "BugReportUrl": "https://github.com/KenanSalar/plasma-gnome-pager/issues",
+        "Authors": [
+            {
+                "Name": "Kenan Salar",
+                "Email": ""
+            }
+        ]
+    }
+}
