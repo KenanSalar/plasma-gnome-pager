@@ -144,6 +144,9 @@ function step(delta) {                       // delta = +1 / -1
 - Do **not** reach for `org.kde.plasma.private.pager`'s `PagerModel.changePage()` — it's a
   private import and the reason other GNOME-style pagers break. The DBus calls above are the
   public, stable equivalent.
-- Inspect the live interface while developing:
-  `qdbus6 org.kde.KWin /VirtualDesktopManager` and
-  `qdbus6 org.kde.KWin /VirtualDesktopManager org.kde.KWin.VirtualDesktopManager.current`.
+- Inspect the live interface while developing (this Fedora KDE system ships `qdbus-qt6`,
+  `busctl`, and `gdbus`, **not** `qdbus6`):
+  `qdbus-qt6 org.kde.KWin /VirtualDesktopManager` and
+  `qdbus-qt6 org.kde.KWin /VirtualDesktopManager org.kde.KWin.VirtualDesktopManager.current`.
+  For a full interface dump (properties, methods, signatures, signals):
+  `busctl --user introspect org.kde.KWin /VirtualDesktopManager`.
