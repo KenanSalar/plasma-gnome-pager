@@ -152,7 +152,7 @@ TestCase {
         mouseMove(dot, dot.width / 2, dot.height / 2);
         tryCompare(circle, "opacity", dot.hoverOpacity, 2000, "brightens to hoverOpacity on hover");
 
-        mouseMove(dot, -5, -5);   // move the pointer off the slot
+        mouseMove(dot, -5, -5);   // move the pointer off the element
         tryCompare(circle, "opacity", dot.inactiveOpacity, 2000, "returns to inactiveOpacity when not hovered");
     }
 

@@ -16,7 +16,7 @@
 .pragma library
 
 /**
- * Step the active slot by `delta` (+1 next, -1 previous).
+ * Step the active index by `delta` (+1 next, -1 previous).
  *
  * Returns the new index in [0, count-1], or -1 for any state the caller must ignore:
  * an empty list, or a `currentIndex` that is out of range (e.g. -1 during a transient
