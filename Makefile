@@ -58,7 +58,8 @@ check-unit:
 check-integration:
 	QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input $(CURDIR)/tests/integration
 
-# Two warnings are expected non-defects (i18n flagged unqualified; DBus.* ctors
-# flagged unresolved-type) — see CLAUDE.md "Verifying a change".
+# Lints the UI components, the settings pages (contents/ui/config/) and the config model
+# (contents/config/config.qml). Expected non-defects: i18n/i18np flagged unqualified (a plasmoid
+# global) and any DBus.* ctor flagged unresolved-type — see CLAUDE.md "Verifying a change".
 lint:
-	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml
+	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml

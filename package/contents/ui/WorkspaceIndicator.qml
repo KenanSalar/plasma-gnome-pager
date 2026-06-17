@@ -43,8 +43,10 @@
  * (a switch conserves total length: the shrinking and growing elements cancel). Which axis is the
  * major one swaps with `vertical` — width for a horizontal panel, height for a vertical one.
  *
- * TODO(M5):  metrics (dotSize/spacingFactor/pillWidthFactor/inactiveOpacity) + colours
- *            from plasmoid.configuration.* instead of the Kirigami defaults below.
+ * The visual metrics + colours + animation duration are supplied by main.qml (read from
+ * plasmoid.configuration); this component holds the same Kirigami-derived defaults so it still
+ * renders sensibly standalone and under qmltestrunner. It forwards them per-dot unchanged — the
+ * indicator draws nothing itself.
  */
 pragma ComponentBehavior: Bound
 
@@ -113,20 +115,33 @@ Item {
     // capsule (robustness.md: guard the index before acting on it).
     readonly property int activeIndex: desktopIds.indexOf(currentDesktop)
 
-    // Visual metrics. Named to forward-match the M5 ConfigAppearance keys; M5 swaps these
-    // defaults for `plasmoid.configuration.*` reads. Sizes go through Kirigami.Units (HiDPI);
-    // pillWidthFactor / inactiveOpacity / hoverOpacity / spacingFactor are dimensionless ratios.
+    // Visual metrics, supplied by main.qml from plasmoid.configuration (Appearance keys), with the
+    // Kirigami/dimensionless defaults below so the indicator renders sensibly standalone and under
+    // qmltestrunner. Sizes go through Kirigami.Units (HiDPI); pillWidthFactor / inactiveOpacity /
+    // hoverOpacity / spacingFactor are dimensionless ratios.
+    //
+    // dotSize is a `0 = auto` request: a positive value is the user's px override, 0 falls back to
+    // the HiDPI-aware themed default (a fixed schema literal would bake a px value — see kirigami.md).
+    // Resolving the sentinel here (not in main.qml) keeps it headless-testable and main.qml Kirigami-free.
     //
     // ONE uniform spacing (spacingFactor × dotSize) sits between every adjacent element —
     // dot-to-dot AND capsule-to-dot are the same gap (the GNOME look). The active element is
     // simply wider in place; its neighbours are pushed out by the Row, never covered.
-    readonly property real dotSize: Kirigami.Units.iconSizes.small / 2
-    readonly property real inactiveOpacity: 0.45
-    readonly property real hoverOpacity: 0.8              // inactive-dot hover brighten target
-    readonly property real pillWidthFactor: 2.5          // active capsule length, as a multiple of a dot
+    property int dotSizeRequest: 0                       // px override from config; 0 = auto
+    readonly property real dotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
+    property real inactiveOpacity: 0.45
+    property real hoverOpacity: 0.8                      // inactive-dot hover brighten target
+    property real pillWidthFactor: 2.5                  // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dotSize * pillWidthFactor
-    readonly property real spacingFactor: 0.5            // uniform gap as a multiple of a dot (GNOME-tight)
+    property real spacingFactor: 0.5                    // uniform gap as a multiple of a dot (GNOME-tight)
     readonly property real dotSpacing: dotSize * spacingFactor
+
+    // Colour + animation config, passed straight through to each dot (the indicator draws nothing
+    // itself). Defaults are the theme colours / auto duration so a standalone dot is unchanged.
+    property bool followThemeColors: true
+    property color activeColor: Kirigami.Theme.highlightColor
+    property color inactiveColor: Kirigami.Theme.textColor
+    property int animationDuration: 0                   // ms; 0 = follow the theme (longDuration)
 
     // Axis-neutral size primitives the orientation-aware sizing binds to. stripLength is the
     // content extent along the MAJOR (line) axis — the longest a line can be: one capsule + the
@@ -258,6 +273,10 @@ Item {
                         pillWidthFactor: indicator.pillWidthFactor
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
+                        followThemeColors: indicator.followThemeColors
+                        activeColor: indicator.activeColor
+                        inactiveColor: indicator.inactiveColor
+                        animationDuration: indicator.animationDuration
                         active: indicator.currentDesktop === workspaceDot.modelData
                         animate: indicator.animate
 

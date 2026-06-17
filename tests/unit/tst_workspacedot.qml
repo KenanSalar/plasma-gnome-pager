@@ -226,4 +226,40 @@ TestCase {
         dot.desktopName = "";
         verify(!tip.active, "tooltip is inactive for an empty name");
     }
+
+    // --- Milestone 5: configurable colours -----------------------------------------
+    // With followThemeColors false the dot uses the configured activeColor/inactiveColor instead
+    // of the colour scheme. (The 2×2 branch is covered exhaustively by tst_logic::test_dotColor;
+    // this proves the dot wires its colour props through to the binding.)
+    function test_customColorsWhenNotFollowingTheme() {
+        const dot = makeDot({ followThemeColors: false, activeColor: "#ff0000", inactiveColor: "#00ff00", active: false });
+        const circle = circleOf(dot);
+        compare(circle.color, dot.inactiveColor, "inactive uses the custom inactive colour");
+
+        dot.active = true;
+        compare(circle.color, dot.activeColor, "active uses the custom active colour");
+    }
+
+    // followThemeColors true (the default) keeps the colour-scheme binding — a regression guard
+    // that the M5 colour props did not break theme-following. Asserted against theme tokens.
+    function test_followThemeColorsUsesTheme() {
+        const dot = makeDot({ followThemeColors: true, active: false });
+        const circle = circleOf(dot);
+        compare(circle.color, Kirigami.Theme.textColor, "inactive follows the theme text colour");
+
+        dot.active = true;
+        compare(circle.color, Kirigami.Theme.highlightColor, "active follows the theme highlight colour");
+    }
+
+    // --- Milestone 5: configurable animation duration ------------------------------
+    // animationDuration 0 = auto (the themed longDuration); a positive value overrides it. The
+    // reduce-animations branch (longDuration 0 → instant) cannot be toggled headlessly and is
+    // covered by tst_logic::test_effectiveDuration; here we prove the dot resolves the sentinel.
+    function test_effectiveDurationSentinelAndOverride() {
+        const auto = makeDot({ animationDuration: 0 });
+        compare(auto.effectiveDuration, Kirigami.Units.longDuration, "0 resolves to the themed default");
+
+        const overridden = makeDot({ animationDuration: 250 });
+        compare(overridden.effectiveDuration, 250, "a positive value overrides the themed default");
+    }
 }

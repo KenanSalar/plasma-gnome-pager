@@ -113,6 +113,13 @@ TestCase {
         return dots;
     }
 
+    // The dim circle/capsule Rectangle inside a given dot — uniquely identified by carrying both
+    // `radius` and `color` (same predicate as the unit tier). Used by the colour flow-through test.
+    function circleOf(dot) {
+        const found = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
+        return found.length ? found[0] : null;
+    }
+
     // One dot per desktop UUID in the source.
     function test_dotCountMatchesDesktops() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
@@ -750,5 +757,59 @@ TestCase {
 
         indicator.showTooltips = true;
         verify(dotByUuid(indicator, ids[0]).showTooltips, "toggling showTooltips updates the dots reactively");
+    }
+
+    // --- Milestone 5: appearance / colour / animation config flow through ----------
+    // main.qml feeds the indicator the Appearance keys; the indicator forwards them per-dot. These
+    // assert the wiring (the values reach the derived metrics + the dots); the look itself is
+    // covered by the dot unit tests and the logic tier.
+
+    // Metrics reach the derived sizes and every dot.
+    function test_metricsFlowThrough() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), {
+            dotSizeRequest: 20,
+            pillWidthFactor: 3,
+            spacingFactor: 1,
+            inactiveOpacity: 0.3,
+            hoverOpacity: 0.9
+        });
+        fuzzyCompare(indicator.dotSize, 20, 0.5, "dotSizeRequest resolves to dotSize");
+        fuzzyCompare(indicator.pillWidth, 60, 0.5, "pillWidth = dotSize * pillWidthFactor");
+        fuzzyCompare(indicator.dotSpacing, 20, 0.5, "dotSpacing = dotSize * spacingFactor");
+
+        const dot = dotByUuid(indicator, ids[0]);
+        fuzzyCompare(dot.dotSize, 20, 0.5, "dot gets the resolved dotSize");
+        fuzzyCompare(dot.pillWidthFactor, 3, 0.5, "dot gets pillWidthFactor");
+        fuzzyCompare(dot.inactiveOpacity, 0.3, 0.001, "dot gets inactiveOpacity");
+        fuzzyCompare(dot.hoverOpacity, 0.9, 0.001, "dot gets hoverOpacity");
+    }
+
+    // The dotSize sentinel: 0 (the default request) → the HiDPI themed size, never 0.
+    function test_dotSizeSentinelDefault() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));   // no dotSizeRequest → 0
+        compare(indicator.dotSizeRequest, 0, "request defaults to the 0 sentinel");
+        fuzzyCompare(indicator.dotSize, Kirigami.Units.iconSizes.small / 2, 0.5, "0 resolves to the themed default");
+    }
+
+    // Custom colours flow through: with followThemeColors off, each dot's circle uses the
+    // configured colours (active vs inactive).
+    function test_colorsFlowThrough() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), {
+            followThemeColors: false,
+            activeColor: "#ff0000",
+            inactiveColor: "#00ff00"
+        });
+        const activeDot = dotByUuid(indicator, currentUuid);
+        const inactiveDot = dotByUuid(indicator, ids[0]);
+        compare(circleOf(activeDot).color, indicator.activeColor, "active dot uses the custom active colour");
+        compare(circleOf(inactiveDot).color, indicator.inactiveColor, "inactive dot uses the custom inactive colour");
+    }
+
+    // animationDuration flows through to each dot and resolves there.
+    function test_animationDurationFlowsThrough() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { animationDuration: 250 });
+        const dot = dotByUuid(indicator, ids[0]);
+        compare(dot.animationDuration, 250, "dot gets the configured duration");
+        compare(dot.effectiveDuration, 250, "dot resolves it to effectiveDuration");
     }
 }
