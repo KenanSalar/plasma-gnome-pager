@@ -66,32 +66,56 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 **full** representation, forced to always show inline: `main.qml` sets
 `preferredRepresentation: fullRepresentation` and `fullRepresentation: WorkspaceIndicator {}`.
 `main.qml` (root `PlasmoidItem`) owns the data sources, DBus helpers, and contextual actions;
-`WorkspaceIndicator.qml` lays out the dot strip + sliding pill; `WorkspaceDot.qml` is one dot.
+`WorkspaceIndicator.qml` lays out the dot strip; `WorkspaceDot.qml` is one element (a dot that
+morphs into the highlighted capsule when active — see the Visual model below).
 
-**Visual model — one sliding pill overlay, not per-dot highlight.** The active desktop is shown
-by a **single** overlay `Rectangle` (the "pill", `Kirigami.Theme.highlightColor`) that
-`WorkspaceIndicator` draws on top of the active dot and slides via `Behavior on x`. Every
-`WorkspaceDot` is always the same dim circle (`Kirigami.Theme.textColor` @ `inactiveOpacity`);
-`WorkspaceDot.active` is kept (used by tests, reserved for the planned hover state) but does not
-change the dot's look.
+> **Gotcha (learned the hard way) — advertise width via `Layout.*`, not `implicitWidth` alone.**
+> An inline full-representation that sets *only* `implicitWidth`/`implicitHeight` gets a **default
+> square cell** (≈ panel thickness) from the panel: the centred dot `Row` then overflows its tiny
+> cell and draws **on top of the neighbouring widgets**, and only that small cell is interactive
+> (the dots outside it are dead to clicks/scroll/right-click). Fix: the representation root
+> (`WorkspaceIndicator`) advertises its content width via
+> `Layout.minimumWidth`/`preferredWidth`/`maximumWidth` (= `implicitWidth`; needs
+> `import QtQuick.Layouts`); height is left to the panel thickness with the `Row` centred in it.
+> Asserted by `tst_workspaceindicator.qml::test_advertisesWidthViaLayout`. (M4 swaps these for
+> height hints on a vertical panel.) Do **not** wrap the representation root in another item
+> (e.g. a `ToolTipArea`) that doesn't forward these `Layout` hints — that reintroduces the square
+> cell.
 
-> **Decoupling — pill length and dot spacing are independent; don't re-couple them.**
-> `pillWidthFactor` sets the pill length relative to a dot, and `dotSpacing` is **derived**
-> (`pillOverhang + pillEndGap`, where `pillOverhang = (pillWidth - dotSize) / 2`) so a longer
-> pill keeps a constant clearance to its neighbours and **never covers them**, while the dots
-> stay tight. An earlier *uniform-slot* layout (each dot's slot as wide as the pill) coupled the
-> two, so a longer pill forced wider dot spacing — do not reintroduce it. The indicator reserves
-> a half-pill `pillOverhang` at each end so the pill never clips. The metrics (`dotSize`,
-> `pillWidthFactor`, `inactiveOpacity`, `pillEndGap`) are named to match the keys the settings UI
-> will expose.
-> `tests/integration/tst_workspaceindicator.qml::test_pillDoesNotCoverNeighbours` guards the
-> no-overlap invariant.
+**Visual model — REFLOW: each element morphs dot⇄capsule (no overlay).** Each `WorkspaceDot`
+*is* a workspace and renders as a dim circle (`Kirigami.Theme.textColor` @ `inactiveOpacity`,
+width `dotSize`) when inactive, and morphs into a wider highlighted **capsule** (the "pill":
+`Kirigami.Theme.highlightColor` @ full opacity, width `pillWidth`) when `active`. There is **no**
+separate overlay. Switching morphs two elements at once (old capsule → dot, new dot → capsule) and
+the `Row` reflows between them. Hover brighten (M3) is a *separate* inactive-only state driven by
+`containsMouse`; `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)` returns
+`1.0` for the active capsule and `hovered ? hoverOpacity : inactiveOpacity` otherwise (so hovering
+the active capsule does nothing). This replaced an earlier *sliding overlay pill* — which could not
+give GNOME's uniform spacing (a wide overlay needs clearance, forcing wide dot gaps) — and matches
+how GNOME and the KDE `compact_pager` actually work.
 
-> **Gotcha — animate the first *placement*, not the first frame.** The pill slide is gated by a
-> `slideEnabled` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the pill
-> **jumps** to the right desktop on shell reload (even when `VirtualDesktopInfo` populates a
-> frame late) and only later switches animate. The `Behavior` is also guarded against
-> `Kirigami.Units.longDuration === 0` (reduce-animations) so motion becomes an instant jump.
+> **Uniform spacing + reflow — don't reintroduce the overlay or a coupled slot.**
+> One uniform `Row.spacing` (`dotSpacing = dotSize * spacingFactor`, default `spacingFactor 0.5`)
+> sits between **every** adjacent element, so the pill-to-dot gap equals the dot-to-dot gap (the
+> GNOME look). The active element simply widens **in place**; its neighbours are pushed out by the
+> Row and can never be covered or clipped — so there is **no** `pillOverhang`/`pillEndGap`/`pillX`
+> math. This is **not** the previously-rejected *uniform-slot* model (every slot as wide as the
+> pill, which spread the dots far apart): here inactive dots stay `dotSize`-tight and only the
+> active one is wider. Width is advertised by a **formula** —
+> `implicitWidth = desktopCount > 0 ? pillWidth + (desktopCount-1)*(dotSize+dotSpacing) : dotSize`
+> — not the live Row width, so the panel cell stays put during the morph and when no element is
+> active (a single switch **conserves total width**: the shrinking and growing elements cancel).
+> Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
+> test_transientStaleNoCapsuleWidthStable}`. The metrics (`dotSize`, `pillWidthFactor`,
+> `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) are named to match the M5 settings keys.
+
+> **Gotcha — animate the first *placement*, not the first frame.** The morph is gated by an
+> `animate` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the active
+> element is **already a capsule** on shell reload (no grow-in from a dot, even when
+> `VirtualDesktopInfo` populates — or `currentDesktop` resolves — a frame late) and only later
+> switches morph. The latch is passed down to each `WorkspaceDot` and gates its `Behavior on
+> width/color/opacity`; the Behaviors are also guarded against `Kirigami.Units.longDuration === 0`
+> (reduce-animations) so the morph becomes instant.
 
 > **Gotcha (learned the hard way) — a `fullRepresentation` is mandatory.** A Plasma 6
 > applet that defines **only** a `compactRepresentation` (no `fullRepresentation`) instantiates
@@ -103,19 +127,55 @@ change the dot's look.
 > inline (never a popup, never the default compact icon). Confirmed against
 > develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 
-**Config flow (not present yet)** — the widget currently reads **no**
-`plasmoid.configuration.*` keys, so the config subsystem was removed as unused scaffold
-(YAGNI). When settings are wired to behaviour, re-create it as three files that must agree:
-- `package/contents/config/main.xml` (KConfigXT schema) — each `<entry name="X">` becomes
-  `plasmoid.configuration.X`, read live and reactive in the widget.
+**Interactions — scroll, hover, tooltips, add/remove.** The branching logic (clamp/wrap, hi-res
+wheel accumulation, never-remove-last, dot/capsule opacity) lives in `package/contents/ui/logic.js`
+(pure `.pragma library`, unit-tested by `tests/unit/tst_logic.qml` with no Plasma deps); the QML is
+a thin caller. Config flags flow one way: `main.qml` reads `plasmoid.configuration.*` → passes
+plain booleans to `WorkspaceIndicator` → each `WorkspaceDot`, so the tested sub-components never
+touch `plasmoid.configuration`. `main.qml` owns add/remove (KWin DBus `createDesktop`/
+`removeDesktop` + `Plasmoid.contextualActions`, gated by `enableAddRemove`, never removing the last
+desktop via `logic.js::canRemoveDesktop`).
+
+> **Gotcha (learned the hard way) — scroll: a `MouseArea { acceptedButtons: Qt.NoButton; onWheel }`
+> *behind* the dots, NOT a `WheelHandler`.** A `WheelHandler` did **not** deliver wheel reliably in
+> a real panel. The working pattern (KWin's `KeyboardLayoutSwitcher`): a MouseArea that accepts
+> **no buttons** and sits **below** the dots — a wheel over a dot propagates down to it (dots have
+> no `onWheel`), while clicks, hover and right-clicks pass straight through to the dots / the applet.
+> Accumulate `angleDelta.y` into 120-unit notches (touchpads send sub-notch deltas) via
+> `logic.js::accumulateWheel`. **Verify with a real `mouseWheel()` event test** (`qmltestrunner`
+> supports it), not just by calling the handler — event-routing is the part that breaks, and a
+> handler-only test will pass while the widget is dead in-shell.
+
+> **Gotcha (learned the hard way) — tooltip: a per-dot `PlasmaCore.ToolTipArea` inside
+> `WorkspaceDot`, NOT one wrapping the representation.** A single strip-level `ToolTipArea` as the
+> representation root mis-positioned the tooltip (showed over the *pill*, or not at all when the
+> cell was mis-sized) **and** broke applet sizing (see the `Layout.*` gotcha above). Each
+> `WorkspaceDot` carries its own `ToolTipArea` (`mainText: desktopName`,
+> `active: showTooltips && desktopName !== ""`); the indicator feeds every dot its name + the flag.
+> `ToolTipArea` is a **public C++ type** in `org.kde.plasma.core` (not in the module's `qmldir`;
+> prototype `QQuickItem`, so it has `containsMouse`/`active`/`mainText` but is **not** a `MouseArea`
+> — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
+> importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
+
+**Config flow (M3: schema only; settings UI is M5).** The four behaviour keys live in
+`package/contents/config/main.xml` (KConfigXT) and are read **live** in `main.qml`:
+`enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`. Their `main.xml` defaults apply
+even though no settings UI exists yet. M5 adds the **settings UI** + the appearance keys via two
+more files that must agree with the schema:
 - `package/contents/config/config.qml` — `ConfigModel` listing the settings categories.
 - `package/contents/ui/config/*.qml` — the settings pages, two-way bound via
   `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml` entry exactly.
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
-  `contents/config/`. Mixing this up yields an empty settings dialog. Defaults in `main.xml`
-  apply even before the settings UI is built, so the widget can read config keys as soon as the
-  schema exists.
+  `contents/config/`. Mixing this up yields an empty settings dialog.
+
+> **Gotcha — guard every config read with `?? <default>`.** `readonly property bool enableScroll:
+> Plasmoid.configuration.enableScroll ?? true`. A freshly-added schema can read back `undefined`
+> for a frame (or until the widget is removed/re-added), and a bare `bool` then collapses to
+> `false`, **silently disabling every interaction**. The `?? <default>` mirrors each schema default
+> and is a no-op once the value is real (`false ?? true === false`). After editing `main.xml`,
+> reload with `make restart`; if keys still read stale, `rm -rf ~/.cache/plasmashell/qmlcache` or
+> remove/re-add the widget.
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
 

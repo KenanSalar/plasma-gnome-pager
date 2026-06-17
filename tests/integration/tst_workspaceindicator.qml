@@ -4,12 +4,13 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Unit test for WorkspaceIndicator — the only Milestone-1 behaviour that spans
- * files and exercises the documented robustness guards (see .claude/rules/
- * robustness.md). It is testable headless because the indicator only depends on
- * QtQuick + Kirigami and reads desktop state through a duck-typed
- * `virtualDesktopInfo` property — so a plain QtObject stands in for
- * TaskManager.VirtualDesktopInfo with zero Plasma dependencies.
+ * Integration test for WorkspaceIndicator — the composed dot strip + reflow + reactive
+ * wiring, exercising the documented robustness guards (see .claude/rules/robustness.md).
+ * It is testable headless because the indicator depends only on QtQuick / QtQuick.Layouts /
+ * Kirigami (+ logic.js) and reads desktop state through a duck-typed `virtualDesktopInfo`
+ * property — a plain QtObject stands in for TaskManager.VirtualDesktopInfo. Its WorkspaceDot
+ * delegates pull in org.kde.plasma.core for their per-dot ToolTipArea, which loads fine under
+ * offscreen qmltestrunner.
  *
  * main.qml / PlasmoidItem is intentionally NOT tested here: it needs plasmashell,
  * KWin and a session bus, which don't exist under qmltestrunner. See tests/README.md.
@@ -18,6 +19,7 @@
  * without a display).
  */
 import QtQuick
+import QtQuick.Layouts
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
@@ -41,13 +43,15 @@ TestCase {
         Pager.WorkspaceIndicator {}
     }
 
-    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator only reads
-    // .desktopIds and .currentDesktop). Built per test via makeMock(...).
+    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator reads
+    // .desktopIds, .currentDesktop and — for tooltips — .desktopNames). Built per test
+    // via makeMock(...).
     Component {
         id: vdiMockComponent
         QtObject {
             property var desktopIds: []
             property string currentDesktop: ""
+            property var desktopNames: []
         }
     }
 
@@ -58,18 +62,22 @@ TestCase {
 
     // A duck-typed VirtualDesktopInfo mock. Pass a currentDesktop outside desktopIds (the
     // staleUuid) to exercise the transient add/remove state the indicator must tolerate.
-    function makeMock(desktopIds, currentDesktop) {
+    // desktopNames is optional (defaults []), needed only by the tooltip tests.
+    function makeMock(desktopIds, currentDesktop, desktopNames) {
         return createTemporaryObject(vdiMockComponent, testCase, {
             desktopIds: desktopIds,
-            currentDesktop: currentDesktop
+            currentDesktop: currentDesktop,
+            desktopNames: desktopNames || []
         });
     }
 
-    // The single point that instantiates the component under test (auto-cleaned).
-    function makeIndicator(vdi) {
-        return createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdi
-        });
+    // The single point that instantiates the component under test (auto-cleaned). Extra
+    // props (e.g. enableScroll/scrollWrap, an explicit width) can be passed for the
+    // interaction tests; virtualDesktopInfo is always set.
+    function makeIndicator(vdi, props) {
+        const p = props || {};
+        p.virtualDesktopInfo = vdi;
+        return createTemporaryObject(indicatorComponent, testCase, p);
     }
 
     // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is
@@ -88,13 +96,20 @@ TestCase {
     }
 
     // Find the dot delegate for a given desktop UUID (or null) — used by the
-    // reactivity/geometry tests below to locate a specific slot.
+    // reactivity/geometry tests below to locate a specific element.
     function dotByUuid(indicator, uuid) {
         const dots = collectDots(indicator, []);
         for (let i = 0; i < dots.length; i++)
             if (dots[i].modelData === uuid)
                 return dots[i];
         return null;
+    }
+
+    // The dots in Repeater/index order (left→right), so geometry tests can walk neighbours.
+    function dotsByIndex(indicator) {
+        const dots = collectDots(indicator, []);
+        dots.sort((a, b) => a.index - b.index);
+        return dots;
     }
 
     // One dot per desktop UUID in the source.
@@ -144,7 +159,7 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "forwarded the clicked UUID");
     }
 
-    // --- Milestone 2: the sliding pill --------------------------------------------
+    // --- The reflow capsule (the active element morphs to a pill) ------------------
 
     // activeIndex maps currentDesktop to its position in desktopIds.
     function test_activeIndexMapping() {
@@ -152,68 +167,63 @@ TestCase {
         compare(indicator.activeIndex, 1, "middle desktop (uuid-b) is index 1");
     }
 
-    // The pill is shown only when there is an active slot to highlight.
-    function test_pillVisibleWhenActive() {
+    // The active element is the wide capsule (pillWidth); every inactive element is a dot.
+    function test_activeElementIsCapsuleInactiveAreDots() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
-        verify(indicator.pill.visible, "pill is visible when a desktop is current");
+        for (let i = 0; i < ids.length; i++) {
+            const dot = dotByUuid(indicator, ids[i]);
+            const expected = (ids[i] === currentUuid) ? indicator.pillWidth : indicator.dotSize;
+            fuzzyCompare(dot.width, expected, 0.5, "width of " + ids[i]);
+        }
     }
 
-    // robustness.md: a null source (transient) yields no active slot, so no pill.
-    function test_pillHiddenOnNullSource() {
+    // Exactly one element is the capsule; the rest are dots.
+    function test_exactlyOneCapsule() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
+        const dots = collectDots(indicator, []);
+        let capsules = 0, plain = 0;
+        for (let i = 0; i < dots.length; i++) {
+            if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5)
+                capsules++;
+            else if (Math.abs(dots[i].width - indicator.dotSize) <= 0.5)
+                plain++;
+        }
+        compare(capsules, 1, "exactly one capsule");
+        compare(plain, ids.length - 1, "all other elements are dots");
+    }
+
+    // robustness.md: a null source (transient) yields no elements, and the cell falls back
+    // to a sane minimum (one dot wide) rather than collapsing to 0.
+    function test_nullSourceNoCapsule() {
         const indicator = makeIndicator(null);
         compare(indicator.activeIndex, -1, "no active index without a source");
-        verify(!indicator.pill.visible, "pill is hidden with a null source");
+        compare(collectDots(indicator, []).length, 0, "no elements");
+        fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "cell falls back to one dot wide");
     }
 
-    // robustness.md: currentDesktop not (yet) in desktopIds during an add/remove must
-    // hide the pill rather than indexing out of range.
-    function test_pillHiddenWhenCurrentNotInIds() {
+    // robustness.md: currentDesktop not (yet) in desktopIds during an add/remove → no
+    // capsule (all dots), and the advertised width stays at the steady-state (one-capsule)
+    // value so the panel cell does NOT jitter while the active element is momentarily unknown.
+    function test_transientStaleNoCapsuleWidthStable() {
         const indicator = makeIndicator(makeMock(ids, staleUuid));
         compare(indicator.activeIndex, -1, "stale currentDesktop maps to -1");
-        verify(!indicator.pill.visible, "pill is hidden when current desktop is unknown");
-    }
-
-    // The pill is horizontally centred over the active dot's slot — asserted in
-    // derived geometry (no literal px), so it holds across HiDPI / theme metrics.
-    function test_pillCenteredOverActiveDot() {
-        const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator, []);
-        let activeDot = null;
         for (let i = 0; i < dots.length; i++)
-            if (dots[i].modelData === currentUuid)
-                activeDot = dots[i];
-        verify(activeDot, "found the active dot");
-
-        const dotCenter = activeDot.mapToItem(indicator, activeDot.width / 2, 0).x;
-        const pillCenter = indicator.pill.x + indicator.pill.width / 2;
-        fuzzyCompare(pillCenter, dotCenter, 0.5, "pill centre aligns with the active slot centre");
+            fuzzyCompare(dots[i].width, indicator.dotSize, 0.5, "no capsule while stale: " + dots[i].modelData);
+        const steady = indicator.pillWidth + (ids.length - 1) * (indicator.dotSize + indicator.dotSpacing);
+        fuzzyCompare(indicator.implicitWidth, steady, 0.5, "cell stays at the steady-state width");
     }
 
-    // The pill is wider than a dot, so the decoupled spacing must keep it clear of the
-    // neighbouring dots — it may reach toward them but must never cover them.
-    function test_pillDoesNotCoverNeighbours() {
-        const indicator = makeIndicator(makeMock(ids, currentUuid));
-        const dots = collectDots(indicator, []);
-        const byUuid = {};
-        for (let i = 0; i < dots.length; i++)
-            byUuid[dots[i].modelData] = dots[i];
-
-        // ids: a(0) b(1, active) c(2). Pill covers b; a and c must stay uncovered.
-        const leftNeighbour = byUuid[ids[0]];
-        const rightNeighbour = byUuid[ids[2]];
-        const leftEdge = indicator.pill.x;
-        const rightEdge = indicator.pill.x + indicator.pill.width;
-        const leftNeighbourRight = leftNeighbour.mapToItem(indicator, leftNeighbour.width, 0).x;
-        const rightNeighbourLeft = rightNeighbour.mapToItem(indicator, 0, 0).x;
-
-        verify(leftEdge >= leftNeighbourRight, "pill does not cover the left neighbour");
-        verify(rightEdge <= rightNeighbourLeft, "pill does not cover the right neighbour");
-    }
-
-    // The pill follows the colour scheme (Kirigami.Theme.highlightColor), not a literal.
-    function test_pillColorFollowsTheme() {
-        const indicator = makeIndicator(makeMock(ids, currentUuid));
-        compare(indicator.pill.color, Kirigami.Theme.highlightColor, "pill uses the theme highlight colour");
+    // Uniform spacing: the gap between EVERY adjacent pair — dot-dot and capsule-dot alike —
+    // equals the single Row spacing (the GNOME look; positive gaps also prove no overlap).
+    function test_uniformSpacing() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));   // middle is the capsule
+        const dots = dotsByIndex(indicator);
+        for (let i = 0; i < dots.length - 1; i++) {
+            const rightEdge = dots[i].mapToItem(indicator, dots[i].width, 0).x;
+            const nextLeft = dots[i + 1].mapToItem(indicator, 0, 0).x;
+            fuzzyCompare(nextLeft - rightEdge, indicator.dotSpacing, 0.5, "uniform gap after element " + i);
+        }
     }
 
     // --- Reactivity: the "bind, don't cache" contract -----------------------------
@@ -234,19 +244,19 @@ TestCase {
         compare(dotByUuid(indicator, ids[2]).active, true, "new dot activates");
     }
 
-    // Switching the current desktop slides the pill onto the new active dot. tryVerify
-    // polls so it tolerates the slide animation's duration and sub-pixel rounding.
-    function test_switchMovesPill() {
+    // Switching morphs the capsule: the new current element grows to pillWidth while the old
+    // shrinks back to dotSize. tryVerify polls so it tolerates the morph animation.
+    function test_morphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
-        const activeDot = dotByUuid(indicator, ids[2]);   // the dot we're about to switch to (it doesn't move)
-        const dotCenter = activeDot.mapToItem(indicator, activeDot.width / 2, 0).x;
+        verify(Math.abs(dotByUuid(indicator, ids[0]).width - indicator.pillWidth) <= 0.5, "ids[0] starts as the capsule");
 
         vdi.currentDesktop = ids[2];
 
         tryVerify(function () {
-            return Math.abs((indicator.pill.x + indicator.pill.width / 2) - dotCenter) <= 0.5;
-        }, 2000, "pill ends up centred over the newly current dot");
+            return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5
+                && Math.abs(dotByUuid(indicator, ids[0]).width - indicator.dotSize) <= 0.5;
+        }, 2000, "capsule morphs onto the newly current element; the old shrinks to a dot");
     }
 
     // Adding a desktop (desktopIds grows) adds a dot reactively; the current index is kept.
@@ -263,7 +273,7 @@ TestCase {
         compare(indicator.activeIndex, 0, "current desktop's index is unchanged by an append");
     }
 
-    // Removing a desktop (desktopIds shrinks) drops a dot; the pill re-tracks the
+    // Removing a desktop (desktopIds shrinks) drops a dot; the capsule re-tracks the
     // still-current desktop at its new index rather than disappearing.
     function test_removeDesktopRemovesDot() {
         const vdi = makeMock(ids, ids[2]);   // current is the last desktop
@@ -275,57 +285,57 @@ TestCase {
         tryVerify(function () {
             return collectDots(indicator, []).length === 2;
         }, 2000, "a dot is removed");
-        compare(indicator.activeIndex, 1, "pill re-tracks the surviving current desktop at its new index");
-        verify(indicator.pill.visible, "pill stays visible for the surviving current desktop");
+        compare(indicator.activeIndex, 1, "the surviving current desktop is re-found at its new index");
+        tryVerify(function () {
+            return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5;
+        }, 2000, "the surviving current desktop is the capsule");
     }
 
-    // --- slideEnabled: jump on first placement, animate thereafter ----------------
-    // slideEnabled is a one-way latch that gates the slide animation so the FIRST valid
-    // placement is an instant jump (no slide-in from x=0 on shell reload) — see the
-    // gotcha in CLAUDE.md / WorkspaceIndicator.qml.
+    // --- animate latch: instant first placement, morph thereafter -----------------
+    // `animate` is a one-way latch that gates the per-dot morph so the FIRST valid placement
+    // is instant (the active element is already a capsule, no grow-in on shell reload) — see
+    // the gotcha in CLAUDE.md / WorkspaceIndicator.qml.
 
     // Created with a valid current desktop: the latch is already set (Component.onCompleted).
-    function test_slideEnabledLatchedOnValidStart() {
+    function test_animateLatchedOnValidStart() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
-        compare(indicator.slideEnabled, true, "slide latched on a valid initial placement");
+        compare(indicator.animate, true, "morph latched on a valid initial placement");
     }
 
-    // Created with no active slot, then a source arrives: the latch enables via the
-    // onActiveIndexChanged + Qt.callLater deferral path (so the first placement jumps).
-    function test_slideEnabledDefersFromInvalidStart() {
+    // Created with no active element, then a source arrives: the latch enables via the
+    // onActiveIndexChanged + Qt.callLater deferral path (so the first placement is instant).
+    function test_animateDefersFromInvalidStart() {
         const indicator = makeIndicator(null);   // no source → activeIndex -1
-        compare(indicator.slideEnabled, false, "slide disabled while there is no active slot");
+        compare(indicator.animate, false, "morph disabled while there is no active element");
 
         indicator.virtualDesktopInfo = makeMock(ids, currentUuid);   // source populates a frame later
-        tryCompare(indicator, "slideEnabled", true, 2000, "slide enables once a valid slot first appears");
+        tryCompare(indicator, "animate", true, 2000, "morph enables once a valid element first appears");
     }
 
-    // Once latched true, a transient loss of the active slot (current drops out of ids
+    // Once latched true, a transient loss of the active element (current drops out of ids
     // during an add/remove) must NOT reset the latch back to false.
-    function test_slideEnabledIsOneWayLatch() {
+    function test_animateIsOneWayLatch() {
         const vdi = makeMock(ids, currentUuid);
         const indicator = makeIndicator(vdi);
-        compare(indicator.slideEnabled, true, "latched true at start");
+        compare(indicator.animate, true, "latched true at start");
 
         vdi.currentDesktop = staleUuid;   // current momentarily not in ids
-        compare(indicator.activeIndex, -1, "no active slot now");
+        compare(indicator.activeIndex, -1, "no active element now");
         wait(0);
-        compare(indicator.slideEnabled, true, "slideEnabled never returns to false");
+        compare(indicator.animate, true, "animate never returns to false");
     }
 
-    // First placement is an immediate jump: created already at the LAST desktop, the pill
-    // is centred there on the first frame (synchronous — no slide-in from x=0).
+    // First placement is instant: created already at the LAST desktop, that element is a
+    // capsule on the first frame (synchronous — no grow-in from a dot).
     function test_firstPlacementIsImmediate() {
         const indicator = makeIndicator(makeMock(ids, ids[2]));
-        const activeDot = dotByUuid(indicator, ids[2]);
-        const dotCenter = activeDot.mapToItem(indicator, activeDot.width / 2, 0).x;
-        const pillCenter = indicator.pill.x + indicator.pill.width / 2;
-        fuzzyCompare(pillCenter, dotCenter, 0.5, "pill is already centred on first placement");
+        fuzzyCompare(dotByUuid(indicator, ids[2]).width, indicator.pillWidth, 0.5,
+                     "active element is already a capsule on first placement");
     }
 
     // --- activeIndex edge cases (data-driven) -------------------------------------
-    // activeIndex is the guard the pill's visibility/position hang off; it must be -1 for
-    // every transient/invalid state and the correct slot otherwise.
+    // activeIndex is the guard the capsule hangs off; it must be -1 for every transient/
+    // invalid state and the correct element index otherwise.
     function test_activeIndex_data() {
         return [
             { tag: "empty-ids", desktops: [], current: "uuid-x", expected: -1 },
@@ -341,45 +351,205 @@ TestCase {
 
     // --- geometry edge cases ------------------------------------------------------
 
-    // The implicitWidth reserves a half-pill overhang at each end, so the pill never
-    // clips past the strip even at the first or last desktop.
+    // The advertised width holds the whole strip, so the end elements never clip past the
+    // edges — whether the capsule is at the first or the last desktop.
     function test_noClipAtEnds() {
         const many = [ids[0], ids[1], ids[2], "uuid-d", "uuid-e", "uuid-f"];
 
         const atFirst = makeIndicator(makeMock(many, many[0]));
-        verify(atFirst.pill.x >= -0.5, "pill does not clip past the left edge at the first desktop");
+        const firstDots = dotsByIndex(atFirst);
+        const firstLeft = firstDots[0].mapToItem(atFirst, 0, 0).x;
+        verify(firstLeft >= -0.5, "first element does not clip past the left edge");
 
         const atLast = makeIndicator(makeMock(many, many[many.length - 1]));
-        verify(atLast.pill.x + atLast.pill.width <= atLast.width + 0.5,
-               "pill does not clip past the right edge at the last desktop");
+        const lastDots = dotsByIndex(atLast);
+        const last = lastDots[lastDots.length - 1];
+        const lastRight = last.mapToItem(atLast, last.width, 0).x;
+        verify(lastRight <= atLast.width + 0.5, "last element does not clip past the right edge");
     }
 
-    // A single desktop: one dot, active, with the pill centred and visible (no neighbours).
+    // A single desktop: one element, active, rendered as the capsule; the cell is one pill wide.
     function test_singleDesktop() {
         const indicator = makeIndicator(makeMock(["uuid-solo"], "uuid-solo"));
-        compare(collectDots(indicator, []).length, 1, "exactly one dot");
+        compare(collectDots(indicator, []).length, 1, "exactly one element");
         compare(indicator.activeIndex, 0, "the only desktop is active");
-        verify(indicator.pill.visible, "pill is visible for the single desktop");
-
-        const dot = collectDots(indicator, [])[0];
-        const dotCenter = dot.mapToItem(indicator, dot.width / 2, 0).x;
-        const pillCenter = indicator.pill.x + indicator.pill.width / 2;
-        fuzzyCompare(pillCenter, dotCenter, 0.5, "pill centred on the single dot");
+        fuzzyCompare(dotByUuid(indicator, "uuid-solo").width, indicator.pillWidth, 0.5, "the sole element is the capsule");
+        fuzzyCompare(indicator.implicitWidth, indicator.pillWidth, 0.5, "cell is one capsule wide");
     }
 
-    // The pill has no MouseArea, so a click at its centre must fall THROUGH to the active
-    // dot beneath and still emit switchRequested(currentUuid). This is the one test that
-    // needs a real synthesized click — direct signal emission would bypass the hit-test
-    // that proves click-through works.
-    function test_clickThroughPill() {
-        const indicator = makeIndicator(makeMock(ids, currentUuid));
+    // Clicking the active capsule switches (the whole capsule is the hit area). Needs a real
+    // synthesized click — direct signal emission would bypass the hit-test.
+    function test_clickActiveCapsuleSwitches() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
         switchSpy.clear();
 
-        const p = indicator.pill.mapToItem(indicator, indicator.pill.width / 2, indicator.pill.height / 2);
+        const capsule = dotByUuid(indicator, currentUuid);
+        const p = capsule.mapToItem(indicator, capsule.width / 2, capsule.height / 2);
         mouseClick(indicator, p.x, p.y);
 
-        compare(switchSpy.count, 1, "click through the pill reaches the dot beneath");
-        compare(switchSpy.signalArguments[0][0], currentUuid, "the covered (active) desktop's UUID is forwarded");
+        compare(switchSpy.count, 1, "clicking the active capsule emits a switch");
+        compare(switchSpy.signalArguments[0][0], currentUuid, "the active desktop's UUID is forwarded");
+    }
+
+    // --- Milestone 3: scroll-to-switch --------------------------------------------
+    // The indicator forwards a wheel step as switchRequested(uuid); the index math
+    // (clamp/wrap/accumulate) is unit-tested in tst_logic, so here we assert the wiring:
+    // direction, the enable/wrap flags, the clamped no-ops, and sub-notch accumulation.
+    // Wheel DOWN (negative angleDelta) → next desktop; wheel UP (positive) → previous.
+
+    function test_scrollDownStepsNext() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 1, "one switch on a full notch down");
+        compare(switchSpy.signalArguments[0][0], ids[1], "scroll down moves to the next desktop");
+    }
+
+    function test_scrollUpStepsPrevious() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);
+        compare(switchSpy.count, 1, "one switch on a full notch up");
+        compare(switchSpy.signalArguments[0][0], ids[0], "scroll up moves to the previous desktop");
+    }
+
+    function test_scrollClampAtStartIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, scrollWrap: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);   // up from the first desktop, no wrap
+        compare(switchSpy.count, 0, "scrolling past the start without wrap is a no-op");
+    }
+
+    function test_scrollClampAtEndIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true, scrollWrap: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);   // down from the last desktop, no wrap
+        compare(switchSpy.count, 0, "scrolling past the end without wrap is a no-op");
+    }
+
+    function test_scrollWrapForwardAtEnd() {
+        const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true, scrollWrap: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);   // down from the last desktop, wrapping
+        compare(switchSpy.count, 1, "wrap produces a switch at the end");
+        compare(switchSpy.signalArguments[0][0], ids[0], "wraps forward to the first desktop");
+    }
+
+    function test_scrollWrapBackwardAtStart() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, scrollWrap: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);   // up from the first desktop, wrapping
+        compare(switchSpy.count, 1, "wrap produces a switch at the start");
+        compare(switchSpy.signalArguments[0][0], ids[2], "wraps backward to the last desktop");
+    }
+
+    function test_scrollDisabledIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 0, "no switching when enableScroll is false");
+    }
+
+    // Touchpad/hi-res wheels report sub-notch deltas that must accumulate to a full notch
+    // before stepping (and not be lost in between).
+    function test_scrollAccumulatesSubNotch() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-60);
+        compare(switchSpy.count, 0, "half a notch does not switch yet");
+        indicator.handleWheel(-60);
+        compare(switchSpy.count, 1, "the second half completes a notch and switches");
+        compare(switchSpy.signalArguments[0][0], ids[1], "accumulated notch moves to the next desktop");
+    }
+
+    // Real wheel EVENTS (not just calling handleWheel) — these exercise the actual path
+    // that was broken in-shell: a MouseArea behind the dots receives the wheel because the
+    // dots have no onWheel, so it propagates down. mouseWheel(item, x, y, xDelta, yDelta).
+    function test_wheelEventStepsNext() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);   // wheel down over the strip
+        compare(switchSpy.count, 1, "a real wheel event switches");
+        compare(switchSpy.signalArguments[0][0], ids[1], "wheel down moves to the next desktop");
+    }
+
+    function test_wheelEventDisabledIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);
+        compare(switchSpy.count, 0, "a real wheel event does nothing when scroll is disabled");
+    }
+
+    // Wheel events must not block clicks: clicking a dot still switches to it (the wheel
+    // MouseArea is NoButton, so press/release pass through to the dot beneath).
+    function test_wheelLayerDoesNotBlockClicks() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        const dot = dotByUuid(indicator, ids[0]);
+        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        mouseClick(indicator, c.x, c.y);
+        compare(switchSpy.count, 1, "clicking a dot still works with the wheel layer present");
+        compare(switchSpy.signalArguments[0][0], ids[0], "the clicked dot's UUID is forwarded");
+    }
+
+    // --- Milestone 3: panel sizing ------------------------------------------------
+    // The applet collapsed to a square cell in-shell (dots overflowed the neighbours) when
+    // the representation advertised only implicitWidth. The indicator must expose its
+    // content width through Layout.* hints so the panel allocates the right space.
+    function test_advertisesWidthViaLayout() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
+        verify(indicator.implicitWidth > 0, "indicator has a positive content width");
+        compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth advertises the content width");
+        compare(indicator.Layout.minimumWidth, indicator.implicitWidth, "minimumWidth advertises the content width");
+        compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the width (a pager does not stretch)");
+    }
+
+    // --- Milestone 3: per-dot tooltip data ----------------------------------------
+    // Tooltips live per-dot now; the indicator feeds each dot its name and the flag.
+
+    function test_dotsReceiveDesktopName() {
+        const names = ["One", "Two", "Three"];
+        const indicator = makeIndicator(makeMock(ids, currentUuid, names));
+        for (let i = 0; i < ids.length; i++) {
+            const dot = dotByUuid(indicator, ids[i]);
+            compare(dot.desktopName, names[i], "dot " + i + " gets its index-aligned name");
+        }
+    }
+
+    // robustness.md: names can lag ids during an add/remove — the dot gets "" (no OOB).
+    function test_dotDesktopNameGuardsShortNames() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid, ["One"]));   // names shorter than ids
+        compare(dotByUuid(indicator, ids[2]).desktopName, "", "missing name resolves to empty string");
+    }
+
+    function test_showTooltipsPropagatesToDots() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid, ["One", "Two", "Three"]), { showTooltips: false });
+        verify(!dotByUuid(indicator, ids[0]).showTooltips, "showTooltips=false reaches the dots");
+
+        indicator.showTooltips = true;
+        verify(dotByUuid(indicator, ids[0]).showTooltips, "toggling showTooltips updates the dots reactively");
     }
 }
