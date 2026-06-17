@@ -4,15 +4,18 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * SCAFFOLD ONLY. Renders a placeholder so the widget loads and claims panel space.
+ * The dot strip. Milestone 1: a horizontal Row of WorkspaceDot, one per virtual
+ * desktop, bound live to VirtualDesktopInfo (read state) and reporting clicks up
+ * to main.qml (which owns the KWin DBus write). The Item root is kept as the
+ * container that Milestone 2's sliding "pill" overlay will sit inside.
  *
- * TODO(impl):
- *   - Row (horizontal panel) / Column (vertical panel) of WorkspaceDot via a
- *     Repeater bound to vdi.desktopIds.
- *   - A single "pill" overlay Rectangle positioned over the active dot, animated
- *     with Behavior on x / Behavior on width for the GNOME slide effect.
- *   - MouseArea { onWheel: ... } to scroll between desktops (gated by config).
- *   - Spacing/size driven by plasmoid.configuration.* and Kirigami.Units.
+ * Data + DBus live in main.qml (see CLAUDE.md architecture); this component only
+ * lays out and forwards intent — it never caches or switches desktops itself.
+ *
+ * TODO(M2):  pill overlay Rectangle over the active dot, animated via Behavior.
+ * TODO(M3):  MouseArea { onWheel: ... } scroll-to-switch (gated by config).
+ * TODO(M4):  Row (horizontal) vs Column (vertical) on Plasmoid.formFactor.
+ * TODO(M5):  size/spacing from plasmoid.configuration.* instead of Kirigami.Units.
  */
 pragma ComponentBehavior: Bound
 
@@ -22,15 +25,41 @@ import org.kde.kirigami as Kirigami
 Item {
     id: indicator
 
-    // Placeholder footprint so the empty scaffold is visible in the panel / plasmawindowed.
-    implicitWidth: Kirigami.Units.iconSizes.small + Kirigami.Units.largeSpacing * 2
-    implicitHeight: Kirigami.Units.iconSizes.small
+    // Reactive read-only desktop state, supplied by main.qml (a VirtualDesktopInfo).
+    // NOT `required`: Plasma instantiates representations via its own loader, where a
+    // required property on the representation root fails creation silently. Default
+    // null + guard instead (robustness.md: guard transient null state).
+    property var virtualDesktopInfo: null
 
-    Kirigami.Icon {
+    // Raised when a dot is clicked; main.qml turns the UUID into a KWin switch.
+    signal switchRequested(string uuid)
+
+    // Advertise size so the panel allocates space (count × dotSize + gaps).
+    implicitWidth: row.implicitWidth
+    implicitHeight: row.implicitHeight
+
+    Row {
+        id: row
         anchors.centerIn: parent
-        width: Kirigami.Units.iconSizes.small
-        height: width
-        source: "user-desktop"
-        opacity: 0.5
+        spacing: Kirigami.Units.smallSpacing
+
+        Repeater {
+            // desktopIds can be momentarily null/empty during a desktop add/remove
+            // or shell reload — guard before binding it as the model (robustness.md).
+            model: indicator.virtualDesktopInfo ? indicator.virtualDesktopInfo.desktopIds : []
+
+            delegate: WorkspaceDot {
+                id: workspaceDot
+
+                required property string modelData
+                required property int index
+
+                desktopId: workspaceDot.modelData
+                desktopIndex: workspaceDot.index
+                active: indicator.virtualDesktopInfo && indicator.virtualDesktopInfo.currentDesktop === workspaceDot.modelData
+
+                onActivated: indicator.switchRequested(workspaceDot.modelData)
+            }
+        }
     }
 }
