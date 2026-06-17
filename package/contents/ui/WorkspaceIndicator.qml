@@ -4,15 +4,21 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The dot strip — the signature GNOME look via a REFLOW model: a Grid of WorkspaceDot
- * elements (a single row on a horizontal panel, a single column on a vertical one) with a
- * SINGLE UNIFORM spacing between every pair. Each element renders as a dim dot when inactive
- * and morphs into a longer highlighted "capsule" (the pill) along the major axis when active —
- * there is no separate overlay. Switching morphs two elements (old capsule → dot, new dot →
- * capsule) and the strip reflows between them. Because the active element is a real, uniformly-
- * spaced strip child, the capsule can NEVER overlap or clip a neighbour — so no overhang /
- * clearance math, and the pill-to-dot gap equals the dot-to-dot gap (what an overlay pill
- * could not achieve). No clip / layer is needed (see qml-performance.md).
+ * The dot strip — the signature GNOME look via a REFLOW model. Each WorkspaceDot renders as a dim
+ * dot when inactive and morphs into a longer highlighted "capsule" (the pill) along the major axis
+ * when active — there is no separate overlay. Switching morphs two elements (old capsule → dot, new
+ * dot → capsule) and the line reflows between them with a SINGLE UNIFORM spacing between every pair,
+ * so the capsule can NEVER overlap or clip a neighbour (no overhang/clearance math) and the
+ * pill-to-dot gap equals the dot-to-dot gap. No clip / layer is needed (see qml-performance.md).
+ *
+ * Layout follows the panel and KWin's desktop grid. `vertical` (from Plasmoid.formFactor, via
+ * main.qml) picks the major axis: a horizontal panel lays each line out as a Row, a vertical one as
+ * a Column. KWin's row count (VirtualDesktopInfo.desktopLayoutRows) splits the desktops into that
+ * many LINES — we mirror KWin's grid rather than add a widget setting — and each line is an
+ * independent single-line reflow strip, so a multi-row grid is just `lineCount` of those stacked
+ * along the cross axis. The default (1 row) is a single line. Lines are centred independently
+ * (a shorter/last line is narrower than the line holding the pill); keeping each row's exact
+ * dots+pill look is preferred over forcing column-alignment (which would need a wider active cell).
  *
  * Data + DBus live in main.qml (see CLAUDE.md architecture); this component only
  * lays out and forwards intent — it never caches or switches desktops itself. It
@@ -29,13 +35,13 @@
  * so it stays free of org.kde.plasma.* and remains headless-testable.
  *
  * Sizing: a panel allocates an applet's space from the representation's Layout.* hints, so the
- * indicator PINS its content length along the major axis (Layout.minimum/preferred/maximum) and
- * leaves the cross axis FREE to fill the panel thickness (not implicitWidth alone — a panel
- * otherwise gives the inline full-representation a default square cell and the dots overflow onto
- * the neighbours). The pinned length is a FORMULA (one capsule + the rest dots) so the panel cell
- * stays put during the morph and when no element is active (a single switch conserves total length:
- * the shrinking and growing elements cancel). `vertical` (from Plasmoid.formFactor, via main.qml)
- * decides which axis is pinned — width for a horizontal panel, height for a vertical one.
+ * indicator PINS one line's length along the major axis (Layout.minimum/preferred/maximum) and
+ * carries the lines on the cross axis with its maximum left FREE to fill the panel thickness (not
+ * implicitWidth alone — a panel otherwise gives the inline full-representation a default square cell
+ * and the dots overflow onto the neighbours). The pinned length is a FORMULA (one capsule + the rest
+ * of a full line's dots) so the panel cell stays put during a morph and when no element is active
+ * (a switch conserves total length: the shrinking and growing elements cancel). Which axis is the
+ * major one swaps with `vertical` — width for a horizontal panel, height for a vertical one.
  *
  * TODO(M5):  metrics (dotSize/spacingFactor/pillWidthFactor/inactiveOpacity) + colours
  *            from plasmoid.configuration.* instead of the Kirigami defaults below.
@@ -85,8 +91,21 @@ Item {
     // notch; touchpads send fractions of this that accumulate). Passed to Logic.accumulateWheel.
     readonly property int wheelNotchDelta: 120
 
-    // Number of desktops (drives the stable implicitWidth formula below).
+    // Number of desktops (drives the stable size formula below).
     readonly property int desktopCount: desktopIds.length
+
+    // KWin's desktop-grid row count (System Settings → Virtual Desktops → "Rows"), read live
+    // from VirtualDesktopInfo — null-guarded, and clamped to ≥1 so a transient 0/undefined reads
+    // as a single line. We MIRROR KWin's grid rather than add our own setting: change "Rows" there
+    // and the strip re-lays out reactively. The default (1) is a single line — today's behaviour.
+    readonly property int desktopRows: virtualDesktopInfo && virtualDesktopInfo.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1
+
+    // Desktops per line (KWin columns = ceil(count / rows)) and the row-major split of desktopIds
+    // into lines. Each line is rendered as an independent single-line reflow strip below, so the
+    // grid is just `lineCount` of those stacked — every row keeps the exact dots+pill look.
+    readonly property int perLine: Logic.gridColumns(desktopCount, desktopRows)
+    readonly property var lines: Logic.chunk(desktopIds, perLine)
+    readonly property int lineCount: lines.length
 
     // Index of the active element, or -1 when there is none to highlight. indexOf returns
     // -1 for every transient state — empty desktopIds, empty currentDesktop, or a
@@ -110,12 +129,14 @@ Item {
     readonly property real dotSpacing: dotSize * spacingFactor
 
     // Axis-neutral size primitives the orientation-aware sizing binds to. stripLength is the
-    // content extent along the MAJOR (strip) axis — one capsule + the rest dots + uniform gaps —
-    // as a FORMULA (not the live positioner length) so the panel cell never jitters during a morph
-    // or while activeIndex is transiently -1 (a switch conserves total length: the shrinking and
-    // growing elements cancel). crossThickness is the perpendicular extent — always one dot.
-    readonly property real stripLength: desktopCount > 0 ? pillWidth + (desktopCount - 1) * (dotSize + dotSpacing) : dotSize
-    readonly property real crossThickness: dotSize
+    // content extent along the MAJOR (line) axis — the longest a line can be: one capsule + the
+    // rest of that line's dots + uniform gaps (perLine dots, since full lines are the widest). A
+    // FORMULA, not the live positioner length, so the panel cell never jitters during a morph or
+    // while activeIndex is transiently -1 (a switch conserves total length). crossThickness is the
+    // perpendicular extent: lineCount lines of one dot each + the gaps between them (one dot when
+    // single-line — today's value). Both reduce to the M3 single-line formula when desktopRows == 1.
+    readonly property real stripLength: perLine > 0 ? pillWidth + (perLine - 1) * (dotSize + dotSpacing) : dotSize
+    readonly property real crossThickness: lineCount > 0 ? lineCount * dotSize + (lineCount - 1) * dotSpacing : dotSize
 
     // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
     // a KWin switch.
@@ -140,14 +161,15 @@ Item {
         indicator.switchRequested(uuid);
     }
 
-    // Advertise size so the panel allocates space. The MAJOR (strip) axis is PINNED to stripLength
-    // (min == preferred == max) so the panel gives the applet exactly its content length; the CROSS
-    // (thickness) axis is left FREE (preferred == crossThickness, maximum reset to -1, which Qt maps
-    // to the unconstrained Number.POSITIVE_INFINITY default) so the panel stretches it to the panel
-    // thickness and the centred Grid sits in the middle. A panel honours these Layout hints, not
-    // implicitWidth alone — without them the inline full-representation gets a default square cell and
-    // the dots overflow onto the neighbours. Swapping which axis is pinned is the whole of M4's sizing:
-    // horizontal pins width (the M3 behaviour, unchanged); vertical pins height.
+    // Advertise size so the panel allocates space. The MAJOR (line) axis is PINNED to stripLength
+    // (min == preferred == max) so the panel gives the applet exactly one line's content length; the
+    // CROSS axis carries the lineCount lines (preferred == crossThickness) but its maximum is reset to
+    // -1 (Qt maps that to the unconstrained Number.POSITIVE_INFINITY default), so the panel can still
+    // stretch it to the panel thickness with the centred grid in the middle, while min keeps room for
+    // every line. A panel honours these Layout hints, not implicitWidth alone — without them the inline
+    // full-representation gets a default square cell and the dots overflow onto the neighbours. Which
+    // axis is the major one swaps with `vertical`: a horizontal panel pins width (M3 behaviour when
+    // single-line); a vertical panel pins height.
     implicitWidth: vertical ? crossThickness : stripLength
     implicitHeight: vertical ? stripLength : crossThickness
     Layout.minimumWidth: vertical ? crossThickness : stripLength
@@ -186,46 +208,66 @@ Item {
         onWheel: wheel => indicator.handleWheel(wheel.angleDelta.y)
     }
 
-    // One positioner for both orientations: a single row when horizontal, a single column when
-    // vertical. Grid is a plain positioner (like Row/Column — no Layout solver), so it honours
-    // qml-performance.md, and in the 1-row case it positions identically to the old Row (uniform
-    // spacing, cross-axis-aligned children). Only the single-line dimension is constrained to 1;
-    // the other is left -1 (auto) so Grid derives it from the live child count — NOT from
-    // desktopCount, which would warn ("more items than rows×columns") for the frame where the
-    // Repeater and a count binding update out of step during an add/remove.
+    // Two nested positioners mirror KWin's desktop grid: the OUTER stacks the lines along the cross
+    // axis (the KWin rows), the INNER lays each line's dots along the major axis. Each inner line is
+    // exactly the single-line reflow strip (tight dots + in-place pill), so a multi-row grid is just
+    // `lineCount` of those stacked — every row keeps the current look, no column-alignment math.
+    // Grid (a plain positioner, no Layout solver — qml-performance.md) does both: only the line
+    // dimension is fixed to 1, the other is -1 (auto) so it tracks the live child count and never
+    // warns ("more items than rows×columns") during an add/remove. The 1/-1 pair flips with
+    // `vertical`: horizontal → lines stacked in a column, dots in rows; vertical → the transpose,
+    // so the longer (per-line) extent always runs along the panel's long axis.
     Grid {
         id: strip
         anchors.centerIn: parent
         spacing: indicator.dotSpacing
-        rows: indicator.vertical ? -1 : 1
-        columns: indicator.vertical ? 1 : -1
+        rows: indicator.vertical ? 1 : -1
+        columns: indicator.vertical ? -1 : 1
 
         Repeater {
-            // desktopIds is [] while the source is transiently null/empty (add/remove
-            // or shell reload), so the Repeater is empty and the delegate bindings below
-            // never see a missing source (robustness.md).
-            model: indicator.desktopIds
+            // `lines` is [] while the source is transiently null/empty (add/remove or shell
+            // reload), so the outer Repeater is empty and nothing below sees a missing source.
+            model: indicator.lines
 
-            delegate: WorkspaceDot {
-                id: workspaceDot
+            delegate: Grid {
+                id: lineStrip
 
-                required property string modelData
-                required property int index
+                required property var modelData    // this line's UUIDs (a row-major chunk)
+                required property int index        // line index (KWin row)
 
-                vertical: indicator.vertical
-                dotSize: indicator.dotSize
-                pillWidthFactor: indicator.pillWidthFactor
-                inactiveOpacity: indicator.inactiveOpacity
-                hoverOpacity: indicator.hoverOpacity
-                active: indicator.currentDesktop === workspaceDot.modelData
-                animate: indicator.animate
+                spacing: indicator.dotSpacing
+                rows: indicator.vertical ? -1 : 1
+                columns: indicator.vertical ? 1 : -1
 
-                // Feed each dot its tooltip name (|| "" guards the transient state where
-                // names lag ids during an add/remove — robustness.md) and the showTooltips flag.
-                desktopName: indicator.desktopNames[workspaceDot.index] || ""
-                showTooltips: indicator.showTooltips
+                Repeater {
+                    model: lineStrip.modelData
 
-                onActivated: indicator.switchRequested(workspaceDot.modelData)
+                    delegate: WorkspaceDot {
+                        id: workspaceDot
+
+                        required property string modelData
+                        required property int index
+
+                        // Position in the flat desktopIds/desktopNames: earlier lines are full at
+                        // perLine, so global = line * perLine + position-within-line.
+                        readonly property int globalIndex: lineStrip.index * indicator.perLine + workspaceDot.index
+
+                        vertical: indicator.vertical
+                        dotSize: indicator.dotSize
+                        pillWidthFactor: indicator.pillWidthFactor
+                        inactiveOpacity: indicator.inactiveOpacity
+                        hoverOpacity: indicator.hoverOpacity
+                        active: indicator.currentDesktop === workspaceDot.modelData
+                        animate: indicator.animate
+
+                        // Feed each dot its tooltip name (|| "" guards the transient state where
+                        // names lag ids during an add/remove — robustness.md) and the showTooltips flag.
+                        desktopName: indicator.desktopNames[workspaceDot.globalIndex] || ""
+                        showTooltips: indicator.showTooltips
+
+                        onActivated: indicator.switchRequested(workspaceDot.modelData)
+                    }
+                }
             }
         }
     }
