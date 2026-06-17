@@ -20,44 +20,53 @@ VERIFY:  per phase. Always run before calling a phase done:
  MILESTONE 0 — Scaffold & groundwork                                   [x] DONE
 -------------------------------------------------------------------------------
 Goal: installable, loadable empty widget + project conventions.
-  [x] Project structure (package/ + contents/ui + contents/config)
+  [x] Project structure (package/ + contents/ui)
   [x] metadata.json (id, X-Plasma-API-Minimum-Version 6.0, provides virtualdesktops)
   [x] Stub PlasmoidItem main.qml + WorkspaceIndicator/WorkspaceDot placeholders
-  [x] Config schema main.xml (all entries) + config.qml categories + stub pages
+  [ ] Config subsystem deferred to M5 — scaffold (main.xml + config.qml + stub pages)
+      removed as unused (YAGNI); add it when settings actually drive the widget
   [x] README, Makefile (dev/test/restart/install), LICENSE, .gitignore
   [x] .claude/rules/* best-practice rulesets
 
 
 -------------------------------------------------------------------------------
- MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [ ]
+ MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [x] DONE
 -------------------------------------------------------------------------------
 Goal: N plain dots that reflect the real desktops and switch on click. Proves the
 public-API approach end-to-end before any polish. (ref: virtual-desktops.md)
-  [ ] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
+  [x] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
       desktopIds, desktopNames, numberOfDesktops)
-  [ ] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
-      "current" property (UUID). Keep legacy setCurrentDesktop(int) as commented fallback.
-  [ ] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
-  [ ] WorkspaceDot: required props (desktopId, active, index) + MouseArea -> activated()
-  [ ] Wire dot click -> root.switchTo(desktopId); guard empty/null ids (robustness.md)
-  [ ] Advertise size: implicitWidth/Height from dot count * size + spacing
+  [x] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
+      "current" property (UUID). (legacy setCurrentDesktop(int) fallback: virtual-desktops.md)
+  [x] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
+  [x] WorkspaceDot: property (active) + MouseArea -> activated()
+  [x] Wire dot click -> switchRequested(uuid) -> root.switchTo(uuid); guard empty/null ids
+  [x] Advertise size: implicitWidth/Height from dot count * size + spacing
 VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
         keyboard (Ctrl+F1/F2) updates the active dot (reactive binding works).
 
 
 -------------------------------------------------------------------------------
- MILESTONE 2 — GNOME visual identity: dots + sliding pill                [ ]
+ MILESTONE 2 — GNOME visual identity: dots + sliding pill                [x] DONE
 -------------------------------------------------------------------------------
 Goal: the signature look — dim circles + a wider pill on the current desktop that
 slides between positions. Horizontal panel first. (ref: kirigami.md, qml-performance.md)
-  [ ] Inactive dot: Rectangle radius=h/2, Kirigami.Theme.textColor @ ~0.45 opacity
-  [ ] Active pill: single overlay Rectangle (rounded, wider) over the active dot
-  [ ] Bind pill x/width to the active dot geometry; Behavior on x/width (NumberAnimation)
-      for the slide — duration from Kirigami.Units (guard 0 when animations disabled)
-  [ ] Pill color = Kirigami.Theme.highlightColor (theme-following by default)
-  [ ] Size everything via Kirigami.Units (HiDPI); no hardcoded px
+  [x] Inactive dot: Rectangle radius=h/2, Kirigami.Theme.textColor @ ~0.45 opacity
+  [x] Active pill: single overlay Rectangle (rounded, wider) over the active dot. Pill
+      length and dot spacing are DECOUPLED — pillWidthFactor sets the length, dotSpacing is
+      derived (pillOverhang + pillEndGap) so a longer pill keeps clearance and never covers
+      neighbours; the indicator pads a half-pill overhang at each end so it never clips.
+  [x] Bind pill x to the active dot geometry; Behavior on x (NumberAnimation, OutCubic)
+      for the slide — duration from Kirigami.Units (guard 0 when animations disabled).
+      slideEnabled latch (Qt.callLater) → instant first placement, animate later switches.
+      (pill width is constant in M2 — Behavior on width deferred to M4 vertical/size anim)
+  [x] Pill color = Kirigami.Theme.highlightColor (theme-following by default)
+  [x] Size everything via Kirigami.Units (HiDPI); no hardcoded px (pillWidthFactor 2.5,
+      pillEndGap, inactiveOpacity 0.45 are dimensionless ratios, M5-configurable)
 VERIFY: matches GNOME feel; pill slides smoothly on switch; follows color scheme;
         looks correct on HiDPI / fractional scaling.
+        DONE: make check (13 tests, incl. pill geometry/visibility/colour/no-overlap) +
+        make lint clean. In-shell smoke test (make dev/test/restart) is the user's manual step.
 
 
 -------------------------------------------------------------------------------
@@ -94,6 +103,8 @@ VERIFY: move widget between top/bottom panel, a side panel, and the desktop — 
 -------------------------------------------------------------------------------
 Goal: expose every main.xml entry and make it actually drive the widget.
 (ref: plasmoid.md config section, kirigami.md)
+  [ ] Create the config subsystem (removed in M0 cleanup): contents/config/main.xml
+      (all entries) + contents/config/config.qml categories
   [ ] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
       showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases
   [ ] ConfigAppearance.qml (Appearance): dotSize, dotSpacing, pillWidthFactor,

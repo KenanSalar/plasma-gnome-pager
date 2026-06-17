@@ -61,17 +61,21 @@ PlasmoidItem {
     toolTipMainText: i18n("Workspaces")     // direct property of the root now
     Plasmoid.icon: "user-desktop"           // Plasmoid attached prop for title/icon/etc
 
-    preferredRepresentation: compactRepresentation
-    compactRepresentation: WorkspaceIndicator {}
-    // fullRepresentation: ...              // optional; only if a popup is wanted
+    fullRepresentation: WorkspaceIndicator {}      // the content IS the full representation
+    preferredRepresentation: fullRepresentation    // force it inline (never a popup/compact icon)
 }
 ```
 
 - **Root must be `PlasmoidItem`** (or `ContainmentItem`). Plain `Item` is the Plasma 5 form.
 - **Representations are direct properties** of the root: `compactRepresentation`,
   `fullRepresentation`, `preferredRepresentation`. If neither is set, the root *is* the full
-  representation. A panel pager renders inline, so make the indicator the
-  `compactRepresentation` and set `preferredRepresentation: compactRepresentation`.
+  representation.
+- **A `fullRepresentation` is mandatory** for an inline panel widget. A Plasma 6 applet that
+  defines **only** a `compactRepresentation` instantiates **no representation at all** —
+  nothing renders, with no error in the journal. So for a pager that always shows inline, make
+  the indicator the `fullRepresentation` and set `preferredRepresentation: fullRepresentation`
+  (never a popup, never the default compact icon). Confirmed against
+  develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 - `toolTipMainText` / `toolTipSubText` are properties of the root `PlasmoidItem`.
 - The `Plasmoid` **attached property** still carries `Plasmoid.title`, `Plasmoid.icon`,
   `Plasmoid.formFactor`, `Plasmoid.location`, `Plasmoid.configuration`,

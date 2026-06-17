@@ -32,20 +32,20 @@ plasma-gnome-pager/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── tests/                   # headless QML unit tests (not shipped in the package)
+│   ├── README.md
+│   └── tst_workspaceindicator.qml
 └── package/                 # the KPackage (this is what gets installed)
     ├── metadata.json
     └── contents/
-        ├── ui/
-        │   ├── main.qml             # PlasmoidItem root, data sources, DBus helpers
-        │   ├── WorkspaceIndicator.qml  # row/column of dots + sliding pill
-        │   ├── WorkspaceDot.qml        # one dot
-        │   └── config/
-        │       ├── ConfigGeneral.qml   # behavior settings page
-        │       └── ConfigAppearance.qml# appearance settings page
-        └── config/
-            ├── config.qml          # settings categories
-            └── main.xml            # settings schema
+        └── ui/
+            ├── main.qml             # PlasmoidItem root, data sources, DBus helpers
+            ├── WorkspaceIndicator.qml  # row/column of dots + sliding pill
+            └── WorkspaceDot.qml        # one dot
 ```
+
+> The config subsystem (`contents/config/` schema + settings pages) is deferred to
+> Milestone 5; it will be added when settings actually drive the widget.
 
 ## Development
 
@@ -53,6 +53,8 @@ plasma-gnome-pager/
 make dev        # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
 make test       # run the widget standalone in a window (shows QML errors in the terminal)
 make restart    # reload plasmashell to pick up changes in the panel
+make check      # run the headless QML unit tests (see tests/README.md)
+make lint       # qmllint the widget UI
 make dev-undev  # remove the dev symlink
 ```
 

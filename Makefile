@@ -5,7 +5,7 @@ PLASMOID_ID := com.github.kenansalar.plasma-gnome-pager
 PKG_DIR     := package
 PLASMOID_DIR := $(HOME)/.local/share/plasma/plasmoids/$(PLASMOID_ID)
 
-.PHONY: help install update uninstall dev dev-undev test restart
+.PHONY: help install update uninstall dev dev-undev test restart check check-unit check-integration lint
 
 help:
 	@echo "Targets:"
@@ -13,6 +13,10 @@ help:
 	@echo "  make dev-undev  Remove the dev symlink"
 	@echo "  make test       Run the widget standalone (plasmawindowed); shows QML errors"
 	@echo "  make restart    Reload plasmashell to pick up changes in the panel"
+	@echo "  make check      Run all headless QML tests (unit + integration)"
+	@echo "  make check-unit Run only the unit tests (tests/unit)"
+	@echo "  make check-integration  Run only the integration tests (tests/integration)"
+	@echo "  make lint       qmllint the widget UI (two benign warnings expected; see CLAUDE.md)"
 	@echo "  make install    Install the package with kpackagetool6"
 	@echo "  make update     Upgrade the installed package"
 	@echo "  make uninstall  Remove the installed package"
@@ -41,3 +45,20 @@ test:
 
 restart:
 	kquitapp6 plasmashell && (kstart plasmashell &)
+
+# Headless QML tests. offscreen QPA lets Kirigami initialise without a display;
+# -input scans the given dir for every tst_*.qml. The suite is split by tier
+# (tests/unit, tests/integration); main.qml/PlasmoidItem is not tested here
+# (needs plasmashell + KWin + DBus) — see tests/README.md for the taxonomy.
+check: check-unit check-integration
+
+check-unit:
+	QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input $(CURDIR)/tests/unit
+
+check-integration:
+	QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input $(CURDIR)/tests/integration
+
+# Two warnings are expected non-defects (i18n flagged unqualified; DBus.* ctors
+# flagged unresolved-type) — see CLAUDE.md "Verifying a change".
+lint:
+	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml
