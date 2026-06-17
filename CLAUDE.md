@@ -46,18 +46,19 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 
 > **Gotcha (M1) — DBus typed-arg constructors are lowercase, and `variant` takes a _plain_ value.**
 > The `org.kde.plasma.workspace.dbus` module exports `new DBus.string(s)`, `new DBus.int32(n)`,
-> `new DBus.uint32(n)`, `new DBus.variant(v)`, etc. (verified from `dbusplugin.qmltypes`).
-> `virtual-desktops.md` is wrong twice here:
-> 1. It says `new DBus.QDBusVariant(...)` — **that type does not exist**; it evaluates to `undefined`
->    and throws `TypeError: Type error` at call time (qmllint also flags it `unresolved-type`).
-> 2. Its variant must wrap a **plain JS value**, not another DBus wrapper. `VARIANT`'s constructor
->    takes a `QJSValue`, so `new DBus.variant(new DBus.string(uuid))` wraps a *gadget object* and
->    KWin silently rejects the type — the call is dropped with no error and nothing switches.
+> `new DBus.uint32(n)`, `new DBus.variant(v)`, etc. (verified from `dbusplugin.qmltypes`). Two
+> traps:
+> 1. There is **no** `DBus.QDBusVariant` type — it evaluates to `undefined` and throws
+>    `TypeError: Type error` at call time (qmllint also flags it `unresolved-type`).
+> 2. `new DBus.variant(...)` must wrap a **plain JS value**, not another DBus wrapper. Its
+>    constructor takes a `QJSValue`, so `new DBus.variant(new DBus.string(uuid))` wraps a *gadget
+>    object* and KWin silently rejects the type — the call is dropped with no error and nothing
+>    switches. Pass the bare string: `new DBus.variant(uuid)`.
 >
 > Correct switch-to-desktop call (verified working end-to-end):
 > `"arguments": [new DBus.string("org.kde.KWin.VirtualDesktopManager"), new DBus.string("current"), new DBus.variant(uuid)]`
-> on `iface: "org.freedesktop.DBus.Properties", member: "Set"`. (`virtual-desktops.md` not yet
-> corrected — trust this.) Validate a DBus shape independently with
+> on `iface: "org.freedesktop.DBus.Properties", member: "Set"`. Validate a DBus shape
+> independently with
 > `busctl --user call org.kde.KWin /VirtualDesktopManager org.freedesktop.DBus.Properties Set ssv "org.kde.KWin.VirtualDesktopManager" "current" s "<uuid>"`.
 
 **Representation model** — a panel pager renders inline, so the dot strip is the applet's
@@ -71,14 +72,10 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 > **no representation at all**: `compactRepresentationItem`/`fullRepresentationItem` stay `null`,
 > nothing renders, `expanded` is stuck `true`, and there is **no error** in the journal — the
 > widget just silently shows nothing. The moment a `fullRepresentation` exists, the compact one
-> instantiates too. So the original scaffold idiom (`compactRepresentation` +
-> `preferredRepresentation: compactRepresentation`, as `plasmoid.md` still describes) is **wrong**
-> for a standalone inline widget and was never actually rendering. The working idiom is the
-> inverse: make the content the `fullRepresentation` and set
-> `preferredRepresentation: fullRepresentation` so it always shows inline (never a popup, never
-> the default compact icon). Confirmed against develop.kde.org/docs/plasma/widget ("display
-> widget directly in panel"). NOTE: `plasmoid.md` has **not** been rewritten — trust this section
-> over it for representations until that rule is updated.
+> instantiates too. The working idiom for a standalone inline widget: make the content the
+> `fullRepresentation` and set `preferredRepresentation: fullRepresentation` so it always shows
+> inline (never a popup, never the default compact icon). Confirmed against
+> develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 
 **Config flow** — three files must agree:
 - `package/contents/config/main.xml` (KConfigXT schema) — each `<entry name="X">` becomes

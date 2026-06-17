@@ -44,14 +44,6 @@ public-API approach end-to-end before any polish. (ref: virtual-desktops.md)
 VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
         keyboard (Ctrl+F1/F2) updates the active dot (reactive binding works).
 
-NOTE (M1, important — two rule files are factually wrong, see CLAUDE.md):
-  * A fullRepresentation is MANDATORY. The dot strip is the fullRepresentation with
-    preferredRepresentation: fullRepresentation. A compact-only applet (as plasmoid.md
-    and the original scaffold prescribed) renders NOTHING with no error.
-  * switchTo's variant takes a PLAIN string: new DBus.variant(uuid) — NOT
-    new DBus.QDBusVariant(...) (no such type) and NOT new DBus.variant(new DBus.string(uuid))
-    (wraps a gadget; KWin silently drops it). virtual-desktops.md is wrong on both.
-
 
 -------------------------------------------------------------------------------
  MILESTONE 2 — GNOME visual identity: dots + sliding pill                [ ]
