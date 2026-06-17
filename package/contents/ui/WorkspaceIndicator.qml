@@ -72,9 +72,13 @@ Item {
     property bool scrollWrap: false
     property bool showTooltips: true   // passed down to each dot's tooltip
 
-    // Running total of hi-res/touchpad wheel deltas; whole 120-unit notches become steps
-    // (the remainder carries so sub-notch touchpad motion is not lost). See Logic.accumulateWheel.
+    // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder
+    // carries so sub-notch touchpad motion is not lost). See Logic.accumulateWheel.
     property real wheelAccumulator: 0
+
+    // Standard Qt angleDelta units per wheel notch (QWheelEvent reports ±120 for one mouse
+    // notch; touchpads send fractions of this that accumulate). Passed to Logic.accumulateWheel.
+    readonly property int wheelNotchDelta: 120
 
     // Number of desktops (drives the stable implicitWidth formula below).
     readonly property int desktopCount: desktopIds.length
@@ -109,7 +113,7 @@ Item {
     function handleWheel(angleDeltaY: real) {
         if (!indicator.enableScroll)
             return;
-        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY, 120);
+        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY, indicator.wheelNotchDelta);
         indicator.wheelAccumulator = acc.remainder;
         if (acc.steps === 0)
             return;   // sub-notch motion accumulated; nothing to do yet

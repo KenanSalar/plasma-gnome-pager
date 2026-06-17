@@ -52,6 +52,11 @@ Item {
     // element does not "grow in" from a dot on first render / shell reload.
     property bool animate: false
 
+    // Whether the morph Behaviors below run: only after the first placement (animate) AND when
+    // animations are enabled (longDuration > 0; reduce-animations → 0 → instant). One source of
+    // truth for the three identical Behavior gates.
+    readonly property bool morphEnabled: dot.animate && Kirigami.Units.longDuration > 0
+
     // True while the pointer is over the element (qml.md: expose internals via alias).
     readonly property alias hovered: mouseArea.containsMouse
 
@@ -86,24 +91,24 @@ Item {
             color: dot.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
             opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.inactiveOpacity, dot.hoverOpacity)
 
-            // The morph. Gated off on first placement (dot.animate) and when the user has turned
-            // animations off (longDuration === 0 → instant). Initial property values never
-            // animate, so an element born active is a capsule on frame 0 regardless.
+            // The morph. Gated by dot.morphEnabled (off on first placement, and when the user has
+            // turned animations off → instant). Initial property values never animate, so an
+            // element born active is a capsule on frame 0 regardless.
             Behavior on width {
-                enabled: dot.animate && Kirigami.Units.longDuration > 0
+                enabled: dot.morphEnabled
                 NumberAnimation {
                     duration: Kirigami.Units.longDuration
                     easing.type: Easing.OutCubic
                 }
             }
             Behavior on color {
-                enabled: dot.animate && Kirigami.Units.longDuration > 0
+                enabled: dot.morphEnabled
                 ColorAnimation {
                     duration: Kirigami.Units.longDuration
                 }
             }
             Behavior on opacity {
-                enabled: dot.animate && Kirigami.Units.longDuration > 0
+                enabled: dot.morphEnabled
                 NumberAnimation {
                     duration: Kirigami.Units.longDuration
                 }
