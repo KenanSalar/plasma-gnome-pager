@@ -102,13 +102,13 @@ TestCase {
         fuzzyCompare(r.remainder, data.rem, 0.001, data.tag + " remainder");
     }
 
-    // --- dotOpacity: hover brightens, but is suppressed while active ----------------
+    // --- dotOpacity: active is full strength; hover brightens inactive only ---------
     function test_dotOpacity_data() {
         return [
             { tag: "idle", active: false, hovered: false, exp: 0.45 },
             { tag: "hovered", active: false, hovered: true, exp: 0.8 },
-            { tag: "active-not-hovered", active: true, hovered: false, exp: 0.45 },
-            { tag: "active-and-hovered-suppressed", active: true, hovered: true, exp: 0.45 }
+            { tag: "active-not-hovered", active: true, hovered: false, exp: 1.0 },
+            { tag: "active-and-hovered", active: true, hovered: true, exp: 1.0 }
         ];
     }
     function test_dotOpacity(data) {
