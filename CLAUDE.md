@@ -8,8 +8,8 @@ A **GNOME-style virtual-desktop pager** for KDE Plasma 6 panels — small dots w
 "pill" over the current workspace. It is a **pure-QML KPackage plasmoid** (no compiled C++,
 no build step): plasmashell interprets the QML directly. "Building" means installing or
 symlinking the `package/` directory; there is no compiler. There **is** a headless QML
-unit-test harness (`make check` — see "Verifying a change"), though it covers only the
-Kirigami-only components, not `main.qml`.
+test harness (`make check` — see "Verifying a change"), split into **unit** and
+**integration** tiers, though it covers only the Kirigami-only components, not `main.qml`.
 
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; a wider highlight "pill" slides over the active dot. Not built yet:
@@ -83,7 +83,8 @@ change the dot's look.
 > two, so a longer pill forced wider dot spacing — do not reintroduce it. The indicator reserves
 > a half-pill `pillOverhang` at each end so the pill never clips. The metrics (`dotSize`,
 > `pillWidthFactor`, `inactiveOpacity`, `pillEndGap`) are named to match the keys the settings UI
-> will expose. `tst_workspaceindicator.qml::test_pillDoesNotCoverNeighbours` guards the
+> will expose.
+> `tests/integration/tst_workspaceindicator.qml::test_pillDoesNotCoverNeighbours` guards the
 > no-overlap invariant.
 
 > **Gotcha — animate the first *placement*, not the first frame.** The pill slide is gated by a
@@ -124,7 +125,8 @@ Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pa
 make dev        # symlink package/ -> ~/.local/share/plasma/plasmoids/<id> for live editing
 make test       # plasmawindowed <id> — run standalone; QML errors print to the terminal
 make restart    # kquitapp6 plasmashell && kstart plasmashell — reload the real panel
-make check      # headless QML unit tests: QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests
+make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
+make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
 make lint       # qmllint-qt6 package/contents/ui/*.qml
 make dev-undev  # remove the dev symlink
 make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove
@@ -144,15 +146,18 @@ runtime on a new Plasma version.
 
 ## Verifying a change
 
-There is a headless QML unit-test harness (`tests/`, run with `make check`) but it can only
-cover the Kirigami-only components (`WorkspaceIndicator`, `WorkspaceDot`) — driven by a
-`QtObject` mock standing in for `VirtualDesktopInfo`. `main.qml`/`PlasmoidItem` is **not**
-unit-testable (it needs plasmashell + KWin + a session bus), so it still relies on the manual
-in-shell loop below. New logic should come with a test (see `tests/README.md`); when branching
-logic is added, extract it into a pure-JS tier (`logic.js` + `tst_logic.qml`) that needs no
-Plasma deps. The verification loop (also in `TODO.txt`) is:
+There is a headless QML test harness (`tests/`, run with `make check`) split into two tiers:
+**unit** (`tests/unit/`, one component in isolation, e.g. `WorkspaceDot`) and **integration**
+(`tests/integration/`, components composed + reactive wiring, e.g. `WorkspaceIndicator` driven
+by a `QtObject` mock standing in for `VirtualDesktopInfo`). Run a single tier with
+`make check-unit` / `make check-integration`. It can only cover the Kirigami-only components;
+`main.qml`/`PlasmoidItem` is **not** testable headless (it needs plasmashell + KWin + a session
+bus), so it still relies on the manual in-shell loop below. New logic should come with a test
+(see `tests/README.md`); when branching logic is added, extract it into a pure-JS tier
+(`logic.js` + `tests/unit/tst_logic.qml`) that needs no Plasma deps. The verification loop
+(also in `TODO.txt`) is:
 
-1. `make check` — unit tests green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
+1. `make check` — all tiers green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
 2. `make lint` (`qmllint-qt6 …`) clean (no warnings). Two warnings are **expected non-defects**
    and can be ignored: `i18n(...)` flagged `unqualified` (a plasmoid global) and any `DBus.*`
    constructor flagged `unresolved-type` (runtime JS types the plugin provides).
