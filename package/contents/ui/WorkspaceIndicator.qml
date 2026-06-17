@@ -4,12 +4,13 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The dot strip — the signature GNOME look via a REFLOW model: a Row of WorkspaceDot
- * elements with a SINGLE UNIFORM spacing between every pair. Each element renders as a dim
- * dot when inactive and morphs into a wider highlighted "capsule" (the pill) when active —
+ * The dot strip — the signature GNOME look via a REFLOW model: a Grid of WorkspaceDot
+ * elements (a single row on a horizontal panel, a single column on a vertical one) with a
+ * SINGLE UNIFORM spacing between every pair. Each element renders as a dim dot when inactive
+ * and morphs into a longer highlighted "capsule" (the pill) along the major axis when active —
  * there is no separate overlay. Switching morphs two elements (old capsule → dot, new dot →
- * capsule) and the Row reflows between them. Because the active element is a real, uniformly-
- * spaced Row child, the capsule can NEVER overlap or clip a neighbour — so no overhang /
+ * capsule) and the strip reflows between them. Because the active element is a real, uniformly-
+ * spaced strip child, the capsule can NEVER overlap or clip a neighbour — so no overhang /
  * clearance math, and the pill-to-dot gap equals the dot-to-dot gap (what an overlay pill
  * could not achieve). No clip / layer is needed (see qml-performance.md).
  *
@@ -27,16 +28,15 @@
  * (showing desktopName); the indicator just feeds every dot its name + the showTooltips flag,
  * so it stays free of org.kde.plasma.* and remains headless-testable.
  *
- * Sizing: a panel allocates an applet's space from the representation's Layout.* hints, so
- * the indicator advertises its content width via Layout.minimum/preferred/maximumWidth (not
- * implicitWidth alone — a panel otherwise gives the inline full-representation a default
- * square cell and the dots overflow onto the neighbours). The advertised width is a FORMULA
- * (one capsule + the rest dots) so the panel cell stays put during the morph and when no
- * element is active (a single switch conserves total width: the shrinking and growing
- * elements cancel).
+ * Sizing: a panel allocates an applet's space from the representation's Layout.* hints, so the
+ * indicator PINS its content length along the major axis (Layout.minimum/preferred/maximum) and
+ * leaves the cross axis FREE to fill the panel thickness (not implicitWidth alone — a panel
+ * otherwise gives the inline full-representation a default square cell and the dots overflow onto
+ * the neighbours). The pinned length is a FORMULA (one capsule + the rest dots) so the panel cell
+ * stays put during the morph and when no element is active (a single switch conserves total length:
+ * the shrinking and growing elements cancel). `vertical` (from Plasmoid.formFactor, via main.qml)
+ * decides which axis is pinned — width for a horizontal panel, height for a vertical one.
  *
- * TODO(M4):  Row (horizontal) vs Column (vertical) on Plasmoid.formFactor; morph along the
- *            correct axis; swap the width Layout hints for height hints when vertical.
  * TODO(M5):  metrics (dotSize/spacingFactor/pillWidthFactor/inactiveOpacity) + colours
  *            from plasmoid.configuration.* instead of the Kirigami defaults below.
  */
@@ -72,6 +72,11 @@ Item {
     property bool scrollWrap: false
     property bool showTooltips: true   // passed down to each dot's tooltip
 
+    // Panel orientation, supplied by main.qml from Plasmoid.formFactor. false = horizontal row
+    // (also the Planar/desktop/floating default); true = vertical column. Default false keeps the
+    // standalone/headless behaviour — and every existing horizontal test — unchanged.
+    property bool vertical: false
+
     // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder
     // carries so sub-notch touchpad motion is not lost). See Logic.accumulateWheel.
     property real wheelAccumulator: 0
@@ -104,6 +109,14 @@ Item {
     readonly property real spacingFactor: 0.5            // uniform gap as a multiple of a dot (GNOME-tight)
     readonly property real dotSpacing: dotSize * spacingFactor
 
+    // Axis-neutral size primitives the orientation-aware sizing binds to. stripLength is the
+    // content extent along the MAJOR (strip) axis — one capsule + the rest dots + uniform gaps —
+    // as a FORMULA (not the live positioner length) so the panel cell never jitters during a morph
+    // or while activeIndex is transiently -1 (a switch conserves total length: the shrinking and
+    // growing elements cancel). crossThickness is the perpendicular extent — always one dot.
+    readonly property real stripLength: desktopCount > 0 ? pillWidth + (desktopCount - 1) * (dotSize + dotSpacing) : dotSize
+    readonly property real crossThickness: dotSize
+
     // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
     // a KWin switch.
     signal switchRequested(string uuid)
@@ -127,21 +140,22 @@ Item {
         indicator.switchRequested(uuid);
     }
 
-    // Advertise size so the panel allocates space, from a FORMULA (not the live Row width):
-    // exactly one element is the capsule at steady state, so width = one pillWidth + the rest
-    // dots + the uniform gaps. This stays constant during a morph (a single switch conserves
-    // total width) and when activeIndex is transiently -1 (no capsule), so the panel cell
-    // never jitters. A horizontal panel sizes the applet from these Layout hints (implicitWidth
-    // alone is not honoured for the inline full-representation — the panel would give it a
-    // default square cell and the content would overflow onto the neighbours). Height is left
-    // to the panel thickness; the Row is centred within it. (M4: swap to height hints when vertical.)
-    implicitWidth: desktopCount > 0 ? pillWidth + (desktopCount - 1) * (dotSize + dotSpacing) : dotSize
-    implicitHeight: dotSize
-    Layout.minimumWidth: implicitWidth
+    // Advertise size so the panel allocates space. The MAJOR (strip) axis is PINNED to stripLength
+    // (min == preferred == max) so the panel gives the applet exactly its content length; the CROSS
+    // (thickness) axis is left FREE (preferred == crossThickness, maximum reset to -1, which Qt maps
+    // to the unconstrained Number.POSITIVE_INFINITY default) so the panel stretches it to the panel
+    // thickness and the centred Grid sits in the middle. A panel honours these Layout hints, not
+    // implicitWidth alone — without them the inline full-representation gets a default square cell and
+    // the dots overflow onto the neighbours. Swapping which axis is pinned is the whole of M4's sizing:
+    // horizontal pins width (the M3 behaviour, unchanged); vertical pins height.
+    implicitWidth: vertical ? crossThickness : stripLength
+    implicitHeight: vertical ? stripLength : crossThickness
+    Layout.minimumWidth: vertical ? crossThickness : stripLength
     Layout.preferredWidth: implicitWidth
-    Layout.maximumWidth: implicitWidth
-    Layout.minimumHeight: implicitHeight
+    Layout.maximumWidth: vertical ? -1 : stripLength
+    Layout.minimumHeight: vertical ? stripLength : crossThickness
     Layout.preferredHeight: implicitHeight
+    Layout.maximumHeight: vertical ? stripLength : -1
 
     // Gate the morph so the FIRST valid placement is instant (the active element is already a
     // capsule on frame 0 — no grow-in from a dot on shell reload) while later switches animate.
@@ -172,10 +186,19 @@ Item {
         onWheel: wheel => indicator.handleWheel(wheel.angleDelta.y)
     }
 
-    Row {
-        id: row
+    // One positioner for both orientations: a single row when horizontal, a single column when
+    // vertical. Grid is a plain positioner (like Row/Column — no Layout solver), so it honours
+    // qml-performance.md, and in the 1-row case it positions identically to the old Row (uniform
+    // spacing, cross-axis-aligned children). Only the single-line dimension is constrained to 1;
+    // the other is left -1 (auto) so Grid derives it from the live child count — NOT from
+    // desktopCount, which would warn ("more items than rows×columns") for the frame where the
+    // Repeater and a count binding update out of step during an add/remove.
+    Grid {
+        id: strip
         anchors.centerIn: parent
         spacing: indicator.dotSpacing
+        rows: indicator.vertical ? -1 : 1
+        columns: indicator.vertical ? 1 : -1
 
         Repeater {
             // desktopIds is [] while the source is transiently null/empty (add/remove
@@ -189,6 +212,7 @@ Item {
                 required property string modelData
                 required property int index
 
+                vertical: indicator.vertical
                 dotSize: indicator.dotSize
                 pillWidthFactor: indicator.pillWidthFactor
                 inactiveOpacity: indicator.inactiveOpacity
