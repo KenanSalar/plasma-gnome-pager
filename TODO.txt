@@ -47,42 +47,64 @@ VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
 
 
 -------------------------------------------------------------------------------
- MILESTONE 2 — GNOME visual identity: dots + sliding pill                [x] DONE
+ MILESTONE 2 — GNOME visual identity: dots + capsule                     [x] DONE
 -------------------------------------------------------------------------------
-Goal: the signature look — dim circles + a wider pill on the current desktop that
-slides between positions. Horizontal panel first. (ref: kirigami.md, qml-performance.md)
+Goal: the signature look — dim circles + a wider highlighted "pill" on the current desktop
+that moves between positions. Horizontal panel first. (ref: kirigami.md, qml-performance.md)
+NOTE: M2 first shipped a separate SLIDING OVERLAY pill; that was replaced after M3 by a GNOME-
+accurate REFLOW + morph model (each element morphs dot⇄capsule; uniform spacing) — see CLAUDE.md
+"Visual model". The bullets below reflect the current model.
   [x] Inactive dot: Rectangle radius=h/2, Kirigami.Theme.textColor @ ~0.45 opacity
-  [x] Active pill: single overlay Rectangle (rounded, wider) over the active dot. Pill
-      length and dot spacing are DECOUPLED — pillWidthFactor sets the length, dotSpacing is
-      derived (pillOverhang + pillEndGap) so a longer pill keeps clearance and never covers
-      neighbours; the indicator pads a half-pill overhang at each end so it never clips.
-  [x] Bind pill x to the active dot geometry; Behavior on x (NumberAnimation, OutCubic)
-      for the slide — duration from Kirigami.Units (guard 0 when animations disabled).
-      slideEnabled latch (Qt.callLater) → instant first placement, animate later switches.
-      (pill width is constant in M2 — Behavior on width deferred to M4 vertical/size anim)
-  [x] Pill color = Kirigami.Theme.highlightColor (theme-following by default)
+  [x] Active capsule: each WorkspaceDot IS the element and morphs to a wider rounded capsule
+      when active (no overlay). ONE uniform Row spacing (dotSize*spacingFactor) sits between
+      every pair, so pill-to-dot gap == dot-to-dot gap (GNOME look); the active element widens
+      in place and the Row reflows, so it can never cover/clip a neighbour (no overhang math).
+  [x] Morph on switch: Behavior on width (OutCubic) + colour + opacity, durations from
+      Kirigami.Units (guard 0 when animations disabled). `animate` latch (Qt.callLater) →
+      instant first placement (active is already a capsule on reload), morph later switches.
+  [x] Active colour = Kirigami.Theme.highlightColor @ full opacity (theme-following by default)
   [x] Size everything via Kirigami.Units (HiDPI); no hardcoded px (pillWidthFactor 2.5,
-      pillEndGap, inactiveOpacity 0.45 are dimensionless ratios, M5-configurable)
-VERIFY: matches GNOME feel; pill slides smoothly on switch; follows color scheme;
-        looks correct on HiDPI / fractional scaling.
-        DONE: make check (13 tests, incl. pill geometry/visibility/colour/no-overlap) +
-        make lint clean. In-shell smoke test (make dev/test/restart) is the user's manual step.
+      spacingFactor 0.5, inactiveOpacity 0.45, hoverOpacity 0.8 are dimensionless, M5-configurable);
+      implicitWidth advertised via a stable formula (one capsule + dots) so the panel cell doesn't jitter.
+VERIFY: matches GNOME feel; capsule morphs smoothly on switch; uniform tight spacing; follows
+        color scheme; looks correct on HiDPI / fractional scaling.
+        DONE: make check (unit+integration incl. uniform-spacing/exactly-one-capsule/morph/
+        sizing) + make lint clean. In-shell smoke test (make dev/restart) is the user's manual step.
 
 
 -------------------------------------------------------------------------------
- MILESTONE 3 — Interactions                                              [ ]
+ MILESTONE 3 — Interactions                                              [x] DONE
 -------------------------------------------------------------------------------
 Goal: scroll, hover, add/remove. Read config keys directly (defaults from main.xml
 already apply even before the settings UI exists). (ref: virtual-desktops.md)
-  [ ] Scroll-to-switch: MouseArea onWheel -> step(+/-1); honor enableScroll + scrollWrap;
-      clamp index when not wrapping
-  [ ] Hover: dot brightens on containsMouse
-  [ ] Tooltips: show desktop name (vdi.desktopNames) on hover; honor showTooltips
-  [ ] Add Desktop / Remove Last Desktop: Plasmoid.contextualActions (PlasmaCore.Action)
+  [x] Scroll-to-switch: a bottom MouseArea (acceptedButtons: NoButton, behind the dots) ->
+      handleWheel -> Logic.stepIndex(+/-1); honor enableScroll + scrollWrap; clamp index when
+      not wrapping; accumulate hi-res/touchpad sub-notches (Logic.accumulateWheel). NoButton +
+      behind so dot click/hover and right-click pass through; wheel over a dot propagates down
+      to it (canonical KWin keyboard-layout-switcher pattern). [WheelHandler was tried first but
+      did not deliver wheel reliably in-shell.]
+  [x] Hover: dot brightens to hoverOpacity on containsMouse, suppressed while active
+      (Logic.dotOpacity); guarded Behavior on opacity (reduce-animations safe).
+  [x] Tooltips: per-dot PlasmaCore.ToolTipArea inside WorkspaceDot (mainText = desktopName,
+      active = showTooltips && name != ""); indicator feeds each dot its name + the flag.
+      Per-dot (not strip-level) so it anchors to the right dot. [A single strip-level
+      ToolTipArea wrapping the representation was tried first but mis-positioned and broke
+      sizing; WorkspaceDot now imports org.kde.plasma.core — ToolTipArea loads headless.]
+  [x] Panel sizing: the inline full-representation advertises its width via Layout.minimum/
+      preferred/maximumWidth (implicitWidth alone gave a default square cell, so dots overflowed
+      onto neighbours and only a tiny hit area took clicks/scroll/right-click). Indicator is the
+      representation directly (no wrapper).
+  [x] Add Desktop / Remove Last Desktop: Plasmoid.contextualActions (PlasmaCore.Action)
       wired to createDesktop / removeDesktop DBus; honor enableAddRemove; never remove
-      the last desktop
+      the last desktop (Logic.canRemoveDesktop).
+  [x] Config schema created (contents/config/main.xml): enableScroll, scrollWrap,
+      showTooltips, enableAddRemove — read live via plasmoid.configuration.*. Settings UI
+      (config.qml + pages) + appearance keys remain M5.
 VERIFY: scroll cycles (wrap per setting); hover highlights + tooltip; right-click
-        add/remove updates dot count live.
+        add/remove updates dot count live; widget sizes to its content in the panel.
+        DONE: make check (95 tests: 28 pure-JS logic, dot hover+tooltip, indicator
+        scroll/real-wheel-events/Layout-sizing/tooltip-propagation) + make lint clean.
+        In-shell smoke test (make dev/restart) is the user's manual step.
 
 
 -------------------------------------------------------------------------------
@@ -103,8 +125,8 @@ VERIFY: move widget between top/bottom panel, a side panel, and the desktop — 
 -------------------------------------------------------------------------------
 Goal: expose every main.xml entry and make it actually drive the widget.
 (ref: plasmoid.md config section, kirigami.md)
-  [ ] Create the config subsystem (removed in M0 cleanup): contents/config/main.xml
-      (all entries) + contents/config/config.qml categories
+  [ ] Finish the config subsystem: EXPAND contents/config/main.xml (M3 created it with the
+      4 behavior keys) with the appearance entries + add contents/config/config.qml categories
   [ ] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
       showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases
   [ ] ConfigAppearance.qml (Appearance): dotSize, dotSpacing, pillWidthFactor,
