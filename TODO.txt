@@ -47,18 +47,26 @@ VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
 
 
 -------------------------------------------------------------------------------
- MILESTONE 2 — GNOME visual identity: dots + sliding pill                [ ]
+ MILESTONE 2 — GNOME visual identity: dots + sliding pill                [x] DONE
 -------------------------------------------------------------------------------
 Goal: the signature look — dim circles + a wider pill on the current desktop that
 slides between positions. Horizontal panel first. (ref: kirigami.md, qml-performance.md)
-  [ ] Inactive dot: Rectangle radius=h/2, Kirigami.Theme.textColor @ ~0.45 opacity
-  [ ] Active pill: single overlay Rectangle (rounded, wider) over the active dot
-  [ ] Bind pill x/width to the active dot geometry; Behavior on x/width (NumberAnimation)
-      for the slide — duration from Kirigami.Units (guard 0 when animations disabled)
-  [ ] Pill color = Kirigami.Theme.highlightColor (theme-following by default)
-  [ ] Size everything via Kirigami.Units (HiDPI); no hardcoded px
+  [x] Inactive dot: Rectangle radius=h/2, Kirigami.Theme.textColor @ ~0.45 opacity
+  [x] Active pill: single overlay Rectangle (rounded, wider) over the active dot. Pill
+      length and dot spacing are DECOUPLED — pillWidthFactor sets the length, dotSpacing is
+      derived (pillOverhang + pillEndGap) so a longer pill keeps clearance and never covers
+      neighbours; the indicator pads a half-pill overhang at each end so it never clips.
+  [x] Bind pill x to the active dot geometry; Behavior on x (NumberAnimation, OutCubic)
+      for the slide — duration from Kirigami.Units (guard 0 when animations disabled).
+      slideEnabled latch (Qt.callLater) → instant first placement, animate later switches.
+      (pill width is constant in M2 — Behavior on width deferred to M4 vertical/size anim)
+  [x] Pill color = Kirigami.Theme.highlightColor (theme-following by default)
+  [x] Size everything via Kirigami.Units (HiDPI); no hardcoded px (pillWidthFactor 2.5,
+      pillEndGap, inactiveOpacity 0.45 are dimensionless ratios, M5-configurable)
 VERIFY: matches GNOME feel; pill slides smoothly on switch; follows color scheme;
         looks correct on HiDPI / fractional scaling.
+        DONE: make check (13 tests, incl. pill geometry/visibility/colour/no-overlap) +
+        make lint clean. In-shell smoke test (make dev/test/restart) is the user's manual step.
 
 
 -------------------------------------------------------------------------------
