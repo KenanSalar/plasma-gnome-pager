@@ -12,7 +12,7 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
 | Tier | What it covers | Real | Mocked | Folder |
 |------|----------------|------|--------|--------|
 | **unit** | One first-party component in isolation | the component (`WorkspaceDot`) | everything it depends on (plain props) | `tests/unit/` |
-| **integration** | Several first-party components composed + reactive wiring | `WorkspaceIndicator` + its real `WorkspaceDot` delegates + pill + `Repeater` | the platform — a duck-typed `QtObject` stands in for `TaskManager.VirtualDesktopInfo` | `tests/integration/` |
+| **integration** | Several first-party components composed + reactive wiring | `WorkspaceIndicator` + its real `WorkspaceDot` delegates + `Repeater` (each dot morphs dot⇄capsule) | the platform — a duck-typed `QtObject` stands in for `TaskManager.VirtualDesktopInfo` | `tests/integration/` |
 | **e2e / system** | The real plasmoid switching real desktops | plasmashell + KWin + session-bus DBus | nothing | *not automated* |
 
 - **unit** (`tests/unit/`) — `tst_workspacedot.qml` (one component, driven only by properties)
@@ -25,11 +25,11 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
   loads headless (a throwaway `tst_*.qml` under `QT_QPA_PLATFORM=offscreen`); session-requiring
   types (anything needing live KWin/DBus) stay confined to `main.qml`, which is e2e-only.
 - **integration** (`tests/integration/`) — `tst_workspaceindicator.qml`. The indicator
-  instantiates real `WorkspaceDot` delegates through a `Repeater`, overlays the pill, and
-  flows reactivity through the binding chain (`vdi → desktopIds/currentDesktop → activeIndex
-  → pillX → dot.active`). That cross-component wiring is the integration; the only thing
-  mocked is the external platform, because the real `VirtualDesktopInfo` needs a Plasma
-  session — which is the e2e tier.
+  instantiates real `WorkspaceDot` delegates through a `Repeater`, morphs each dot between a
+  dot and a capsule, and flows reactivity through the binding chain (`vdi →
+  desktopIds/currentDesktop → activeIndex → dot.active → capsule width`). That cross-component
+  wiring is the integration; the only thing mocked is the external platform, because the real
+  `VirtualDesktopInfo` needs a Plasma session — which is the e2e tier.
 - **e2e / system** — running the real widget against live KWin + DBus and switching desktops.
   This is **not** automated (and likely never needs to be for a pager): it stays the manual
   loop `make dev` → `make test` → `make restart`, then switch desktops by keyboard and watch

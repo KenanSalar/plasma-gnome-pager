@@ -155,12 +155,12 @@ Item {
         }
     }
 
-    // Scroll-to-switch over the whole strip. This MouseArea sits BEHIND the dots and the
-    // pill (declared first), accepts no buttons and does not enable hover, so clicks,
-    // right-clicks and hover all pass through to the dots / the applet untouched. A dot has
-    // no onWheel, so a wheel event over it propagates down to this handler; a wheel over a
-    // gap or the pill lands here directly. (Verified against the KWin keyboard-layout
-    // switcher's onWheel pattern and headless mouseWheel tests.)
+    // Scroll-to-switch over the whole strip. This MouseArea sits BEHIND the dots (declared
+    // first), accepts no buttons and does not enable hover, so clicks, right-clicks and hover
+    // all pass through to the dots / the applet untouched. A dot has no onWheel, so a wheel
+    // event over it propagates down to this handler; a wheel over a gap lands here directly.
+    // (Verified against the KWin keyboard-layout switcher's onWheel pattern and headless
+    // mouseWheel tests.)
     MouseArea {
         id: wheelArea
         anchors.fill: parent
