@@ -3,8 +3,27 @@
 A GNOME-style virtual-desktop switcher for KDE Plasma 6 panels: small circles with a
 sliding **pill** highlighting the current workspace.
 
-> **Status: scaffold.** The project structure is fully wired up but the behavior is not
-> implemented yet. Files marked `TODO(impl)` are the next step.
+> **Status: early, but functional.** The pager renders one dim dot per virtual desktop,
+> reflects the active desktop live, switches on click, and slides a highlight **pill** over
+> the current workspace (Milestones 1–2 done). Still to come: scroll/hover, add/remove
+> desktops, vertical-panel layout, a settings UI, and robustness hardening — see
+> [`TODO.txt`](TODO.txt) for the ordered roadmap.
+
+## What works now
+
+- **Live dot strip** — one dim circle per virtual desktop, in order, sized via
+  `Kirigami.Units` (HiDPI-correct on fractional scaling).
+- **Click to switch** — clicking a dot switches to that desktop via KWin DBus.
+- **Sliding pill** — a single highlight overlay sits over the active desktop and slides
+  between positions. The first placement is an instant jump (no slide-in from the edge on
+  shell reload); later switches animate, and motion respects the "reduce animations" setting.
+- **Reactive** — bound to `VirtualDesktopInfo`, so switches made from the keyboard, another
+  pager, or KWin settings update the widget immediately (state is never cached).
+- **Theme-following** — dim dots use the text color at reduced opacity, the pill uses the
+  highlight color, so the widget follows your color scheme automatically.
+
+Currently horizontal panels only. Scroll/hover/tooltips, add/remove desktops (M3),
+vertical-panel layout (M4), and the settings UI (M5) are not implemented yet.
 
 ## Why this exists
 
@@ -30,17 +49,21 @@ plugin. This widget is deliberately built to be robust:
 plasma-gnome-pager/
 ├── Makefile                 # dev / install / test helpers
 ├── README.md
+├── TODO.txt                 # ordered implementation roadmap (milestones)
 ├── LICENSE
 ├── .gitignore
-├── tests/                   # headless QML unit tests (not shipped in the package)
+├── tests/                   # headless QML tests (not shipped in the package)
 │   ├── README.md
-│   └── tst_workspaceindicator.qml
+│   ├── unit/                       # one component in isolation
+│   │   └── tst_workspacedot.qml
+│   └── integration/                # components composed + reactive wiring
+│       └── tst_workspaceindicator.qml
 └── package/                 # the KPackage (this is what gets installed)
     ├── metadata.json
     └── contents/
         └── ui/
-            ├── main.qml             # PlasmoidItem root, data sources, DBus helpers
-            ├── WorkspaceIndicator.qml  # row/column of dots + sliding pill
+            ├── main.qml               # PlasmoidItem root, data source, DBus helpers
+            ├── WorkspaceIndicator.qml  # row of dots + the sliding pill
             └── WorkspaceDot.qml        # one dot
 ```
 
@@ -50,13 +73,19 @@ plasma-gnome-pager/
 ## Development
 
 ```bash
-make dev        # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
-make test       # run the widget standalone in a window (shows QML errors in the terminal)
-make restart    # reload plasmashell to pick up changes in the panel
-make check      # run the headless QML unit tests (see tests/README.md)
-make lint       # qmllint the widget UI
-make dev-undev  # remove the dev symlink
+make dev                # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
+make test               # run the widget standalone in a window (shows QML errors in the terminal)
+make restart            # reload plasmashell to pick up changes in the panel
+make check              # run all headless QML tests — unit + integration (see tests/README.md)
+make check-unit         # run only the unit tier (tests/unit)
+make check-integration  # run only the integration tier (tests/integration)
+make lint               # qmllint the widget UI
+make dev-undev          # remove the dev symlink
 ```
+
+The tests cover the Kirigami-only components (`WorkspaceDot`, `WorkspaceIndicator` driven by a
+mock `VirtualDesktopInfo`); `main.qml` needs a live plasmashell + KWin session, so it is
+verified by the manual `make dev` → `make test` → `make restart` loop.
 
 ## Install / uninstall (packaged)
 

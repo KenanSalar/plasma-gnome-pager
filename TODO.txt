@@ -70,19 +70,38 @@ VERIFY: matches GNOME feel; pill slides smoothly on switch; follows color scheme
 
 
 -------------------------------------------------------------------------------
- MILESTONE 3 — Interactions                                              [ ]
+ MILESTONE 3 — Interactions                                              [x] DONE
 -------------------------------------------------------------------------------
 Goal: scroll, hover, add/remove. Read config keys directly (defaults from main.xml
 already apply even before the settings UI exists). (ref: virtual-desktops.md)
-  [ ] Scroll-to-switch: MouseArea onWheel -> step(+/-1); honor enableScroll + scrollWrap;
-      clamp index when not wrapping
-  [ ] Hover: dot brightens on containsMouse
-  [ ] Tooltips: show desktop name (vdi.desktopNames) on hover; honor showTooltips
-  [ ] Add Desktop / Remove Last Desktop: Plasmoid.contextualActions (PlasmaCore.Action)
+  [x] Scroll-to-switch: a bottom MouseArea (acceptedButtons: NoButton, behind the dots) ->
+      handleWheel -> Logic.stepIndex(+/-1); honor enableScroll + scrollWrap; clamp index when
+      not wrapping; accumulate hi-res/touchpad sub-notches (Logic.accumulateWheel). NoButton +
+      behind so dot click/hover and right-click pass through; wheel over a dot propagates down
+      to it (canonical KWin keyboard-layout-switcher pattern). [WheelHandler was tried first but
+      did not deliver wheel reliably in-shell.]
+  [x] Hover: dot brightens to hoverOpacity on containsMouse, suppressed while active
+      (Logic.dotOpacity); guarded Behavior on opacity (reduce-animations safe).
+  [x] Tooltips: per-dot PlasmaCore.ToolTipArea inside WorkspaceDot (mainText = desktopName,
+      active = showTooltips && name != ""); indicator feeds each dot its name + the flag.
+      Per-dot (not strip-level) so it anchors to the right dot. [A single strip-level
+      ToolTipArea wrapping the representation was tried first but mis-positioned and broke
+      sizing; WorkspaceDot now imports org.kde.plasma.core — ToolTipArea loads headless.]
+  [x] Panel sizing: the inline full-representation advertises its width via Layout.minimum/
+      preferred/maximumWidth (implicitWidth alone gave a default square cell, so dots overflowed
+      onto neighbours and only a tiny hit area took clicks/scroll/right-click). Indicator is the
+      representation directly (no wrapper).
+  [x] Add Desktop / Remove Last Desktop: Plasmoid.contextualActions (PlasmaCore.Action)
       wired to createDesktop / removeDesktop DBus; honor enableAddRemove; never remove
-      the last desktop
+      the last desktop (Logic.canRemoveDesktop).
+  [x] Config schema created (contents/config/main.xml): enableScroll, scrollWrap,
+      showTooltips, enableAddRemove — read live via plasmoid.configuration.*. Settings UI
+      (config.qml + pages) + appearance keys remain M5.
 VERIFY: scroll cycles (wrap per setting); hover highlights + tooltip; right-click
-        add/remove updates dot count live.
+        add/remove updates dot count live; widget sizes to its content in the panel.
+        DONE: make check (95 tests: 28 pure-JS logic, dot hover+tooltip, indicator
+        scroll/real-wheel-events/Layout-sizing/tooltip-propagation) + make lint clean.
+        In-shell smoke test (make dev/restart) is the user's manual step.
 
 
 -------------------------------------------------------------------------------
@@ -103,8 +122,8 @@ VERIFY: move widget between top/bottom panel, a side panel, and the desktop — 
 -------------------------------------------------------------------------------
 Goal: expose every main.xml entry and make it actually drive the widget.
 (ref: plasmoid.md config section, kirigami.md)
-  [ ] Create the config subsystem (removed in M0 cleanup): contents/config/main.xml
-      (all entries) + contents/config/config.qml categories
+  [ ] Finish the config subsystem: EXPAND contents/config/main.xml (M3 created it with the
+      4 behavior keys) with the appearance entries + add contents/config/config.qml categories
   [ ] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
       showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases
   [ ] ConfigAppearance.qml (Appearance): dotSize, dotSpacing, pillWidthFactor,

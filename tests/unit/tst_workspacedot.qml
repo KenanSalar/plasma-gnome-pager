@@ -44,16 +44,31 @@ TestCase {
         return createTemporaryObject(dotComponent, testCase, props || {});
     }
 
-    // The dim circle is a Rectangle child — uniquely identified by having both `radius`
-    // and `color` (the sibling MouseArea has neither). Avoids relying on child order.
-    function circleOf(dot) {
-        const kids = dot.children;
+    // Collect descendants matching a predicate (the circle and the tooltip are now nested
+    // inside the per-dot ToolTipArea, so a flat children scan would miss them).
+    function collect(item, pred, acc) {
+        acc = acc || [];
+        const kids = item.children;
         for (let i = 0; i < kids.length; i++) {
             const c = kids[i];
-            if (c.radius !== undefined && c.color !== undefined)
-                return c;
+            if (pred(c))
+                acc.push(c);
+            collect(c, pred, acc);
         }
-        return null;
+        return acc;
+    }
+
+    // The dim circle is a Rectangle — uniquely identified by having both `radius` and
+    // `color` (the MouseArea/ToolTipArea have neither). Avoids relying on child order/depth.
+    function circleOf(dot) {
+        const found = collect(dot, c => c.radius !== undefined && c.color !== undefined, []);
+        return found.length ? found[0] : null;
+    }
+
+    // The per-dot tooltip — identified by exposing `mainText` (the ToolTipArea).
+    function tooltipOf(dot) {
+        const found = collect(dot, c => c.mainText !== undefined, []);
+        return found.length ? found[0] : null;
     }
 
     // The dot advertises its footprint and renders exactly one circle.
@@ -63,12 +78,8 @@ TestCase {
         compare(dot.implicitWidth, dot.slotWidth, "implicitWidth advertises the slot width");
         compare(dot.implicitHeight, dot.dotSize, "implicitHeight advertises the dot size");
 
-        let circles = 0;
-        const kids = dot.children;
-        for (let i = 0; i < kids.length; i++)
-            if (kids[i].radius !== undefined && kids[i].color !== undefined)
-                circles++;
-        compare(circles, 1, "renders exactly one circle");
+        const circles = collect(dot, c => c.radius !== undefined && c.color !== undefined, []);
+        compare(circles.length, 1, "renders exactly one circle");
     }
 
     // The circle follows the colour scheme (theme text colour, dimmed) — asserted against
@@ -115,5 +126,66 @@ TestCase {
 
         mouseClick(dot, 2, dot.height / 2);   // near the left edge, outside the centred circle
         compare(activatedSpy.count, 1, "the whole slot is the click target, not just the circle");
+    }
+
+    // --- Milestone 3: hover --------------------------------------------------------
+
+    // A fresh dot is not hovered and exposes a numeric hoverOpacity (the brighten target).
+    function test_hoverDefaults() {
+        const dot = makeDot({});
+        compare(dot.hovered, false, "a fresh dot is not hovered");
+        compare(typeof dot.hoverOpacity, "number", "hoverOpacity is a number");
+    }
+
+    // Hovering an INACTIVE dot brightens the circle to hoverOpacity; leaving restores the
+    // dim inactiveOpacity. (The brighten/suppress branches are covered exhaustively and
+    // deterministically by tst_logic::test_dotOpacity; this proves the dot wires the
+    // pointer through to that binding.)
+    function test_hoverBrightensInactiveDot() {
+        const dot = makeDot({ active: false, inactiveOpacity: 0.45, hoverOpacity: 0.8 });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "starts dim");
+
+        mouseMove(dot, dot.width / 2, dot.height / 2);
+        tryCompare(circle, "opacity", dot.hoverOpacity, 2000, "brightens to hoverOpacity on hover");
+
+        mouseMove(dot, -5, -5);   // move the pointer off the slot
+        tryCompare(circle, "opacity", dot.inactiveOpacity, 2000, "returns to inactiveOpacity when not hovered");
+    }
+
+    // Hovering the ACTIVE dot must NOT brighten it — the pill already owns the active look,
+    // so the dim circle beneath stays steady (hover suppressed while active).
+    function test_hoverSuppressedWhileActive() {
+        const dot = makeDot({ active: true, inactiveOpacity: 0.45, hoverOpacity: 0.8 });
+        const circle = circleOf(dot);
+
+        mouseMove(dot, dot.width / 2, dot.height / 2);
+        // Give any (incorrect) brighten animation time to run, then assert it never happened.
+        wait(Math.max(50, Kirigami.Units.longDuration * 2));
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "active dot does not brighten on hover");
+    }
+
+    // --- Milestone 3: tooltip ------------------------------------------------------
+
+    // The dot carries a tooltip whose text is the desktop name it was given.
+    function test_tooltipShowsDesktopName() {
+        const dot = makeDot({ desktopName: "Web" });
+        const tip = tooltipOf(dot);
+        verify(tip, "the dot has a tooltip area");
+        compare(tip.mainText, "Web", "tooltip text is the desktop name");
+    }
+
+    // showTooltips gates the tooltip; an empty name never shows one (transient names lag ids).
+    function test_tooltipGatedByShowTooltips() {
+        const dot = makeDot({ desktopName: "Web", showTooltips: true });
+        const tip = tooltipOf(dot);
+        verify(tip.active, "tooltip is active when enabled and named");
+
+        dot.showTooltips = false;
+        verify(!tip.active, "tooltip is inactive when showTooltips is off");
+
+        dot.showTooltips = true;
+        dot.desktopName = "";
+        verify(!tip.active, "tooltip is inactive for an empty name");
     }
 }

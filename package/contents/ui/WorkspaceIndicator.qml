@@ -16,19 +16,37 @@
  *
  * Data + DBus live in main.qml (see CLAUDE.md architecture); this component only
  * lays out and forwards intent — it never caches or switches desktops itself. It
- * binds live to VirtualDesktopInfo (read state) and reports clicks up to main.qml
+ * binds live to VirtualDesktopInfo (read state) and reports clicks/scroll up to main.qml
  * (which owns the KWin DBus write).
  *
- * TODO(M3):  MouseArea { onWheel: ... } scroll-to-switch (gated by config).
+ * Milestone 3 adds scroll-to-switch and tooltips. Scroll uses a bottom MouseArea (behind
+ * the dots, acceptedButtons: NoButton, onWheel) — the canonical Plasma pattern: wheel
+ * events over a dot propagate down to it (the dots have no onWheel), while clicks, hover
+ * and right-clicks pass straight through to the dots / the applet. The index math
+ * (clamp/wrap, hi-res wheel accumulation) lives in logic.js so it is unit-tested without a
+ * Plasma session; this component stays a thin caller and keeps emitting switchRequested(uuid)
+ * (main.qml owns the DBus write). Each dot carries its own tooltip (showing desktopName);
+ * the indicator just feeds every dot its name + the showTooltips flag, so it stays free of
+ * org.kde.plasma.* and remains headless-testable.
+ *
+ * Sizing: a panel allocates an applet's space from the representation's Layout.* hints, so
+ * the indicator advertises its content width via Layout.minimum/preferred/maximumWidth (not
+ * implicitWidth alone — a panel otherwise gives the inline full-representation a default
+ * square cell and the dots overflow onto the neighbours).
+ *
  * TODO(M4):  Row (horizontal) vs Column (vertical) on Plasmoid.formFactor; slide the
- *            pill along the correct axis (Behavior on y) and animate its size.
+ *            pill along the correct axis (Behavior on y) and animate its size; swap the
+ *            width Layout hints for height hints when vertical.
  * TODO(M5):  metrics (dotSize/dotSpacing/pillWidthFactor/inactiveOpacity) + colours
  *            from plasmoid.configuration.* instead of the Kirigami defaults below.
  */
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+
+import "logic.js" as Logic
 
 Item {
     id: indicator
@@ -44,6 +62,19 @@ Item {
     // transiently null during a desktop add/remove or shell reload; see robustness.md).
     readonly property var desktopIds: virtualDesktopInfo ? virtualDesktopInfo.desktopIds : []
     readonly property string currentDesktop: virtualDesktopInfo ? virtualDesktopInfo.currentDesktop : ""
+    // Display names, index-aligned with desktopIds. Null-safe like the views above
+    // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
+    readonly property var desktopNames: virtualDesktopInfo && virtualDesktopInfo.desktopNames ? virtualDesktopInfo.desktopNames : []
+
+    // Behaviour flags, supplied by main.qml from plasmoid.configuration. Defaults match the
+    // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
+    property bool enableScroll: true
+    property bool scrollWrap: false
+    property bool showTooltips: true   // passed down to each dot's tooltip
+
+    // Running total of hi-res/touchpad wheel deltas; whole 120-unit notches become steps
+    // (the remainder carries so sub-notch touchpad motion is not lost). See Logic.accumulateWheel.
+    property real wheelAccumulator: 0
 
     // Index of the active slot, or -1 when there is none to highlight. indexOf returns
     // -1 for every transient state — empty desktopIds, empty currentDesktop, or a
@@ -81,13 +112,42 @@ Item {
     // without a fragile recursive tree walk (qml.md: expose internals via alias).
     readonly property alias pill: pill
 
-    // Raised when a dot is clicked; main.qml turns the UUID into a KWin switch.
+    // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
+    // a KWin switch.
     signal switchRequested(string uuid)
+
+    // Translate a wheel event into a desktop switch. Thin wrapper: the branching (notch
+    // accumulation, clamp/wrap, the -1 ignore states) is in logic.js and unit-tested.
+    function handleWheel(angleDeltaY: real) {
+        if (!indicator.enableScroll)
+            return;
+        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY, 120);
+        indicator.wheelAccumulator = acc.remainder;
+        if (acc.steps === 0)
+            return;   // sub-notch motion accumulated; nothing to do yet
+        // Wheel up (+angleDelta) → previous desktop; wheel down (−) → next. Negate to map.
+        const next = Logic.stepIndex(indicator.activeIndex, indicator.desktopIds.length, -acc.steps, indicator.scrollWrap);
+        if (next < 0 || next === indicator.activeIndex)
+            return;   // empty/unknown source, or a clamped no-op at an end
+        const uuid = indicator.desktopIds[next];
+        if (!uuid)
+            return;   // transient empty id (robustness.md: guard before use)
+        indicator.switchRequested(uuid);
+    }
 
     // Advertise size so the panel allocates space. The pill overhangs the end dots by
     // pillOverhang on each side, so reserve that extra width beyond the Row's footprint.
+    // A horizontal panel sizes the applet from these Layout hints (implicitWidth alone is
+    // not honoured for the inline full-representation — the panel would give it a default
+    // square cell and the dots would overflow onto the neighbours). Height is left to the
+    // panel thickness; the Row is centred within it. (M4: swap to height hints when vertical.)
     implicitWidth: row.implicitWidth + 2 * pillOverhang
     implicitHeight: row.implicitHeight
+    Layout.minimumWidth: implicitWidth
+    Layout.preferredWidth: implicitWidth
+    Layout.maximumWidth: implicitWidth
+    Layout.minimumHeight: implicitHeight
+    Layout.preferredHeight: implicitHeight
 
     // Gate the slide animation so the FIRST valid placement is an instant jump (no
     // slide-in from x=0 on shell reload) while later switches animate. Qt.callLater
@@ -105,6 +165,19 @@ Item {
         }
     }
 
+    // Scroll-to-switch over the whole strip. This MouseArea sits BEHIND the dots and the
+    // pill (declared first), accepts no buttons and does not enable hover, so clicks,
+    // right-clicks and hover all pass through to the dots / the applet untouched. A dot has
+    // no onWheel, so a wheel event over it propagates down to this handler; a wheel over a
+    // gap or the pill lands here directly. (Verified against the KWin keyboard-layout
+    // switcher's onWheel pattern and headless mouseWheel tests.)
+    MouseArea {
+        id: wheelArea
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        onWheel: wheel => indicator.handleWheel(wheel.angleDelta.y)
+    }
+
     Row {
         id: row
         anchors.centerIn: parent
@@ -120,11 +193,17 @@ Item {
                 id: workspaceDot
 
                 required property string modelData
+                required property int index
 
                 dotSize: indicator.dotSize
                 slotWidth: indicator.dotSize
                 inactiveOpacity: indicator.inactiveOpacity
                 active: indicator.currentDesktop === workspaceDot.modelData
+
+                // Feed each dot its tooltip name (|| "" guards the transient state where
+                // names lag ids during an add/remove — robustness.md) and the showTooltips flag.
+                desktopName: indicator.desktopNames[workspaceDot.index] || ""
+                showTooltips: indicator.showTooltips
 
                 onActivated: indicator.switchRequested(workspaceDot.modelData)
             }
