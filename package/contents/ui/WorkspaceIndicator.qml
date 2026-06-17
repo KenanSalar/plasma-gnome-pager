@@ -31,6 +31,12 @@ Item {
     // null + guard instead (robustness.md: guard transient null state).
     property var virtualDesktopInfo: null
 
+    // Null-safe live views of the reactive desktop state — one source of truth that
+    // both bindings below read, so the guard isn't repeated (virtualDesktopInfo can be
+    // transiently null during a desktop add/remove or shell reload; see robustness.md).
+    readonly property var desktopIds: virtualDesktopInfo ? virtualDesktopInfo.desktopIds : []
+    readonly property string currentDesktop: virtualDesktopInfo ? virtualDesktopInfo.currentDesktop : ""
+
     // Raised when a dot is clicked; main.qml turns the UUID into a KWin switch.
     signal switchRequested(string uuid)
 
@@ -44,19 +50,17 @@ Item {
         spacing: Kirigami.Units.smallSpacing
 
         Repeater {
-            // desktopIds can be momentarily null/empty during a desktop add/remove
-            // or shell reload — guard before binding it as the model (robustness.md).
-            model: indicator.virtualDesktopInfo ? indicator.virtualDesktopInfo.desktopIds : []
+            // desktopIds is [] while the source is transiently null/empty (add/remove
+            // or shell reload), so the Repeater is empty and the delegate bindings below
+            // never see a missing source (robustness.md).
+            model: indicator.desktopIds
 
             delegate: WorkspaceDot {
                 id: workspaceDot
 
                 required property string modelData
-                required property int index
 
-                desktopId: workspaceDot.modelData
-                desktopIndex: workspaceDot.index
-                active: indicator.virtualDesktopInfo && indicator.virtualDesktopInfo.currentDesktop === workspaceDot.modelData
+                active: indicator.currentDesktop === workspaceDot.modelData
 
                 onActivated: indicator.switchRequested(workspaceDot.modelData)
             }

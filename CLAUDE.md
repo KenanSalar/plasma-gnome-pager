@@ -77,7 +77,9 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 > inline (never a popup, never the default compact icon). Confirmed against
 > develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 
-**Config flow** — three files must agree:
+**Config flow (deferred to M5 — not present yet)** — the widget currently reads **no**
+`plasmoid.configuration.*` keys, so the config subsystem was removed as unused scaffold
+(YAGNI). When M5 wires settings to behavior, re-create it as three files that must agree:
 - `package/contents/config/main.xml` (KConfigXT schema) — each `<entry name="X">` becomes
   `plasmoid.configuration.X`, read live and reactive in the widget.
 - `package/contents/config/config.qml` — `ConfigModel` listing the settings categories.
@@ -105,7 +107,7 @@ make install / make update / make uninstall   # kpackagetool6 install/upgrade/re
 system those names are **not** on `PATH` — use the `-qt6` suffix or the qt6 libexec path):
 
 ```bash
-qmllint-qt6 package/contents/ui/*.qml package/contents/ui/config/*.qml   # treat warnings as errors
+qmllint-qt6 package/contents/ui/*.qml   # treat warnings as errors
 qmlformat-qt6 -i package/contents/ui/*.qml                                # or /usr/lib64/qt6/bin/qmllint
 ```
 

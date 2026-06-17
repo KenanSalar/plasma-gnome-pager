@@ -21,9 +21,7 @@ import org.kde.kirigami as Kirigami
 Rectangle {
     id: dot
 
-    // Inputs supplied by WorkspaceIndicator's Repeater delegate.
-    property string desktopId
-    property int desktopIndex
+    // Input supplied by WorkspaceIndicator's Repeater delegate.
     property bool active: false
 
     // Emitted on click; the indicator turns this into a switch request.
