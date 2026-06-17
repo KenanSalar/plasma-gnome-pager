@@ -21,6 +21,7 @@ import QtQuick
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
+import "../shared/treewalk.js" as TreeWalk
 
 TestCase {
     id: testCase
@@ -45,30 +46,20 @@ TestCase {
         return createTemporaryObject(dotComponent, testCase, props || {});
     }
 
-    // Collect descendants matching a predicate (the circle and the tooltip are now nested
-    // inside the per-dot ToolTipArea, so a flat children scan would miss them).
-    function collect(item, pred, acc) {
-        acc = acc || [];
-        const kids = item.children;
-        for (let i = 0; i < kids.length; i++) {
-            const c = kids[i];
-            if (pred(c))
-                acc.push(c);
-            collect(c, pred, acc);
-        }
-        return acc;
-    }
+    // The circle and the tooltip are nested inside the per-dot ToolTipArea, so a flat
+    // children scan would miss them — TreeWalk.collect walks the whole subtree (shared with
+    // the integration tier; see tests/shared/treewalk.js).
 
     // The dim circle is a Rectangle — uniquely identified by having both `radius` and
     // `color` (the MouseArea/ToolTipArea have neither). Avoids relying on child order/depth.
     function circleOf(dot) {
-        const found = collect(dot, c => c.radius !== undefined && c.color !== undefined, []);
+        const found = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
         return found.length ? found[0] : null;
     }
 
     // The per-dot tooltip — identified by exposing `mainText` (the ToolTipArea).
     function tooltipOf(dot) {
-        const found = collect(dot, c => c.mainText !== undefined, []);
+        const found = TreeWalk.collect(dot, c => c.mainText !== undefined);
         return found.length ? found[0] : null;
     }
 
@@ -79,7 +70,7 @@ TestCase {
         compare(dot.implicitWidth, dot.dotSize, "inactive footprint is a dot wide");
         compare(dot.implicitHeight, dot.dotSize, "implicitHeight advertises the dot size");
 
-        const rects = collect(dot, c => c.radius !== undefined && c.color !== undefined, []);
+        const rects = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
         compare(rects.length, 1, "renders exactly one dot/capsule rectangle");
     }
 

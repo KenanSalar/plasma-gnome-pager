@@ -23,6 +23,7 @@ import QtQuick.Layouts
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
+import "../shared/treewalk.js" as TreeWalk
 
 TestCase {
     id: testCase
@@ -82,23 +83,19 @@ TestCase {
 
     // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is
     // uniquely identified by its required `modelData` (the desktop UUID) plus the
-    // `active` bool — no other item in the tree carries both.
-    function collectDots(item, acc) {
-        acc = acc || [];
-        const kids = item.children;
-        for (let i = 0; i < kids.length; i++) {
-            const child = kids[i];
-            if (child.modelData !== undefined && typeof child.active === "boolean")
-                acc.push(child);
-            collectDots(child, acc);
-        }
-        return acc;
+    // `active` bool — no other item in the tree carries both. The subtree walk is shared
+    // with the unit tier (tests/shared/treewalk.js); only the predicate is dot-specific.
+    function isDot(c) {
+        return c.modelData !== undefined && typeof c.active === "boolean";
+    }
+    function collectDots(indicator) {
+        return TreeWalk.collect(indicator, isDot);
     }
 
     // Find the dot delegate for a given desktop UUID (or null) — used by the
     // reactivity/geometry tests below to locate a specific element.
     function dotByUuid(indicator, uuid) {
-        const dots = collectDots(indicator, []);
+        const dots = collectDots(indicator);
         for (let i = 0; i < dots.length; i++)
             if (dots[i].modelData === uuid)
                 return dots[i];
@@ -107,7 +104,7 @@ TestCase {
 
     // The dots in Repeater/index order (left→right), so geometry tests can walk neighbours.
     function dotsByIndex(indicator) {
-        const dots = collectDots(indicator, []);
+        const dots = collectDots(indicator);
         dots.sort((a, b) => a.index - b.index);
         return dots;
     }
@@ -116,7 +113,7 @@ TestCase {
     function test_dotCountMatchesDesktops() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator, "indicator created");
-        compare(collectDots(indicator, []).length, ids.length);
+        compare(collectDots(indicator).length, ids.length);
     }
 
     // robustness.md: a null source (transient during desktop add/remove or shell
@@ -124,13 +121,13 @@ TestCase {
     function test_nullSourceProducesNoDots() {
         const indicator = makeIndicator(null);
         verify(indicator, "indicator created");
-        compare(collectDots(indicator, []).length, 0);
+        compare(collectDots(indicator).length, 0);
     }
 
     // Exactly the dot whose UUID equals currentDesktop is active.
     function test_activeMapping() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
-        const dots = collectDots(indicator, []);
+        const dots = collectDots(indicator);
         let activeCount = 0;
         for (let i = 0; i < dots.length; i++) {
             compare(dots[i].active, dots[i].modelData === currentUuid, "active flag matches currentDesktop for " + dots[i].modelData);
@@ -147,7 +144,7 @@ TestCase {
         switchSpy.clear();
 
         // Pick an inactive dot (ids[0]) so a stale/no-op binding couldn't accidentally pass.
-        const dots = collectDots(indicator, []);
+        const dots = collectDots(indicator);
         let target = null;
         for (let i = 0; i < dots.length; i++)
             if (dots[i].modelData === ids[0])
@@ -180,7 +177,7 @@ TestCase {
     // Exactly one element is the capsule; the rest are dots.
     function test_exactlyOneCapsule() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
-        const dots = collectDots(indicator, []);
+        const dots = collectDots(indicator);
         let capsules = 0, plain = 0;
         for (let i = 0; i < dots.length; i++) {
             if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5)
@@ -197,7 +194,7 @@ TestCase {
     function test_nullSourceNoCapsule() {
         const indicator = makeIndicator(null);
         compare(indicator.activeIndex, -1, "no active index without a source");
-        compare(collectDots(indicator, []).length, 0, "no elements");
+        compare(collectDots(indicator).length, 0, "no elements");
         fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "cell falls back to one dot wide");
     }
 
@@ -207,7 +204,7 @@ TestCase {
     function test_transientStaleNoCapsuleWidthStable() {
         const indicator = makeIndicator(makeMock(ids, staleUuid));
         compare(indicator.activeIndex, -1, "stale currentDesktop maps to -1");
-        const dots = collectDots(indicator, []);
+        const dots = collectDots(indicator);
         for (let i = 0; i < dots.length; i++)
             fuzzyCompare(dots[i].width, indicator.dotSize, 0.5, "no capsule while stale: " + dots[i].modelData);
         const steady = indicator.pillWidth + (ids.length - 1) * (indicator.dotSize + indicator.dotSpacing);
@@ -263,12 +260,12 @@ TestCase {
     function test_addDesktopAddsDot() {
         const vdi = makeMock([ids[0], ids[1]], ids[0]);
         const indicator = makeIndicator(vdi);
-        compare(collectDots(indicator, []).length, 2, "two dots initially");
+        compare(collectDots(indicator).length, 2, "two dots initially");
 
         vdi.desktopIds = [ids[0], ids[1], ids[2]];   // a desktop was appended
 
         tryVerify(function () {
-            return collectDots(indicator, []).length === 3;
+            return collectDots(indicator).length === 3;
         }, 2000, "a third dot appears");
         compare(indicator.activeIndex, 0, "current desktop's index is unchanged by an append");
     }
@@ -278,12 +275,12 @@ TestCase {
     function test_removeDesktopRemovesDot() {
         const vdi = makeMock(ids, ids[2]);   // current is the last desktop
         const indicator = makeIndicator(vdi);
-        compare(collectDots(indicator, []).length, 3, "three dots initially");
+        compare(collectDots(indicator).length, 3, "three dots initially");
 
         vdi.desktopIds = [ids[1], ids[2]];   // the first desktop was removed; current survives
 
         tryVerify(function () {
-            return collectDots(indicator, []).length === 2;
+            return collectDots(indicator).length === 2;
         }, 2000, "a dot is removed");
         compare(indicator.activeIndex, 1, "the surviving current desktop is re-found at its new index");
         tryVerify(function () {
@@ -371,7 +368,7 @@ TestCase {
     // A single desktop: one element, active, rendered as the capsule; the cell is one pill wide.
     function test_singleDesktop() {
         const indicator = makeIndicator(makeMock(["uuid-solo"], "uuid-solo"));
-        compare(collectDots(indicator, []).length, 1, "exactly one element");
+        compare(collectDots(indicator).length, 1, "exactly one element");
         compare(indicator.activeIndex, 0, "the only desktop is active");
         fuzzyCompare(dotByUuid(indicator, "uuid-solo").width, indicator.pillWidth, 0.5, "the sole element is the capsule");
         fuzzyCompare(indicator.implicitWidth, indicator.pillWidth, 0.5, "cell is one capsule wide");
