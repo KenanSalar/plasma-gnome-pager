@@ -66,7 +66,8 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 **full** representation, forced to always show inline: `main.qml` sets
 `preferredRepresentation: fullRepresentation` and `fullRepresentation: WorkspaceIndicator {}`.
 `main.qml` (root `PlasmoidItem`) owns the data sources, DBus helpers, and contextual actions;
-`WorkspaceIndicator.qml` lays out the dot strip + sliding pill; `WorkspaceDot.qml` is one dot.
+`WorkspaceIndicator.qml` lays out the dot strip; `WorkspaceDot.qml` is one element (a dot that
+morphs into the highlighted capsule when active — see the Visual model below).
 
 > **Gotcha (learned the hard way) — advertise width via `Layout.*`, not `implicitWidth` alone.**
 > An inline full-representation that sets *only* `implicitWidth`/`implicitHeight` gets a **default
@@ -81,32 +82,40 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 > (e.g. a `ToolTipArea`) that doesn't forward these `Layout` hints — that reintroduces the square
 > cell.
 
-**Visual model — one sliding pill overlay, not per-dot highlight.** The active desktop is shown
-by a **single** overlay `Rectangle` (the "pill", `Kirigami.Theme.highlightColor`) that
-`WorkspaceIndicator` draws on top of the active dot and slides via `Behavior on x`. Every
-`WorkspaceDot` is the same dim circle (`Kirigami.Theme.textColor` @ `inactiveOpacity`);
-`WorkspaceDot.active` is kept (used by tests) but does not change the dot's look. Hover brighten
-(M3) is a *separate* state driven by the dot's own `containsMouse` (not `active`), and is
-**suppressed while `active`** so the dot under the pill stays steady — the brighten/suppress
-decision is `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)`.
+**Visual model — REFLOW: each element morphs dot⇄capsule (no overlay).** Each `WorkspaceDot`
+*is* a workspace and renders as a dim circle (`Kirigami.Theme.textColor` @ `inactiveOpacity`,
+width `dotSize`) when inactive, and morphs into a wider highlighted **capsule** (the "pill":
+`Kirigami.Theme.highlightColor` @ full opacity, width `pillWidth`) when `active`. There is **no**
+separate overlay. Switching morphs two elements at once (old capsule → dot, new dot → capsule) and
+the `Row` reflows between them. Hover brighten (M3) is a *separate* inactive-only state driven by
+`containsMouse`; `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)` returns
+`1.0` for the active capsule and `hovered ? hoverOpacity : inactiveOpacity` otherwise (so hovering
+the active capsule does nothing). This replaced an earlier *sliding overlay pill* — which could not
+give GNOME's uniform spacing (a wide overlay needs clearance, forcing wide dot gaps) — and matches
+how GNOME and the KDE `compact_pager` actually work.
 
-> **Decoupling — pill length and dot spacing are independent; don't re-couple them.**
-> `pillWidthFactor` sets the pill length relative to a dot, and `dotSpacing` is **derived**
-> (`pillOverhang + pillEndGap`, where `pillOverhang = (pillWidth - dotSize) / 2`) so a longer
-> pill keeps a constant clearance to its neighbours and **never covers them**, while the dots
-> stay tight. An earlier *uniform-slot* layout (each dot's slot as wide as the pill) coupled the
-> two, so a longer pill forced wider dot spacing — do not reintroduce it. The indicator reserves
-> a half-pill `pillOverhang` at each end so the pill never clips. The metrics (`dotSize`,
-> `pillWidthFactor`, `inactiveOpacity`, `pillEndGap`) are named to match the keys the settings UI
-> will expose.
-> `tests/integration/tst_workspaceindicator.qml::test_pillDoesNotCoverNeighbours` guards the
-> no-overlap invariant.
+> **Uniform spacing + reflow — don't reintroduce the overlay or a coupled slot.**
+> One uniform `Row.spacing` (`dotSpacing = dotSize * spacingFactor`, default `spacingFactor 0.5`)
+> sits between **every** adjacent element, so the pill-to-dot gap equals the dot-to-dot gap (the
+> GNOME look). The active element simply widens **in place**; its neighbours are pushed out by the
+> Row and can never be covered or clipped — so there is **no** `pillOverhang`/`pillEndGap`/`pillX`
+> math. This is **not** the previously-rejected *uniform-slot* model (every slot as wide as the
+> pill, which spread the dots far apart): here inactive dots stay `dotSize`-tight and only the
+> active one is wider. Width is advertised by a **formula** —
+> `implicitWidth = desktopCount > 0 ? pillWidth + (desktopCount-1)*(dotSize+dotSpacing) : dotSize`
+> — not the live Row width, so the panel cell stays put during the morph and when no element is
+> active (a single switch **conserves total width**: the shrinking and growing elements cancel).
+> Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
+> test_transientStaleNoCapsuleWidthStable}`. The metrics (`dotSize`, `pillWidthFactor`,
+> `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) are named to match the M5 settings keys.
 
-> **Gotcha — animate the first *placement*, not the first frame.** The pill slide is gated by a
-> `slideEnabled` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the pill
-> **jumps** to the right desktop on shell reload (even when `VirtualDesktopInfo` populates a
-> frame late) and only later switches animate. The `Behavior` is also guarded against
-> `Kirigami.Units.longDuration === 0` (reduce-animations) so motion becomes an instant jump.
+> **Gotcha — animate the first *placement*, not the first frame.** The morph is gated by an
+> `animate` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the active
+> element is **already a capsule** on shell reload (no grow-in from a dot, even when
+> `VirtualDesktopInfo` populates — or `currentDesktop` resolves — a frame late) and only later
+> switches morph. The latch is passed down to each `WorkspaceDot` and gates its `Behavior on
+> width/color/opacity`; the Behaviors are also guarded against `Kirigami.Units.longDuration === 0`
+> (reduce-animations) so the morph becomes instant.
 
 > **Gotcha (learned the hard way) — a `fullRepresentation` is mandatory.** A Plasma 6
 > applet that defines **only** a `compactRepresentation` (no `fullRepresentation`) instantiates
@@ -119,7 +128,7 @@ decision is `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity
 > develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 
 **Interactions — scroll, hover, tooltips, add/remove.** The branching logic (clamp/wrap, hi-res
-wheel accumulation, never-remove-last, hover-suppress) lives in `package/contents/ui/logic.js`
+wheel accumulation, never-remove-last, dot/capsule opacity) lives in `package/contents/ui/logic.js`
 (pure `.pragma library`, unit-tested by `tests/unit/tst_logic.qml` with no Plasma deps); the QML is
 a thin caller. Config flags flow one way: `main.qml` reads `plasmoid.configuration.*` → passes
 plain booleans to `WorkspaceIndicator` → each `WorkspaceDot`, so the tested sub-components never

@@ -66,13 +66,13 @@ function accumulateWheel(accumulated, deltaY, threshold) {
 }
 
 /**
- * Opacity for a dot's circle. Hover brightens to `hoverOpacity`, but the brighten is
- * suppressed while the dot is `active` — the sliding pill already owns the active look,
- * so the dim circle under it must not change (preserves the M2 test invariant that
- * `active` alone never alters a dot's appearance).
+ * Opacity for a dot/capsule. The active element IS the highlighted capsule, so it is drawn
+ * at full strength (1.0); inactive elements are dimmed to `inactiveOpacity` and brighten to
+ * `hoverOpacity` on hover. Hover therefore affects inactive dots only — an active capsule is
+ * always fully opaque (hovering it changes nothing).
  */
 function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
     if (active)
-        return inactiveOpacity;
+        return 1.0;
     return hovered ? hoverOpacity : inactiveOpacity;
 }
