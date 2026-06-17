@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 A **GNOME-style virtual-desktop pager** for KDE Plasma 6 panels — small dots with a sliding
 "pill" over the current workspace. It is a **pure-QML KPackage plasmoid** (no compiled C++,
 no build step): plasmashell interprets the QML directly. "Building" means installing or
-symlinking the `package/` directory; there is no compiler and no automated test suite.
+symlinking the `package/` directory; there is no compiler. There **is** a headless QML
+unit-test harness (`make check` — see "Verifying a change"), though it covers only the
+Kirigami-only components, not `main.qml`.
 
 **Current state: Milestone 1 done (functional pager, unstyled).** The dot strip renders one
 dot per virtual desktop, reflects the current desktop live, and switches on click — verified
@@ -99,6 +101,8 @@ Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pa
 make dev        # symlink package/ -> ~/.local/share/plasma/plasmoids/<id> for live editing
 make test       # plasmawindowed <id> — run standalone; QML errors print to the terminal
 make restart    # kquitapp6 plasmashell && kstart plasmashell — reload the real panel
+make check      # headless QML unit tests: QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests
+make lint       # qmllint-qt6 package/contents/ui/*.qml
 make dev-undev  # remove the dev symlink
 make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove
 ```
@@ -117,15 +121,22 @@ runtime on a new Plasma version.
 
 ## Verifying a change
 
-There are no unit tests. The per-milestone verification loop (see `TODO.txt`) is:
+There is a headless QML unit-test harness (`tests/`, run with `make check`) but it can only
+cover the Kirigami-only components (`WorkspaceIndicator`, `WorkspaceDot`) — driven by a
+`QtObject` mock standing in for `VirtualDesktopInfo`. `main.qml`/`PlasmoidItem` is **not**
+unit-testable (it needs plasmashell + KWin + a session bus), so it still relies on the manual
+in-shell loop below. New logic added in later milestones should come with a test (see
+`tests/README.md`); the pure-JS logic tier (`logic.js` + `tst_logic.qml`) lands at M3. The
+per-milestone verification loop (see `TODO.txt`) is:
 
-1. `qmllint-qt6 …` clean (no warnings). Two warnings are **expected non-defects** and can be
-   ignored: `i18n(...)` flagged `unqualified` (a plasmoid global) and any `DBus.*` constructor
-   flagged `unresolved-type` (runtime JS types the plugin provides).
-2. `make dev && make test` — watch the `plasmawindowed` terminal and
+1. `make check` — unit tests green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
+2. `make lint` (`qmllint-qt6 …`) clean (no warnings). Two warnings are **expected non-defects**
+   and can be ignored: `i18n(...)` flagged `unqualified` (a plasmoid global) and any `DBus.*`
+   constructor flagged `unresolved-type` (runtime JS types the plugin provides).
+3. `make dev && make test` — watch the `plasmawindowed` terminal and
    `journalctl --user -f -t plasmashell` for QML errors/warnings.
-3. `make restart` — confirm it works in a real panel (some failures only show in-shell).
-4. Sanity-check reactivity: switching desktops via keyboard (e.g. Ctrl+F1/F2) must update the
+4. `make restart` — confirm it works in a real panel (some failures only show in-shell).
+5. Sanity-check reactivity: switching desktops via keyboard (e.g. Ctrl+F1/F2) must update the
    widget, proving the `VirtualDesktopInfo` binding is live and not cached.
 
 **Debugging notes (learned in M1):**

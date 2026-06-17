@@ -32,6 +32,9 @@ plasma-gnome-pager/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── tests/                   # headless QML unit tests (not shipped in the package)
+│   ├── README.md
+│   └── tst_workspaceindicator.qml
 └── package/                 # the KPackage (this is what gets installed)
     ├── metadata.json
     └── contents/
@@ -50,6 +53,8 @@ plasma-gnome-pager/
 make dev        # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
 make test       # run the widget standalone in a window (shows QML errors in the terminal)
 make restart    # reload plasmashell to pick up changes in the panel
+make check      # run the headless QML unit tests (see tests/README.md)
+make lint       # qmllint the widget UI
 make dev-undev  # remove the dev symlink
 ```
 
