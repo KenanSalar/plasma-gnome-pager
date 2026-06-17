@@ -29,20 +29,28 @@ Goal: installable, loadable empty widget + project conventions.
 
 
 -------------------------------------------------------------------------------
- MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [ ]
+ MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [x] DONE
 -------------------------------------------------------------------------------
 Goal: N plain dots that reflect the real desktops and switch on click. Proves the
 public-API approach end-to-end before any polish. (ref: virtual-desktops.md)
-  [ ] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
+  [x] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
       desktopIds, desktopNames, numberOfDesktops)
-  [ ] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
+  [x] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
       "current" property (UUID). Keep legacy setCurrentDesktop(int) as commented fallback.
-  [ ] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
-  [ ] WorkspaceDot: required props (desktopId, active, index) + MouseArea -> activated()
-  [ ] Wire dot click -> root.switchTo(desktopId); guard empty/null ids (robustness.md)
-  [ ] Advertise size: implicitWidth/Height from dot count * size + spacing
+  [x] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
+  [x] WorkspaceDot: required props (desktopId, active, index) + MouseArea -> activated()
+  [x] Wire dot click -> root.switchTo(desktopId); guard empty/null ids (robustness.md)
+  [x] Advertise size: implicitWidth/Height from dot count * size + spacing
 VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
         keyboard (Ctrl+F1/F2) updates the active dot (reactive binding works).
+
+NOTE (M1, important — two rule files are factually wrong, see CLAUDE.md):
+  * A fullRepresentation is MANDATORY. The dot strip is the fullRepresentation with
+    preferredRepresentation: fullRepresentation. A compact-only applet (as plasmoid.md
+    and the original scaffold prescribed) renders NOTHING with no error.
+  * switchTo's variant takes a PLAIN string: new DBus.variant(uuid) — NOT
+    new DBus.QDBusVariant(...) (no such type) and NOT new DBus.variant(new DBus.string(uuid))
+    (wraps a gadget; KWin silently drops it). virtual-desktops.md is wrong on both.
 
 
 -------------------------------------------------------------------------------
