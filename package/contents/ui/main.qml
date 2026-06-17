@@ -25,6 +25,18 @@ PlasmoidItem {
 
     Plasmoid.icon: "user-desktop"
 
+    // A pager never demands attention — mark it Passive so the panel/system-tray treats it as a
+    // quiet always-on widget (and a panel may auto-hide over it). The dots float directly on the
+    // panel, so the applet draws no background of its own (the GNOME look).
+    Plasmoid.status: PlasmaCore.Types.PassiveStatus
+    Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
+
+    // Panel orientation, read here (the one place that touches Plasmoid) and passed DOWN as a plain
+    // bool so the indicator/dot stay free of Plasmoid/PlasmaCore and remain headless-testable.
+    // Planar (desktop) and Floating both report non-Vertical, so they fall through to the horizontal
+    // row — the sensible default off-panel.
+    readonly property bool isVertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
+
     // Behaviour settings, read live from the config schema (contents/config/main.xml).
     // Defaults there apply even before the settings UI exists (M5 owns the dialog), so the
     // widget is config-driven now. These flow down to the indicator/tooltip/actions as
@@ -50,6 +62,7 @@ PlasmoidItem {
     // hints so the panel allocates the right width (tooltips live per-dot inside it).
     preferredRepresentation: fullRepresentation
     fullRepresentation: WorkspaceIndicator {
+        vertical: root.isVertical
         virtualDesktopInfo: vdi
         enableScroll: root.enableScroll
         scrollWrap: root.scrollWrap

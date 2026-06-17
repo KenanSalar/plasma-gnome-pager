@@ -108,16 +108,33 @@ VERIFY: scroll cycles (wrap per setting); hover highlights + tooltip; right-clic
 
 
 -------------------------------------------------------------------------------
- MILESTONE 4 — Form factor & sizing robustness                          [ ]
+ MILESTONE 4 — Form factor & sizing robustness                          [x] DONE
 -------------------------------------------------------------------------------
 Goal: correct in every placement. (ref: plasmoid.md)
-  [ ] Horizontal panel -> Row; vertical panel -> Column (switch on Plasmoid.formFactor)
-  [ ] Pill orientation/animation adapts to axis (slide along the correct axis)
-  [ ] Correct implicit sizing in both orientations so the panel allocates space
-  [ ] Sensible behavior on the desktop containment (Planar) and when floating
-  [ ] Set Plasmoid.status (Passive) and backgroundHints (NoBackground or Configurable)
+NOTE: orientation flows one way — main.qml reads Plasmoid.formFactor and passes a plain
+`vertical` bool down to WorkspaceIndicator -> WorkspaceDot (keeps the sub-components free of
+Plasmoid/PlasmaCore and headless-testable). The strip is ONE Grid positioner (single row when
+horizontal, single column when vertical — only the line dimension is pinned to 1, the other is
+-1/auto so it tracks the live child count and never warns on add/remove), NOT a Row/Column swap.
+  [x] Horizontal panel -> single-row Grid; vertical panel -> single-column Grid
+      (switch on Plasmoid.formFactor via the `vertical` bool)
+  [x] Capsule morphs along the correct axis (widens horizontally, grows tall vertically);
+      radius pinned to dotSize/2 so the ends stay stadium-round both ways; a Behavior per axis
+  [x] Correct implicit sizing in both orientations: the MAJOR axis is pinned (Layout min=pref=max
+      = stripLength) and the CROSS axis left free (max -1 -> unconstrained) so the panel fills the
+      thickness; one stripLength formula drives whichever axis `vertical` selects
+  [x] Sensible behavior on the desktop containment (Planar) and when floating — both report
+      non-Vertical, so they fall through to the horizontal row (the off-panel default)
+  [x] Set Plasmoid.status (PassiveStatus) and backgroundHints (NoBackground — dots float on the
+      bare panel, the GNOME look; making it user-configurable is deferred to M5)
 VERIFY: move widget between top/bottom panel, a side panel, and the desktop — layout
         and sizing stay correct.
+        DONE: make check (105 tests: existing + new vertical unit/integration covering vertical
+        morph/radius, stacking, vertical uniform-spacing, height Layout hints, vertical
+        morph-on-switch, no-clip) + make lint clean. In-shell smoke test (make dev/restart, then
+        move the widget between a horizontal panel, a vertical side panel, and the desktop and
+        confirm centering in the panel thickness) is the user's manual step — the cross-axis fill
+        is the one thing headless qmltestrunner cannot prove.
 
 
 -------------------------------------------------------------------------------
@@ -171,6 +188,11 @@ VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
  BACKLOG / NICE-TO-HAVE (post-1.0, optional)
 -------------------------------------------------------------------------------
   [ ] Click current desktop -> open KWin Overview/Desktop Grid effect
+  [ ] Mirror KWin's desktop grid: read VirtualDesktopInfo.desktopLayoutRows and lay the dots out
+      in the same rows×columns KWin uses (System Settings -> Virtual Desktops -> "Rows"), like the
+      stock pager. Canonical alternative to the M5 "desktops per line" key (which is thickness/
+      user-driven rather than KWin-driven). Note: KWin's default is 1 row, so this is a single
+      line until the user raises "Rows".
   [ ] Optional occupied-desktop hint (subtle fill when windows present, via TasksModel)
   [ ] Drag a window onto a dot to move it to that desktop (DnD)
   [ ] Per-desktop rename from the widget

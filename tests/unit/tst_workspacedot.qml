@@ -122,6 +122,49 @@ TestCase {
         compare(activatedSpy.count, 1, "the whole capsule is the click target");
     }
 
+    // --- Milestone 4: vertical form factor -----------------------------------------
+    // On a vertical panel the dot morphs along the OTHER axis: the capsule grows TALL
+    // (height → pillWidth) while the width stays a dot. `vertical` defaults false, so every
+    // test above exercises the horizontal axis; these cover the vertical one.
+
+    // Active + vertical: the capsule grows along height; width stays a dot. The footprint
+    // (implicitWidth/Height) tracks both axes so the column reflows.
+    function test_verticalActiveGrowsTall() {
+        const dot = makeDot({ vertical: true, active: true });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.height, dot.pillWidth, 0.5, "active vertical capsule grows tall (height → pillWidth)");
+        fuzzyCompare(circle.width, dot.dotSize, 0.5, "width stays a dot thick");
+        fuzzyCompare(dot.implicitHeight, dot.pillWidth, 0.5, "implicitHeight tracks the capsule length");
+        fuzzyCompare(dot.implicitWidth, dot.dotSize, 0.5, "implicitWidth stays a dot thick");
+    }
+
+    // Inactive + vertical: a plain dot — square footprint, both axes dotSize.
+    function test_verticalInactiveIsDot() {
+        const dot = makeDot({ vertical: true, active: false });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.width, dot.dotSize, 0.5, "inactive width is a dot");
+        fuzzyCompare(circle.height, dot.dotSize, 0.5, "inactive height is a dot");
+        fuzzyCompare(dot.implicitWidth, dot.dotSize, 0.5, "implicitWidth is a dot");
+        fuzzyCompare(dot.implicitHeight, dot.dotSize, 0.5, "implicitHeight is a dot");
+    }
+
+    // Regression guard for the radius fix: radius is pinned to the constant cross-axis
+    // half-thickness (dotSize/2), NOT height/2 — otherwise a tall vertical capsule would round
+    // into a lozenge (radius pillWidth/2) instead of a stadium with circular ends.
+    function test_verticalRadiusStaysStadium() {
+        const dot = makeDot({ vertical: true, active: true });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.radius, dot.dotSize / 2, 0.5, "vertical capsule keeps stadium ends (radius == dotSize/2)");
+    }
+
+    // The same radius invariant holds horizontally — the radius refactor (height/2 → dotSize/2)
+    // must not change horizontal rounding.
+    function test_horizontalRadiusUnchanged() {
+        const dot = makeDot({ active: true });   // default horizontal
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.radius, dot.dotSize / 2, 0.5, "horizontal capsule radius is dotSize/2");
+    }
+
     // --- Milestone 3: hover --------------------------------------------------------
 
     // A fresh dot is not hovered and exposes a numeric hoverOpacity (the brighten target).

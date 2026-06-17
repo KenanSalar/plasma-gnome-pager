@@ -524,6 +524,105 @@ TestCase {
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the width (a pager does not stretch)");
     }
 
+    // --- Milestone 4: vertical form factor ----------------------------------------
+    // On a vertical (side) panel the strip becomes a single COLUMN: dots stack along Y, the
+    // capsule grows TALL, and the pinned/free Layout axes swap (height pinned, width free to fill
+    // the panel thickness). `vertical` defaults false, so every test above stays horizontal; these
+    // mirror the horizontal geometry/sizing assertions onto the Y / height axis. Like the other
+    // geometry tests they pass no explicit size, so the Item auto-sizes to its implicit extents.
+
+    // The dots stack top-to-bottom (strictly increasing Y), all in one column (≈ equal X).
+    function test_verticalStacksDots() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
+        const dots = dotsByIndex(indicator);
+        for (let i = 0; i < dots.length - 1; i++) {
+            const thisY = dots[i].mapToItem(indicator, 0, 0).y;
+            const nextY = dots[i + 1].mapToItem(indicator, 0, 0).y;
+            verify(nextY > thisY, "element " + (i + 1) + " sits below element " + i);
+            const thisX = dots[i].mapToItem(indicator, 0, 0).x;
+            const nextX = dots[i + 1].mapToItem(indicator, 0, 0).x;
+            fuzzyCompare(nextX, thisX, 0.5, "elements share a column (equal X)");
+        }
+    }
+
+    // Uniform spacing along Y: the vertical gap between EVERY adjacent pair equals the single
+    // strip spacing (capsule-dot and dot-dot alike; positive gaps also prove no overlap).
+    function test_verticalUniformSpacing() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });   // middle is the capsule
+        const dots = dotsByIndex(indicator);
+        for (let i = 0; i < dots.length - 1; i++) {
+            const bottomEdge = dots[i].mapToItem(indicator, 0, dots[i].height).y;
+            const nextTop = dots[i + 1].mapToItem(indicator, 0, 0).y;
+            fuzzyCompare(nextTop - bottomEdge, indicator.dotSpacing, 0.5, "uniform vertical gap after element " + i);
+        }
+    }
+
+    // The active element grows TALL to pillWidth along the major (Y) axis; inactive stay dots.
+    function test_verticalCapsuleGrowsTall() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
+        for (let i = 0; i < ids.length; i++) {
+            const dot = dotByUuid(indicator, ids[i]);
+            const expected = (ids[i] === currentUuid) ? indicator.pillWidth : indicator.dotSize;
+            fuzzyCompare(dot.height, expected, 0.5, "height of " + ids[i]);
+            fuzzyCompare(dot.width, indicator.dotSize, 0.5, "width stays a dot for " + ids[i]);
+        }
+    }
+
+    // Vertical sizing: the HEIGHT axis is pinned to the strip length (min == preferred == max),
+    // while the WIDTH axis is left free (preferred == one dot, maximum unconstrained) so the panel
+    // can stretch the strip to its thickness. Mirror of test_advertisesWidthViaLayout.
+    function test_verticalAdvertisesHeightViaLayout() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
+        verify(indicator.implicitHeight > 0, "indicator has a positive content height");
+        compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "preferredHeight advertises the content length");
+        compare(indicator.Layout.minimumHeight, indicator.implicitHeight, "minimumHeight advertises the content length");
+        compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "maximumHeight pins the length (a pager does not stretch along its axis)");
+
+        compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth is one dot thick");
+        const maxW = indicator.Layout.maximumWidth;
+        verify(maxW < 0 || maxW > indicator.implicitWidth, "width axis is free (max unconstrained), so the panel fills the thickness");
+    }
+
+    // The cross axis is one dot thick.
+    function test_verticalImplicitCrossAxis() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
+        fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "vertical strip is one dot wide");
+        const steady = indicator.pillWidth + (ids.length - 1) * (indicator.dotSize + indicator.dotSpacing);
+        fuzzyCompare(indicator.implicitHeight, steady, 0.5, "vertical strip length is the steady-state formula");
+    }
+
+    // Switching morphs the capsule along the height: the new current grows tall while the old
+    // shrinks back to a dot. tryVerify polls so it tolerates the morph animation.
+    function test_verticalMorphOnSwitch() {
+        const vdi = makeMock(ids, ids[0]);
+        const indicator = makeIndicator(vdi, { vertical: true });
+        verify(Math.abs(dotByUuid(indicator, ids[0]).height - indicator.pillWidth) <= 0.5, "ids[0] starts as the tall capsule");
+
+        vdi.currentDesktop = ids[2];
+
+        tryVerify(function () {
+            return Math.abs(dotByUuid(indicator, ids[2]).height - indicator.pillWidth) <= 0.5
+                && Math.abs(dotByUuid(indicator, ids[0]).height - indicator.dotSize) <= 0.5;
+        }, 2000, "capsule morphs tall onto the newly current element; the old shrinks to a dot");
+    }
+
+    // The advertised length holds the whole column, so the end elements never clip past the
+    // top/bottom edges — whether the capsule is at the first or the last desktop.
+    function test_verticalNoClipAtEnds() {
+        const many = [ids[0], ids[1], ids[2], "uuid-d", "uuid-e", "uuid-f"];
+
+        const atFirst = makeIndicator(makeMock(many, many[0]), { vertical: true });
+        const firstDots = dotsByIndex(atFirst);
+        const firstTop = firstDots[0].mapToItem(atFirst, 0, 0).y;
+        verify(firstTop >= -0.5, "first element does not clip past the top edge");
+
+        const atLast = makeIndicator(makeMock(many, many[many.length - 1]), { vertical: true });
+        const lastDots = dotsByIndex(atLast);
+        const last = lastDots[lastDots.length - 1];
+        const lastBottom = last.mapToItem(atLast, 0, last.height).y;
+        verify(lastBottom <= atLast.height + 0.5, "last element does not clip past the bottom edge");
+    }
+
     // --- Milestone 3: per-dot tooltip data ----------------------------------------
     // Tooltips live per-dot now; the indicator feeds each dot its name and the flag.
 
