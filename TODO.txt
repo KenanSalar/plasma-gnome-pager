@@ -20,27 +20,28 @@ VERIFY:  per phase. Always run before calling a phase done:
  MILESTONE 0 — Scaffold & groundwork                                   [x] DONE
 -------------------------------------------------------------------------------
 Goal: installable, loadable empty widget + project conventions.
-  [x] Project structure (package/ + contents/ui + contents/config)
+  [x] Project structure (package/ + contents/ui)
   [x] metadata.json (id, X-Plasma-API-Minimum-Version 6.0, provides virtualdesktops)
   [x] Stub PlasmoidItem main.qml + WorkspaceIndicator/WorkspaceDot placeholders
-  [x] Config schema main.xml (all entries) + config.qml categories + stub pages
+  [ ] Config subsystem deferred to M5 — scaffold (main.xml + config.qml + stub pages)
+      removed as unused (YAGNI); add it when settings actually drive the widget
   [x] README, Makefile (dev/test/restart/install), LICENSE, .gitignore
   [x] .claude/rules/* best-practice rulesets
 
 
 -------------------------------------------------------------------------------
- MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [ ]
+ MILESTONE 1 — Core data + click-to-switch (functional pager, no style)  [x] DONE
 -------------------------------------------------------------------------------
 Goal: N plain dots that reflect the real desktops and switch on click. Proves the
 public-API approach end-to-end before any polish. (ref: virtual-desktops.md)
-  [ ] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
+  [x] Add VirtualDesktopInfo { id: vdi } in main.qml (read currentDesktop,
       desktopIds, desktopNames, numberOfDesktops)
-  [ ] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
-      "current" property (UUID). Keep legacy setCurrentDesktop(int) as commented fallback.
-  [ ] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
-  [ ] WorkspaceDot: required props (desktopId, active, index) + MouseArea -> activated()
-  [ ] Wire dot click -> root.switchTo(desktopId); guard empty/null ids (robustness.md)
-  [ ] Advertise size: implicitWidth/Height from dot count * size + spacing
+  [x] DBus helpers in main.qml: switchTo(uuid) via org.kde.KWin.VirtualDesktopManager
+      "current" property (UUID). (legacy setCurrentDesktop(int) fallback: virtual-desktops.md)
+  [x] WorkspaceIndicator: Row of WorkspaceDot via Repeater over vdi.desktopIds
+  [x] WorkspaceDot: property (active) + MouseArea -> activated()
+  [x] Wire dot click -> switchRequested(uuid) -> root.switchTo(uuid); guard empty/null ids
+  [x] Advertise size: implicitWidth/Height from dot count * size + spacing
 VERIFY: dots count == numberOfDesktops; clicking a dot switches; switching via
         keyboard (Ctrl+F1/F2) updates the active dot (reactive binding works).
 
@@ -94,6 +95,8 @@ VERIFY: move widget between top/bottom panel, a side panel, and the desktop — 
 -------------------------------------------------------------------------------
 Goal: expose every main.xml entry and make it actually drive the widget.
 (ref: plasmoid.md config section, kirigami.md)
+  [ ] Create the config subsystem (removed in M0 cleanup): contents/config/main.xml
+      (all entries) + contents/config/config.qml categories
   [ ] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
       showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases
   [ ] ConfigAppearance.qml (Appearance): dotSize, dotSpacing, pillWidthFactor,
