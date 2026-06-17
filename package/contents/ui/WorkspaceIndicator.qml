@@ -71,6 +71,12 @@ Item {
     // the clearance. With slots == dotSize, this is exactly the circle-to-circle gap.
     readonly property real dotSpacing: pillOverhang + pillEndGap
 
+    // X of the pill's left edge: step to the active dot's left edge (row.x accounts for the
+    // centred Row when the panel grants extra width), then back off by the overhang so the
+    // wider pill is centred on the dot. A -1 activeIndex parks it left of the strip, where
+    // it is never seen because the pill is hidden whenever activeIndex < 0.
+    readonly property real pillX: row.x + activeIndex * (dotSize + row.spacing) - pillOverhang
+
     // Typed handle so the headless tests can assert the pill's geometry/visibility/colour
     // without a fragile recursive tree walk (qml.md: expose internals via alias).
     readonly property alias pill: pill
@@ -138,10 +144,8 @@ Item {
         color: Kirigami.Theme.highlightColor
 
         anchors.verticalCenter: row.verticalCenter
-        // Centre the pill over the active dot: step to the dot's left edge (row.x covers
-        // the Row being centred when the panel grants extra width), then back off by the
-        // overhang so the wider pill is centred on the dot.
-        x: row.x + indicator.activeIndex * (indicator.dotSize + row.spacing) - indicator.pillOverhang
+        // Centred over the active dot; see indicator.pillX for the geometry.
+        x: indicator.pillX
 
         // Smooth GNOME-style slide. Disabled until the first placement (slideEnabled)
         // and when the user has turned animations off (longDuration === 0 → instant).

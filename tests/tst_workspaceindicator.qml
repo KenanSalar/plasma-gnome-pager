@@ -30,30 +30,46 @@ TestCase {
     width: 200
     height: 50
 
-    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator only
-    // reads .desktopIds and .currentDesktop). Three desktops, the middle one current.
-    QtObject {
-        id: vdiMock
-        property var desktopIds: ["uuid-a", "uuid-b", "uuid-c"]
-        property string currentDesktop: "uuid-b"
-    }
-
-    // A source whose currentDesktop is not among desktopIds — a transient state during
-    // a desktop add/remove. The indicator must treat it as "no active slot".
-    QtObject {
-        id: vdiMockStale
-        property var desktopIds: ["uuid-a", "uuid-b", "uuid-c"]
-        property string currentDesktop: "uuid-gone"
-    }
+    // Shared fixtures so the desktop set and UUIDs live in one place (the tests assert
+    // against these, not against scattered literals).
+    readonly property var ids: ["uuid-a", "uuid-b", "uuid-c"]
+    readonly property string currentUuid: "uuid-b"   // ids[1], the middle desktop
+    readonly property string staleUuid: "uuid-gone"  // intentionally NOT in ids
 
     Component {
         id: indicatorComponent
         Pager.WorkspaceIndicator {}
     }
 
+    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator only reads
+    // .desktopIds and .currentDesktop). Built per test via makeMock(...).
+    Component {
+        id: vdiMockComponent
+        QtObject {
+            property var desktopIds: []
+            property string currentDesktop: ""
+        }
+    }
+
     SignalSpy {
         id: switchSpy
         signalName: "switchRequested"
+    }
+
+    // A duck-typed VirtualDesktopInfo mock. Pass a currentDesktop outside desktopIds (the
+    // staleUuid) to exercise the transient add/remove state the indicator must tolerate.
+    function makeMock(desktopIds, currentDesktop) {
+        return createTemporaryObject(vdiMockComponent, testCase, {
+            desktopIds: desktopIds,
+            currentDesktop: currentDesktop
+        });
+    }
+
+    // The single point that instantiates the component under test (auto-cleaned).
+    function makeIndicator(vdi) {
+        return createTemporaryObject(indicatorComponent, testCase, {
+            virtualDesktopInfo: vdi
+        });
     }
 
     // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is
@@ -73,32 +89,26 @@ TestCase {
 
     // One dot per desktop UUID in the source.
     function test_dotCountMatchesDesktops() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator, "indicator created");
-        compare(collectDots(indicator, []).length, vdiMock.desktopIds.length);
+        compare(collectDots(indicator, []).length, ids.length);
     }
 
     // robustness.md: a null source (transient during desktop add/remove or shell
     // reload) must yield an empty strip, never an error or a stray dot.
     function test_nullSourceProducesNoDots() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: null
-        });
+        const indicator = makeIndicator(null);
         verify(indicator, "indicator created");
         compare(collectDots(indicator, []).length, 0);
     }
 
     // Exactly the dot whose UUID equals currentDesktop is active.
     function test_activeMapping() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator, []);
         let activeCount = 0;
         for (let i = 0; i < dots.length; i++) {
-            compare(dots[i].active, dots[i].modelData === vdiMock.currentDesktop, "active flag matches currentDesktop for " + dots[i].modelData);
+            compare(dots[i].active, dots[i].modelData === currentUuid, "active flag matches currentDesktop for " + dots[i].modelData);
             if (dots[i].active)
                 activeCount++;
         }
@@ -107,48 +117,40 @@ TestCase {
 
     // Clicking a dot must forward switchRequested(uuid) up to main.qml unchanged.
     function test_clickForwardsUuid() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         switchSpy.target = indicator;
         switchSpy.clear();
 
-        // Pick an inactive dot so a stale/no-op binding couldn't accidentally pass.
+        // Pick an inactive dot (ids[0]) so a stale/no-op binding couldn't accidentally pass.
         const dots = collectDots(indicator, []);
         let target = null;
         for (let i = 0; i < dots.length; i++)
-            if (dots[i].modelData === "uuid-a")
+            if (dots[i].modelData === ids[0])
                 target = dots[i];
-        verify(target, "found the uuid-a dot");
+        verify(target, "found the first dot");
 
         target.activated();   // signals are callable — emits without flaky headless mouse sim
         compare(switchSpy.count, 1, "switchRequested fired once");
-        compare(switchSpy.signalArguments[0][0], "uuid-a", "forwarded the clicked UUID");
+        compare(switchSpy.signalArguments[0][0], ids[0], "forwarded the clicked UUID");
     }
 
     // --- Milestone 2: the sliding pill --------------------------------------------
 
     // activeIndex maps currentDesktop to its position in desktopIds.
     function test_activeIndexMapping() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         compare(indicator.activeIndex, 1, "middle desktop (uuid-b) is index 1");
     }
 
     // The pill is shown only when there is an active slot to highlight.
     function test_pillVisibleWhenActive() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator.pill.visible, "pill is visible when a desktop is current");
     }
 
     // robustness.md: a null source (transient) yields no active slot, so no pill.
     function test_pillHiddenOnNullSource() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: null
-        });
+        const indicator = makeIndicator(null);
         compare(indicator.activeIndex, -1, "no active index without a source");
         verify(!indicator.pill.visible, "pill is hidden with a null source");
     }
@@ -156,9 +158,7 @@ TestCase {
     // robustness.md: currentDesktop not (yet) in desktopIds during an add/remove must
     // hide the pill rather than indexing out of range.
     function test_pillHiddenWhenCurrentNotInIds() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMockStale
-        });
+        const indicator = makeIndicator(makeMock(ids, staleUuid));
         compare(indicator.activeIndex, -1, "stale currentDesktop maps to -1");
         verify(!indicator.pill.visible, "pill is hidden when current desktop is unknown");
     }
@@ -166,13 +166,11 @@ TestCase {
     // The pill is horizontally centred over the active dot's slot — asserted in
     // derived geometry (no literal px), so it holds across HiDPI / theme metrics.
     function test_pillCenteredOverActiveDot() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator, []);
         let activeDot = null;
         for (let i = 0; i < dots.length; i++)
-            if (dots[i].modelData === vdiMock.currentDesktop)
+            if (dots[i].modelData === currentUuid)
                 activeDot = dots[i];
         verify(activeDot, "found the active dot");
 
@@ -184,19 +182,19 @@ TestCase {
     // The pill is wider than a dot, so the decoupled spacing must keep it clear of the
     // neighbouring dots — it may reach toward them but must never cover them.
     function test_pillDoesNotCoverNeighbours() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator, []);
         const byUuid = {};
         for (let i = 0; i < dots.length; i++)
             byUuid[dots[i].modelData] = dots[i];
 
-        // vdiMock: a(0) b(1, active) c(2). Pill covers b; a and c must stay uncovered.
+        // ids: a(0) b(1, active) c(2). Pill covers b; a and c must stay uncovered.
+        const leftNeighbour = byUuid[ids[0]];
+        const rightNeighbour = byUuid[ids[2]];
         const leftEdge = indicator.pill.x;
         const rightEdge = indicator.pill.x + indicator.pill.width;
-        const leftNeighbourRight = byUuid["uuid-a"].mapToItem(indicator, byUuid["uuid-a"].width, 0).x;
-        const rightNeighbourLeft = byUuid["uuid-c"].mapToItem(indicator, 0, 0).x;
+        const leftNeighbourRight = leftNeighbour.mapToItem(indicator, leftNeighbour.width, 0).x;
+        const rightNeighbourLeft = rightNeighbour.mapToItem(indicator, 0, 0).x;
 
         verify(leftEdge >= leftNeighbourRight, "pill does not cover the left neighbour");
         verify(rightEdge <= rightNeighbourLeft, "pill does not cover the right neighbour");
@@ -204,9 +202,7 @@ TestCase {
 
     // The pill follows the colour scheme (Kirigami.Theme.highlightColor), not a literal.
     function test_pillColorFollowsTheme() {
-        const indicator = createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdiMock
-        });
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         compare(indicator.pill.color, Kirigami.Theme.highlightColor, "pill uses the theme highlight colour");
     }
 }
