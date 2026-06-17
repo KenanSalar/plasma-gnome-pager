@@ -69,7 +69,7 @@ function switchTo(uuid) {
         "arguments": [
             new DBus.string("org.kde.KWin.VirtualDesktopManager"),
             new DBus.string("current"),
-            new DBus.QDBusVariant(new DBus.string(uuid))
+            new DBus.variant(uuid)   // variant of a PLAIN string, not a wrapped DBus.string
         ],
     });
 }
@@ -119,10 +119,15 @@ function removeDesktop(uuid) {
 
 ## DBus typed-argument helpers
 
-- `new DBus.int32(n)`, `new DBus.uint32(n)`, `new DBus.string(s)`,
-  `new DBus.QDBusVariant(value)` — KWin signatures are strict, so wrap each argument in the
-  exact type. Passing a bare JS number/string where `uint32`/variant is expected silently
-  fails (the call is dropped, no error in QML).
+- `new DBus.int32(n)`, `new DBus.uint32(n)`, `new DBus.string(s)`, `new DBus.variant(v)`
+  (all lowercase, verified from `dbusplugin.qmltypes`) — KWin signatures are strict, so wrap
+  each argument in the exact type. Passing a bare JS number/string where `uint32`/variant is
+  expected silently fails (the call is dropped, no error in QML).
+- **`new DBus.variant(v)` takes a _plain_ JS value, not another DBus wrapper.** Its constructor
+  takes a `QJSValue`, so `new DBus.variant(new DBus.string(uuid))` wraps a gadget object and
+  KWin silently rejects it — pass the bare string: `new DBus.variant(uuid)`. There is **no**
+  `DBus.QDBusVariant` type; referencing it evaluates to `undefined` and throws `TypeError` at
+  call time.
 
 ## Scroll-to-switch (with optional wrap)
 

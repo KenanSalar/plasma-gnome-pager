@@ -4,17 +4,14 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * SCAFFOLD ONLY. A single GNOME-style workspace dot (inactive look).
+ * One GNOME-style workspace dot. Milestone 1: a clickable dot that highlights
+ * when it is the active desktop. The full GNOME look (dim dots + sliding pill)
+ * arrives in Milestone 2; config-driven colors/opacity in Milestone 5.
  *
- * TODO(impl):
- *   property string desktopId
- *   property bool   active
- *   property int    desktopIndex
- *   signal activated()
- *   - MouseArea for click (-> activated()) and hover brighten.
- *   - color/opacity bindings: active uses Kirigami.Theme.highlightColor,
- *     inactive uses theme text color at configuration.inactiveOpacity.
- *   - Honour plasmoid.configuration.followThemeColors / activeColor / inactiveColor.
+ * TODO(M2):  inactive opacity / pill styling refinements.
+ * TODO(M3):  hover brighten on containsMouse.
+ * TODO(M5):  honour plasmoid.configuration.followThemeColors / activeColor /
+ *            inactiveColor / inactiveOpacity instead of the theme defaults below.
  */
 pragma ComponentBehavior: Bound
 
@@ -24,10 +21,22 @@ import org.kde.kirigami as Kirigami
 Rectangle {
     id: dot
 
+    // Input supplied by WorkspaceIndicator's Repeater delegate.
+    property bool active: false
+
+    // Emitted on click; the indicator turns this into a switch request.
+    signal activated
+
     implicitWidth: Kirigami.Units.iconSizes.small / 2
     implicitHeight: implicitWidth
     radius: height / 2
 
-    color: Kirigami.Theme.textColor
-    opacity: 0.45
+    // Declarative bindings keep the look reactive to theme + active changes.
+    color: dot.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
+    opacity: dot.active ? 1.0 : 0.45
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: dot.activated()
+    }
 }
