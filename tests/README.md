@@ -68,6 +68,12 @@ Put it in the right tier folder and name it `tst_<thing>.qml` (the `tst_` prefix
 **Import depth:** test files are now two levels under the repo root, so the component import is
 `import "../../package/contents/ui" as Pager` (note the `../../`).
 
+**Shared helpers** live in `tests/shared/` and are imported by path from either tier, e.g.
+`import "../shared/treewalk.js" as TreeWalk` — `treewalk.js` is a `.pragma library` that
+depth-first collects descendants matching a predicate (the dot/circle/tooltip delegates are
+nested, so a flat `children` scan misses them). `qmltestrunner` only discovers `tst_*.qml`, so
+files here are never run as tests; they're plain imports.
+
 ```qml
 import QtQuick
 import QtTest

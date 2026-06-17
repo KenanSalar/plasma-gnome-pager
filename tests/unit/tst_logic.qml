@@ -114,4 +114,60 @@ TestCase {
     function test_dotOpacity(data) {
         fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, 0.45, 0.8), data.exp, 0.001, data.tag);
     }
+
+    // --- gridColumns: KWin-style desktops-per-line = ceil(count / rows) -------------
+    function test_gridColumns_data() {
+        return [
+            { tag: "empty", count: 0, rows: 2, exp: 0 },
+            { tag: "single-row", count: 4, rows: 1, exp: 4 },
+            { tag: "two-rows-even", count: 4, rows: 2, exp: 2 },
+            { tag: "two-rows-odd", count: 5, rows: 2, exp: 3 },
+            { tag: "three-into-two-rows", count: 3, rows: 2, exp: 2 },
+            { tag: "more-rows-than-desktops", count: 4, rows: 3, exp: 2 },
+            { tag: "rows-zero-means-one", count: 4, rows: 0, exp: 4 },
+            { tag: "rows-undefined-means-one", count: 4, rows: undefined, exp: 4 }
+        ];
+    }
+    function test_gridColumns(data) {
+        compare(Logic.gridColumns(data.count, data.rows), data.exp, data.tag);
+    }
+
+    // --- chunk: row-major lines of at most `size`; transient inputs give [] ----------
+    function test_chunk_data() {
+        return [
+            { tag: "even", arr: ["a", "b", "c", "d"], size: 2, exp: [["a", "b"], ["c", "d"]] },
+            { tag: "uneven-last-short", arr: ["a", "b", "c"], size: 2, exp: [["a", "b"], ["c"]] },
+            { tag: "size-bigger-than-arr", arr: ["a", "b"], size: 5, exp: [["a", "b"]] },
+            { tag: "three-wide", arr: ["a", "b", "c", "d", "e"], size: 3, exp: [["a", "b", "c"], ["d", "e"]] },
+            { tag: "empty", arr: [], size: 2, exp: [] },
+            { tag: "null", arr: null, size: 2, exp: [] },
+            { tag: "size-zero", arr: ["a", "b"], size: 0, exp: [] }
+        ];
+    }
+    function test_chunk(data) {
+        // JSON-compare so the nested arrays are checked by value, not identity.
+        compare(JSON.stringify(Logic.chunk(data.arr, data.size)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // --- lineExtent: one capsule + the rest dots, uniform gaps; transient -> one dot ---
+    // Two callers: the major axis passes the pill as activeExtent (a real capsule); the cross
+    // axis passes dotSize (the all-dots degenerate case, n*dot + (n-1)*gap).
+    function test_lineExtent_data() {
+        return [
+            // major axis: one capsule (25) + the rest dots (10) with gaps (5)
+            { tag: "capsule-line", count: 3, dot: 10, gap: 5, active: 25, exp: 55 },
+            // cross axis / all-dots: activeExtent == dotSize -> n*dot + (n-1)*gap
+            { tag: "all-dots", count: 2, dot: 10, gap: 5, active: 10, exp: 25 },
+            { tag: "all-dots-three", count: 3, dot: 10, gap: 5, active: 10, exp: 40 },
+            // a single slot is just that slot (no gaps) — capsule or dot
+            { tag: "single-capsule", count: 1, dot: 10, gap: 5, active: 25, exp: 25 },
+            { tag: "single-dot", count: 1, dot: 10, gap: 5, active: 10, exp: 10 },
+            // transient no-desktops: returns ONE dotSize (NOT activeExtent), so the cell holds
+            { tag: "zero-returns-dot", count: 0, dot: 10, gap: 5, active: 25, exp: 10 },
+            { tag: "negative-returns-dot", count: -1, dot: 10, gap: 5, active: 25, exp: 10 }
+        ];
+    }
+    function test_lineExtent(data) {
+        fuzzyCompare(Logic.lineExtent(data.count, data.dot, data.gap, data.active), data.exp, 0.001, data.tag);
+    }
 }
