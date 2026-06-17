@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GNOME Workspace Switcher — configuration schema (KConfigXT)
+
+  SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Each <entry name="X"> becomes plasmoid.configuration.X, read live and reactive in the
+  widget. These defaults apply even before the settings UI exists (M5 owns config.qml + the
+  pages), so M3 can read the behaviour keys now. M5 expands this file with the appearance
+  keys (dotSize, pillWidthFactor, inactiveOpacity, followThemeColors, activeColor, …).
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <!-- Scroll over the strip to switch desktops. -->
+        <entry name="enableScroll" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- When scrolling past the first/last desktop, wrap around (else clamp). -->
+        <entry name="scrollWrap" type="Bool">
+            <default>false</default>
+        </entry>
+        <!-- Show the desktop name in a tooltip on hover. -->
+        <entry name="showTooltips" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Offer Add/Remove desktop entries in the right-click menu. -->
+        <entry name="enableAddRemove" type="Bool">
+            <default>true</default>
+        </entry>
+    </group>
+</kcfg>

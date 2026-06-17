@@ -18,6 +18,7 @@
  * without a display).
  */
 import QtQuick
+import QtQuick.Layouts
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
@@ -41,13 +42,15 @@ TestCase {
         Pager.WorkspaceIndicator {}
     }
 
-    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator only reads
-    // .desktopIds and .currentDesktop). Built per test via makeMock(...).
+    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator reads
+    // .desktopIds, .currentDesktop and — for tooltips — .desktopNames). Built per test
+    // via makeMock(...).
     Component {
         id: vdiMockComponent
         QtObject {
             property var desktopIds: []
             property string currentDesktop: ""
+            property var desktopNames: []
         }
     }
 
@@ -58,18 +61,22 @@ TestCase {
 
     // A duck-typed VirtualDesktopInfo mock. Pass a currentDesktop outside desktopIds (the
     // staleUuid) to exercise the transient add/remove state the indicator must tolerate.
-    function makeMock(desktopIds, currentDesktop) {
+    // desktopNames is optional (defaults []), needed only by the tooltip tests.
+    function makeMock(desktopIds, currentDesktop, desktopNames) {
         return createTemporaryObject(vdiMockComponent, testCase, {
             desktopIds: desktopIds,
-            currentDesktop: currentDesktop
+            currentDesktop: currentDesktop,
+            desktopNames: desktopNames || []
         });
     }
 
-    // The single point that instantiates the component under test (auto-cleaned).
-    function makeIndicator(vdi) {
-        return createTemporaryObject(indicatorComponent, testCase, {
-            virtualDesktopInfo: vdi
-        });
+    // The single point that instantiates the component under test (auto-cleaned). Extra
+    // props (e.g. enableScroll/scrollWrap, an explicit width) can be passed for the
+    // interaction tests; virtualDesktopInfo is always set.
+    function makeIndicator(vdi, props) {
+        const p = props || {};
+        p.virtualDesktopInfo = vdi;
+        return createTemporaryObject(indicatorComponent, testCase, p);
     }
 
     // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is
@@ -381,5 +388,166 @@ TestCase {
 
         compare(switchSpy.count, 1, "click through the pill reaches the dot beneath");
         compare(switchSpy.signalArguments[0][0], currentUuid, "the covered (active) desktop's UUID is forwarded");
+    }
+
+    // --- Milestone 3: scroll-to-switch --------------------------------------------
+    // The indicator forwards a wheel step as switchRequested(uuid); the index math
+    // (clamp/wrap/accumulate) is unit-tested in tst_logic, so here we assert the wiring:
+    // direction, the enable/wrap flags, the clamped no-ops, and sub-notch accumulation.
+    // Wheel DOWN (negative angleDelta) → next desktop; wheel UP (positive) → previous.
+
+    function test_scrollDownStepsNext() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 1, "one switch on a full notch down");
+        compare(switchSpy.signalArguments[0][0], ids[1], "scroll down moves to the next desktop");
+    }
+
+    function test_scrollUpStepsPrevious() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);
+        compare(switchSpy.count, 1, "one switch on a full notch up");
+        compare(switchSpy.signalArguments[0][0], ids[0], "scroll up moves to the previous desktop");
+    }
+
+    function test_scrollClampAtStartIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, scrollWrap: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);   // up from the first desktop, no wrap
+        compare(switchSpy.count, 0, "scrolling past the start without wrap is a no-op");
+    }
+
+    function test_scrollClampAtEndIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true, scrollWrap: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);   // down from the last desktop, no wrap
+        compare(switchSpy.count, 0, "scrolling past the end without wrap is a no-op");
+    }
+
+    function test_scrollWrapForwardAtEnd() {
+        const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true, scrollWrap: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);   // down from the last desktop, wrapping
+        compare(switchSpy.count, 1, "wrap produces a switch at the end");
+        compare(switchSpy.signalArguments[0][0], ids[0], "wraps forward to the first desktop");
+    }
+
+    function test_scrollWrapBackwardAtStart() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, scrollWrap: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);   // up from the first desktop, wrapping
+        compare(switchSpy.count, 1, "wrap produces a switch at the start");
+        compare(switchSpy.signalArguments[0][0], ids[2], "wraps backward to the last desktop");
+    }
+
+    function test_scrollDisabledIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 0, "no switching when enableScroll is false");
+    }
+
+    // Touchpad/hi-res wheels report sub-notch deltas that must accumulate to a full notch
+    // before stepping (and not be lost in between).
+    function test_scrollAccumulatesSubNotch() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-60);
+        compare(switchSpy.count, 0, "half a notch does not switch yet");
+        indicator.handleWheel(-60);
+        compare(switchSpy.count, 1, "the second half completes a notch and switches");
+        compare(switchSpy.signalArguments[0][0], ids[1], "accumulated notch moves to the next desktop");
+    }
+
+    // Real wheel EVENTS (not just calling handleWheel) — these exercise the actual path
+    // that was broken in-shell: a MouseArea behind the dots receives the wheel because the
+    // dots have no onWheel, so it propagates down. mouseWheel(item, x, y, xDelta, yDelta).
+    function test_wheelEventStepsNext() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);   // wheel down over the strip
+        compare(switchSpy.count, 1, "a real wheel event switches");
+        compare(switchSpy.signalArguments[0][0], ids[1], "wheel down moves to the next desktop");
+    }
+
+    function test_wheelEventDisabledIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);
+        compare(switchSpy.count, 0, "a real wheel event does nothing when scroll is disabled");
+    }
+
+    // Wheel events must not block clicks: clicking a dot still switches to it (the wheel
+    // MouseArea is NoButton, so press/release pass through to the dot beneath).
+    function test_wheelLayerDoesNotBlockClicks() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        const dot = dotByUuid(indicator, ids[0]);
+        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        mouseClick(indicator, c.x, c.y);
+        compare(switchSpy.count, 1, "clicking a dot still works with the wheel layer present");
+        compare(switchSpy.signalArguments[0][0], ids[0], "the clicked dot's UUID is forwarded");
+    }
+
+    // --- Milestone 3: panel sizing ------------------------------------------------
+    // The applet collapsed to a square cell in-shell (dots overflowed the neighbours) when
+    // the representation advertised only implicitWidth. The indicator must expose its
+    // content width through Layout.* hints so the panel allocates the right space.
+    function test_advertisesWidthViaLayout() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
+        verify(indicator.implicitWidth > 0, "indicator has a positive content width");
+        compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth advertises the content width");
+        compare(indicator.Layout.minimumWidth, indicator.implicitWidth, "minimumWidth advertises the content width");
+        compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the width (a pager does not stretch)");
+    }
+
+    // --- Milestone 3: per-dot tooltip data ----------------------------------------
+    // Tooltips live per-dot now; the indicator feeds each dot its name and the flag.
+
+    function test_dotsReceiveDesktopName() {
+        const names = ["One", "Two", "Three"];
+        const indicator = makeIndicator(makeMock(ids, currentUuid, names));
+        for (let i = 0; i < ids.length; i++) {
+            const dot = dotByUuid(indicator, ids[i]);
+            compare(dot.desktopName, names[i], "dot " + i + " gets its index-aligned name");
+        }
+    }
+
+    // robustness.md: names can lag ids during an add/remove — the dot gets "" (no OOB).
+    function test_dotDesktopNameGuardsShortNames() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid, ["One"]));   // names shorter than ids
+        compare(dotByUuid(indicator, ids[2]).desktopName, "", "missing name resolves to empty string");
+    }
+
+    function test_showTooltipsPropagatesToDots() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid, ["One", "Two", "Three"]), { showTooltips: false });
+        verify(!dotByUuid(indicator, ids[0]).showTooltips, "showTooltips=false reaches the dots");
+
+        indicator.showTooltips = true;
+        verify(dotByUuid(indicator, ids[0]).showTooltips, "toggling showTooltips updates the dots reactively");
     }
 }
