@@ -78,31 +78,32 @@ PlasmoidItem {
         id: vdi
     }
 
+    // Every virtual-desktop write goes through KWin's VirtualDesktopManager (service + path are
+    // the invariant; only iface/member/arguments vary). Async fire-and-forget: issue the call and
+    // let `vdi` report the resulting state. The typed-arg `arguments` arrays stay at each call site
+    // — they hold the order-sensitive DBus.* constructors (see CLAUDE.md DBus gotcha).
+    function kwinCall(iface, member, args) {
+        DBus.SessionBus.asyncCall({
+            "service": "org.kde.KWin",
+            "path": "/VirtualDesktopManager",
+            "iface": iface,
+            "member": member,
+            "arguments": args
+        });
+    }
+
     // Switch to a desktop by UUID via the VirtualDesktopManager "current" property.
-    // Async fire-and-forget: issue the call and let `vdi` report the new state.
     function switchTo(uuid) {
         if (!uuid) {
             return; // robustness: desktopIds/currentDesktop can be transiently empty
         }
-        DBus.SessionBus.asyncCall({
-            "service": "org.kde.KWin",
-            "path": "/VirtualDesktopManager",
-            "iface": "org.freedesktop.DBus.Properties",
-            "member": "Set",
-            "arguments": [new DBus.string("org.kde.KWin.VirtualDesktopManager"), new DBus.string("current"), new DBus.variant(uuid)]
-        });
+        root.kwinCall("org.freedesktop.DBus.Properties", "Set", [new DBus.string("org.kde.KWin.VirtualDesktopManager"), new DBus.string("current"), new DBus.variant(uuid)]);
     }
 
-    // Append a new desktop at the end. Async fire-and-forget; `vdi` reports the new count.
+    // Append a new desktop at the end. `vdi` reports the new count.
     function addDesktop() {
-        DBus.SessionBus.asyncCall({
-            "service": "org.kde.KWin",
-            "path": "/VirtualDesktopManager",
-            "iface": "org.kde.KWin.VirtualDesktopManager",
-            "member": "createDesktop",
-            "arguments": [new DBus.uint32(vdi.numberOfDesktops),   // position = append at end
-                new DBus.string(i18n("New Desktop"))]
-        });
+        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "createDesktop", [new DBus.uint32(vdi.numberOfDesktops),   // position = append at end
+            new DBus.string(i18n("New Desktop"))]);
     }
 
     // Remove a desktop by UUID. Never remove the last one (there must always be ≥1).
@@ -110,13 +111,7 @@ PlasmoidItem {
         if (!uuid || !Logic.canRemoveDesktop(vdi.numberOfDesktops)) {
             return;
         }
-        DBus.SessionBus.asyncCall({
-            "service": "org.kde.KWin",
-            "path": "/VirtualDesktopManager",
-            "iface": "org.kde.KWin.VirtualDesktopManager",
-            "member": "removeDesktop",
-            "arguments": [new DBus.string(uuid)]
-        });
+        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "removeDesktop", [new DBus.string(uuid)]);
     }
 
     // "Remove" targets the last desktop (the one addDesktop appended).

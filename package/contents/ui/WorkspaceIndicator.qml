@@ -66,11 +66,11 @@ Item {
     // Null-safe live views of the reactive desktop state — one source of truth that
     // the bindings below read, so the guard isn't repeated (virtualDesktopInfo can be
     // transiently null during a desktop add/remove or shell reload; see robustness.md).
-    readonly property var desktopIds: virtualDesktopInfo && virtualDesktopInfo.desktopIds ? virtualDesktopInfo.desktopIds : []
-    readonly property string currentDesktop: virtualDesktopInfo ? virtualDesktopInfo.currentDesktop : ""
+    readonly property var desktopIds: virtualDesktopInfo?.desktopIds ?? []
+    readonly property string currentDesktop: virtualDesktopInfo?.currentDesktop ?? ""
     // Display names, index-aligned with desktopIds. Null-safe like the views above
     // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
-    readonly property var desktopNames: virtualDesktopInfo && virtualDesktopInfo.desktopNames ? virtualDesktopInfo.desktopNames : []
+    readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
 
     // Behaviour flags, supplied by main.qml from plasmoid.configuration. Defaults match the
     // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
@@ -98,7 +98,7 @@ Item {
     // from VirtualDesktopInfo — null-guarded, and clamped to ≥1 so a transient 0/undefined reads
     // as a single line. We MIRROR KWin's grid rather than add our own setting: change "Rows" there
     // and the strip re-lays out reactively. The default (1) is a single line — today's behaviour.
-    readonly property int desktopRows: virtualDesktopInfo && virtualDesktopInfo.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1
+    readonly property int desktopRows: virtualDesktopInfo?.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1
 
     // Desktops per line (KWin columns = ceil(count / rows)) and the row-major split of desktopIds
     // into lines. Each line is rendered as an independent single-line reflow strip below, so the
@@ -135,8 +135,9 @@ Item {
     // while activeIndex is transiently -1 (a switch conserves total length). crossThickness is the
     // perpendicular extent: lineCount lines of one dot each + the gaps between them (one dot when
     // single-line — today's value). Both reduce to the M3 single-line formula when desktopRows == 1.
-    readonly property real stripLength: perLine > 0 ? pillWidth + (perLine - 1) * (dotSize + dotSpacing) : dotSize
-    readonly property real crossThickness: lineCount > 0 ? lineCount * dotSize + (lineCount - 1) * dotSpacing : dotSize
+    readonly property real stripLength: Logic.lineExtent(perLine, dotSize, dotSpacing, pillWidth)
+    // No capsule on the cross axis: pass activeExtent == dotSize (the all-dots degenerate case).
+    readonly property real crossThickness: Logic.lineExtent(lineCount, dotSize, dotSpacing, dotSize)
 
     // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
     // a KWin switch.
