@@ -66,28 +66,37 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 **full** representation, forced to always show inline: `main.qml` sets
 `preferredRepresentation: fullRepresentation` and `fullRepresentation: WorkspaceIndicator {}`.
 `main.qml` (root `PlasmoidItem`) owns the data sources, DBus helpers, and contextual actions;
-`WorkspaceIndicator.qml` lays out the dot strip; `WorkspaceDot.qml` is one element (a dot that
-morphs into the highlighted capsule when active — see the Visual model below).
+`WorkspaceIndicator.qml` lays out the dot strip — a row or column per `Plasmoid.formFactor` (passed
+down as a plain `vertical` bool), and a multi-row grid mirroring KWin's `desktopLayoutRows`;
+`WorkspaceDot.qml` is one element (a dot that morphs into the highlighted capsule when active — see
+the Visual model below).
 
 > **Gotcha (learned the hard way) — advertise width via `Layout.*`, not `implicitWidth` alone.**
 > An inline full-representation that sets *only* `implicitWidth`/`implicitHeight` gets a **default
 > square cell** (≈ panel thickness) from the panel: the centred dot `Row` then overflows its tiny
 > cell and draws **on top of the neighbouring widgets**, and only that small cell is interactive
 > (the dots outside it are dead to clicks/scroll/right-click). Fix: the representation root
-> (`WorkspaceIndicator`) advertises its content width via
-> `Layout.minimumWidth`/`preferredWidth`/`maximumWidth` (= `implicitWidth`; needs
-> `import QtQuick.Layouts`); height is left to the panel thickness with the `Row` centred in it.
-> Asserted by `tst_workspaceindicator.qml::test_advertisesWidthViaLayout`. (M4 swaps these for
-> height hints on a vertical panel.) Do **not** wrap the representation root in another item
-> (e.g. a `ToolTipArea`) that doesn't forward these `Layout` hints — that reintroduces the square
-> cell.
+> (`WorkspaceIndicator`) advertises its content extent via `Layout.minimum`/`preferred`/`maximum`
+> on **both** axes (needs `import QtQuick.Layouts`). The MAJOR (line) axis — width on a horizontal
+> panel, height on a vertical one (`vertical`) — is **pinned** (`min == preferred == max ==
+> stripLength`); the CROSS axis carries the line(s) (`min == preferred == crossThickness`) with its
+> **maximum reset to `-1`** (Qt's unconstrained `+∞`) so the panel stretches it to the panel
+> thickness and the centred grid sits in the middle. Asserted by
+> `tst_workspaceindicator.qml::{test_advertisesWidthViaLayout,test_verticalAdvertisesHeightViaLayout}`.
+> Do **not** wrap the representation root in another item (e.g. a `ToolTipArea`) that doesn't
+> forward these `Layout` hints — that reintroduces the square cell.
 
 **Visual model — REFLOW: each element morphs dot⇄capsule (no overlay).** Each `WorkspaceDot`
 *is* a workspace and renders as a dim circle (`Kirigami.Theme.textColor` @ `inactiveOpacity`,
-width `dotSize`) when inactive, and morphs into a wider highlighted **capsule** (the "pill":
-`Kirigami.Theme.highlightColor` @ full opacity, width `pillWidth`) when `active`. There is **no**
-separate overlay. Switching morphs two elements at once (old capsule → dot, new dot → capsule) and
-the `Row` reflows between them. Hover brighten (M3) is a *separate* inactive-only state driven by
+`dotSize` across) when inactive, and morphs into a longer highlighted **capsule** (the "pill":
+`Kirigami.Theme.highlightColor` @ full opacity, `pillWidth` along the major axis) when `active`.
+There is **no** separate overlay. Switching morphs two elements at once (old capsule → dot, new dot
+→ capsule) and the line reflows between them. **Form factor (M4):** the major axis is horizontal on
+a horizontal panel and vertical on a vertical one (`vertical`, from `Plasmoid.formFactor`); the dot
+morphs `width` or `height` accordingly (`radius` stays `dotSize/2` so the ends keep stadium-round).
+When KWin's grid has more than one row, the strip is several such reflow lines stacked along the
+cross axis (mirroring `VirtualDesktopInfo.desktopLayoutRows`) — see the multi-row gotcha below.
+Hover brighten (M3) is a *separate* inactive-only state driven by
 `containsMouse`; `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)` returns
 `1.0` for the active capsule and `hovered ? hoverOpacity : inactiveOpacity` otherwise (so hovering
 the active capsule does nothing). This replaced an earlier *sliding overlay pill* — which could not
@@ -95,19 +104,39 @@ give GNOME's uniform spacing (a wide overlay needs clearance, forcing wide dot g
 how GNOME and the KDE `compact_pager` actually work.
 
 > **Uniform spacing + reflow — don't reintroduce the overlay or a coupled slot.**
-> One uniform `Row.spacing` (`dotSpacing = dotSize * spacingFactor`, default `spacingFactor 0.5`)
+> One uniform `spacing` (`dotSpacing = dotSize * spacingFactor`, default `spacingFactor 0.5`)
 > sits between **every** adjacent element, so the pill-to-dot gap equals the dot-to-dot gap (the
-> GNOME look). The active element simply widens **in place**; its neighbours are pushed out by the
-> Row and can never be covered or clipped — so there is **no** `pillOverhang`/`pillEndGap`/`pillX`
+> GNOME look). The active element simply grows **in place**; its neighbours are pushed out by the
+> line and can never be covered or clipped — so there is **no** `pillOverhang`/`pillEndGap`/`pillX`
 > math. This is **not** the previously-rejected *uniform-slot* model (every slot as wide as the
 > pill, which spread the dots far apart): here inactive dots stay `dotSize`-tight and only the
-> active one is wider. Width is advertised by a **formula** —
-> `implicitWidth = desktopCount > 0 ? pillWidth + (desktopCount-1)*(dotSize+dotSpacing) : dotSize`
-> — not the live Row width, so the panel cell stays put during the morph and when no element is
-> active (a single switch **conserves total width**: the shrinking and growing elements cancel).
+> active one is longer. Size is advertised by a **formula** on the major axis —
+> `stripLength = perLine > 0 ? pillWidth + (perLine-1)*(dotSize+dotSpacing) : dotSize` — and the
+> cross axis carries the lines (`crossThickness = lineCount*dotSize + (lineCount-1)*dotSpacing`),
+> not the live positioner extent, so the panel cell stays put during the morph and when no element
+> is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
+> single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
 > Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
-> test_transientStaleNoCapsuleWidthStable}`. The metrics (`dotSize`, `pillWidthFactor`,
-> `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) are named to match the M5 settings keys.
+> test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metrics (`dotSize`,
+> `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) are named to match the M5
+> settings keys.
+>
+> **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
+> KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
+> desktops into that many **lines** via `Logic.gridColumns(count, rows)` (= `ceil(count/rows)`,
+> the per-line count) + `Logic.chunk(ids, perLine)`. Each line is an **independent single-line
+> reflow strip** (tight dots + the in-place pill), so a grid is just `lineCount` lines stacked on
+> the cross axis — every row keeps the exact dots+pill look. This is **two nested `Grid`
+> positioners** (outer = lines along the cross axis, inner = dots along the major axis; each fixes
+> only its line dimension to `1` and leaves the other `-1`/auto), **not** one 2-D `Grid` — a single
+> `Grid` would size each column to its widest cell, so the active capsule would fatten its **whole
+> column** across all rows. The trade-off: lines are **centred independently** (a short/last line is
+> narrower than the line holding the pill), i.e. **not column-aligned** — that's the deliberate cost
+> of keeping each row's exact look. We **mirror** KWin's grid (System Settings → Virtual Desktops →
+> "Rows") rather than add a widget setting, so it updates reactively and never disagrees with KWin.
+> The dot's flat-list position is `globalIndex = line*perLine + indexInLine` (for `desktopNames`).
+> Guarded by `test_grid*` (mirrors-rows, uneven-last-line, reactive-to-rows, second-line capsule,
+> vertical transpose) + `tst_logic.qml::{test_gridColumns,test_chunk}`.
 
 > **Gotcha — animate the first *placement*, not the first frame.** The morph is gated by an
 > `animate` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the active

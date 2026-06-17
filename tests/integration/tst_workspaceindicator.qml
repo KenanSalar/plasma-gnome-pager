@@ -53,6 +53,7 @@ TestCase {
             property var desktopIds: []
             property string currentDesktop: ""
             property var desktopNames: []
+            property int desktopLayoutRows: 1   // KWin's row count; 1 = single line (default)
         }
     }
 
@@ -64,11 +65,12 @@ TestCase {
     // A duck-typed VirtualDesktopInfo mock. Pass a currentDesktop outside desktopIds (the
     // staleUuid) to exercise the transient add/remove state the indicator must tolerate.
     // desktopNames is optional (defaults []), needed only by the tooltip tests.
-    function makeMock(desktopIds, currentDesktop, desktopNames) {
+    function makeMock(desktopIds, currentDesktop, desktopNames, desktopLayoutRows) {
         return createTemporaryObject(vdiMockComponent, testCase, {
             desktopIds: desktopIds,
             currentDesktop: currentDesktop,
-            desktopNames: desktopNames || []
+            desktopNames: desktopNames || [],
+            desktopLayoutRows: desktopLayoutRows || 1
         });
     }
 
@@ -102,10 +104,12 @@ TestCase {
         return null;
     }
 
-    // The dots in Repeater/index order (left→right), so geometry tests can walk neighbours.
+    // The dots in flat desktop order, so geometry tests can walk neighbours. Sort by globalIndex
+    // (line * perLine + position) so it stays correct across multiple grid lines; for a single
+    // line globalIndex == the per-line index, so single-line tests are unaffected.
     function dotsByIndex(indicator) {
         const dots = collectDots(indicator);
-        dots.sort((a, b) => a.index - b.index);
+        dots.sort((a, b) => a.globalIndex - b.globalIndex);
         return dots;
     }
 
@@ -621,6 +625,105 @@ TestCase {
         const last = lastDots[lastDots.length - 1];
         const lastBottom = last.mapToItem(atLast, 0, last.height).y;
         verify(lastBottom <= atLast.height + 0.5, "last element does not clip past the bottom edge");
+    }
+
+    // --- Milestone 4: multi-row grid (mirrors KWin's desktopLayoutRows) -----------
+    // When KWin's desktop grid has more than one row, the strip splits the desktops into that many
+    // LINES, each an independent single-line reflow strip. Driven live by desktopLayoutRows on the
+    // mock; defaults to 1 (single line) so every test above is unaffected. Horizontal panel: lines
+    // stack vertically (rows of dots); the per-line count is ceil(count / rows).
+
+    readonly property var fourIds: ["uuid-a", "uuid-b", "uuid-c", "uuid-d"]
+    readonly property var fiveIds: ["uuid-a", "uuid-b", "uuid-c", "uuid-d", "uuid-e"]
+
+    // rows=2 over 4 desktops → 2 lines of 2; the indicator exposes perLine/lineCount.
+    function test_gridMirrorsKWinRows() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
+        compare(indicator.perLine, 2, "4 desktops / 2 rows → 2 per line");
+        compare(indicator.lineCount, 2, "two lines");
+        compare(collectDots(indicator).length, 4, "all four dots present");
+    }
+
+    // ceil rounding: 5 desktops / 2 rows → 3 per line, 2 lines (last line short with 2).
+    function test_gridUnevenLastLine() {
+        const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0], [], 2));
+        compare(indicator.perLine, 3, "5 desktops / 2 rows → 3 per line");
+        compare(indicator.lineCount, 2, "two lines (second holds the remaining 2)");
+        compare(collectDots(indicator).length, 5, "all five dots present");
+    }
+
+    // Default / 1 row stays a single line — the M3/M4 single-line behaviour.
+    function test_gridDefaultsToSingleLine() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0]));   // no rows → 1
+        compare(indicator.perLine, 4, "single line holds all desktops");
+        compare(indicator.lineCount, 1, "exactly one line by default");
+    }
+
+    // Changing KWin's row count re-lays out reactively (no cache; mirrors System Settings live).
+    function test_gridReactiveToRows() {
+        const vdi = makeMock(fourIds, fourIds[0]);   // 1 row
+        const indicator = makeIndicator(vdi);
+        compare(indicator.lineCount, 1, "starts single-line");
+
+        vdi.desktopLayoutRows = 2;   // user raises "Rows" in System Settings
+
+        tryCompare(indicator, "lineCount", 2, 2000, "grid re-lays out to two lines");
+        compare(indicator.perLine, 2, "two per line after the change");
+    }
+
+    // Horizontal panel, 2 rows: dots split into two vertically-stacked lines (the second below the
+    // first); within a line the dots share a row (equal y).
+    function test_gridStacksRowsHorizontally() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
+        const dots = dotsByIndex(indicator);   // global order: [0,1] line 0, [2,3] line 1
+        const y0 = dots[0].mapToItem(indicator, 0, 0).y;
+        const y1 = dots[1].mapToItem(indicator, 0, 0).y;
+        const y2 = dots[2].mapToItem(indicator, 0, 0).y;
+        fuzzyCompare(y1, y0, 0.5, "the two dots of line 0 share a row");
+        verify(y2 > y0 + 0.5, "line 1 sits below line 0");
+    }
+
+    // 2-D sizing: the major (width) axis is pinned to one line's length; the cross (height) axis
+    // carries both lines (min/preferred), with its maximum left free to fill the panel thickness.
+    function test_gridSizingTwoRows() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
+        const major = indicator.pillWidth + (indicator.perLine - 1) * (indicator.dotSize + indicator.dotSpacing);
+        const cross = indicator.lineCount * indicator.dotSize + (indicator.lineCount - 1) * indicator.dotSpacing;
+        fuzzyCompare(indicator.implicitWidth, major, 0.5, "width is one line long");
+        fuzzyCompare(indicator.implicitHeight, cross, 0.5, "height carries both lines");
+        compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "major (width) axis is pinned");
+        compare(indicator.Layout.minimumHeight, indicator.implicitHeight, "cross (height) min holds both lines");
+        const maxH = indicator.Layout.maximumHeight;
+        verify(maxH < 0 || maxH > indicator.implicitHeight, "cross axis max is free (fills panel thickness)");
+    }
+
+    // The active capsule still morphs when the current desktop lives in the second line.
+    function test_gridActiveCapsuleInSecondLine() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[3], [], 2));   // current is in line 1
+        fuzzyCompare(dotByUuid(indicator, fourIds[3]).width, indicator.pillWidth, 0.5, "second-line current is the capsule");
+        fuzzyCompare(dotByUuid(indicator, fourIds[0]).width, indicator.dotSize, 0.5, "a first-line inactive is a dot");
+    }
+
+    // Names are index-aligned across the whole flat desktop list, not reset per line.
+    function test_gridNamesMapAcrossLines() {
+        const names = ["One", "Two", "Three", "Four"];
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], names, 2));
+        for (let i = 0; i < fourIds.length; i++)
+            compare(dotByUuid(indicator, fourIds[i]).desktopName, names[i], "dot " + i + " keeps its global name");
+    }
+
+    // Vertical panel, 2 rows: the grid transposes — lines sit side by side (different x), dots
+    // stack within each line (increasing y), so the longer per-line extent runs down the panel.
+    function test_gridVerticalTranspose() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true });
+        compare(indicator.perLine, 2, "2 dots per line");
+        compare(indicator.lineCount, 2, "two lines");
+        const dots = dotsByIndex(indicator);   // [0,1] line 0, [2,3] line 1
+        const p0 = dots[0].mapToItem(indicator, 0, 0);
+        const p1 = dots[1].mapToItem(indicator, 0, 0);
+        const p2 = dots[2].mapToItem(indicator, 0, 0);
+        verify(p1.y > p0.y + 0.5, "dots stack vertically within a line");
+        verify(p2.x > p0.x + 0.5, "the second line sits beside the first (transposed)");
     }
 
     // --- Milestone 3: per-dot tooltip data ----------------------------------------
