@@ -13,21 +13,22 @@
  * WorkspaceIndicator.qml.
  *
  * Three states drive the look:
- *  - inactive:        dim circle, Kirigami.Theme.textColor @ inactiveOpacity, dotSize across.
+ *  - inactive:        dim circle, inactive colour @ inactiveOpacity, dotSize across.
  *  - inactive+hover:  brightened to hoverOpacity (Logic.dotOpacity); hover affects inactive only.
- *  - active:          capsule, Kirigami.Theme.highlightColor @ full opacity, pillWidth along the
- *                     MAJOR axis (width on a horizontal strip, height on a vertical one — `vertical`).
+ *  - active:          capsule, active colour @ full opacity, pillWidth along the MAJOR axis
+ *                     (width on a horizontal strip, height on a vertical one — `vertical`).
  *
- * The morph (the major-axis length + colour + opacity) animates via Behaviors, gated by `animate`
- * so the FIRST placement is instant (the active element is already a capsule on frame 0 — no grow-in
- * on shell reload) and by Kirigami.Units.longDuration > 0 (reduce-animations → instant). Each element
- * also carries its own PlasmaCore.ToolTipArea showing `desktopName` on hover.
+ * Colour follows the colour scheme by default (active = Kirigami.Theme.highlightColor, inactive =
+ * textColor); when followThemeColors is false the configured activeColor/inactiveColor are used
+ * instead (Logic.dotColor). The morph (the major-axis length + colour + opacity) animates via
+ * Behaviors, gated by `animate` so the FIRST placement is instant (the active element is already a
+ * capsule on frame 0 — no grow-in on shell reload) and by effectiveDuration > 0 (the configured
+ * animationDuration, or the themed default; 0 when "reduce animations" is on → instant). Each
+ * element also carries its own PlasmaCore.ToolTipArea showing `desktopName` on hover.
  *
- * Sizing/colour come in as properties from the indicator (one source of truth), with
- * Kirigami-derived defaults so a dot still renders standalone and under qmltestrunner.
- *
- * TODO(M5):  honour plasmoid.configuration.followThemeColors / activeColor /
- *            inactiveColor / inactiveOpacity instead of the theme defaults below.
+ * Sizing/colour/animation come in as properties from the indicator (one source of truth, fed from
+ * plasmoid.configuration via main.qml), with Kirigami-derived defaults so a dot still renders
+ * standalone and under qmltestrunner.
  */
 pragma ComponentBehavior: Bound
 
@@ -46,9 +47,18 @@ Item {
     property real pillWidthFactor: 2.5                          // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dot.dotSize * dot.pillWidthFactor
     property real inactiveOpacity: 0.45
-    property real hoverOpacity: 0.8                             // dimensionless ratio; M5-configurable
+    property real hoverOpacity: 0.8                             // dimensionless ratio
     property string desktopName: ""                            // shown in the tooltip
     property bool showTooltips: true
+    // Colours. When followThemeColors is true (default) the element follows the colour scheme
+    // (active = highlight, inactive = text); when false it uses activeColor/inactiveColor. The
+    // defaults are the theme colours so a standalone/headless dot is unchanged. (Logic.dotColor.)
+    property bool followThemeColors: true
+    property color activeColor: Kirigami.Theme.highlightColor
+    property color inactiveColor: Kirigami.Theme.textColor
+    // Configured morph duration in ms (0 = follow the theme). Resolved with the reduce-animations
+    // guard into effectiveDuration below.
+    property int animationDuration: 0
     // Major-axis orientation, supplied by the indicator (one source of truth). false =
     // horizontal panel (the capsule widens); true = vertical panel (the capsule grows tall).
     property bool vertical: false
@@ -60,10 +70,15 @@ Item {
     // otherwise. The cross axis is always dotSize, so the rounded ends stay circular both ways.
     readonly property real longExtent: dot.active ? dot.pillWidth : dot.dotSize
 
+    // The morph duration actually used: the configured animationDuration, or the themed default
+    // when unset (0), and 0 whenever "reduce animations" is on (Kirigami.Units.longDuration === 0
+    // always wins). One source of truth for the four Behavior durations below. (Logic.effectiveDuration.)
+    readonly property int effectiveDuration: Logic.effectiveDuration(dot.animationDuration, Kirigami.Units.longDuration)
+
     // Whether the morph Behaviors below run: only after the first placement (animate) AND when
-    // animations are enabled (longDuration > 0; reduce-animations → 0 → instant). One source of
-    // truth for the three identical Behavior gates.
-    readonly property bool morphEnabled: dot.animate && Kirigami.Units.longDuration > 0
+    // animations are enabled (effectiveDuration > 0; reduce-animations → 0 → instant). One source
+    // of truth for the four identical Behavior gates.
+    readonly property bool morphEnabled: dot.animate && dot.effectiveDuration > 0
 
     // True while the pointer is over the element (qml.md: expose internals via alias).
     readonly property alias hovered: mouseArea.containsMouse
@@ -99,7 +114,7 @@ Item {
             height: dot.vertical ? dot.longExtent : dot.dotSize
             radius: dot.dotSize / 2
             anchors.centerIn: parent
-            color: dot.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
+            color: Logic.dotColor(dot.active, dot.followThemeColors, Kirigami.Theme.highlightColor, Kirigami.Theme.textColor, dot.activeColor, dot.inactiveColor)
             opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.inactiveOpacity, dot.hoverOpacity)
 
             // The morph. Gated by dot.morphEnabled (off on first placement, and when the user has
@@ -111,27 +126,27 @@ Item {
             Behavior on width {
                 enabled: dot.morphEnabled
                 NumberAnimation {
-                    duration: Kirigami.Units.longDuration
+                    duration: dot.effectiveDuration
                     easing.type: Easing.OutCubic
                 }
             }
             Behavior on height {
                 enabled: dot.morphEnabled
                 NumberAnimation {
-                    duration: Kirigami.Units.longDuration
+                    duration: dot.effectiveDuration
                     easing.type: Easing.OutCubic
                 }
             }
             Behavior on color {
                 enabled: dot.morphEnabled
                 ColorAnimation {
-                    duration: Kirigami.Units.longDuration
+                    duration: dot.effectiveDuration
                 }
             }
             Behavior on opacity {
                 enabled: dot.morphEnabled
                 NumberAnimation {
-                    duration: Kirigami.Units.longDuration
+                    duration: dot.effectiveDuration
                 }
             }
         }

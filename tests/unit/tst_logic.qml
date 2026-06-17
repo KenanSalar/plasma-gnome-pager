@@ -115,6 +115,35 @@ TestCase {
         fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, 0.45, 0.8), data.exp, 0.001, data.tag);
     }
 
+    // --- dotColor: follow the theme, or use custom colours (the 2×2 branch) ---------
+    // Distinct string sentinels stand in for the four colours so each branch is identifiable.
+    function test_dotColor_data() {
+        return [
+            { tag: "theme-active", active: true, follow: true, exp: "themeActive" },
+            { tag: "theme-inactive", active: false, follow: true, exp: "themeInactive" },
+            { tag: "custom-active", active: true, follow: false, exp: "customActive" },
+            { tag: "custom-inactive", active: false, follow: false, exp: "customInactive" }
+        ];
+    }
+    function test_dotColor(data) {
+        compare(Logic.dotColor(data.active, data.follow, "themeActive", "themeInactive", "customActive", "customInactive"), data.exp, data.tag);
+    }
+
+    // --- effectiveDuration: override vs themed default, reduce-animations always wins ---
+    function test_effectiveDuration_data() {
+        return [
+            { tag: "auto-uses-theme", req: 0, theme: 200, exp: 200 },
+            { tag: "override-wins", req: 250, theme: 200, exp: 250 },
+            { tag: "reduce-animations-beats-override", req: 250, theme: 0, exp: 0 },
+            { tag: "reduce-animations-and-auto", req: 0, theme: 0, exp: 0 },
+            { tag: "negative-theme-is-off", req: 250, theme: -1, exp: 0 },
+            { tag: "negative-request-is-auto", req: -5, theme: 200, exp: 200 }
+        ];
+    }
+    function test_effectiveDuration(data) {
+        compare(Logic.effectiveDuration(data.req, data.theme), data.exp, data.tag);
+    }
+
     // --- gridColumns: KWin-style desktops-per-line = ceil(count / rows) -------------
     function test_gridColumns_data() {
         return [

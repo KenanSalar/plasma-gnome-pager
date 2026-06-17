@@ -78,6 +78,30 @@ function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
 }
 
 /**
+ * Colour for a dot/capsule. When `followTheme` is true the element follows the colour scheme
+ * (active → `themeActive`, inactive → `themeInactive`); otherwise it uses the user's custom
+ * `customActive` / `customInactive`. The caller passes the live Kirigami.Theme colours in as the
+ * theme args so the QML binding still tracks them and re-evaluates on a colour-scheme change.
+ */
+function dotColor(active, followTheme, themeActive, themeInactive, customActive, customInactive) {
+    if (followTheme)
+        return active ? themeActive : themeInactive;
+    return active ? customActive : customInactive;
+}
+
+/**
+ * Resolve the morph animation duration. `requested` is the user's configured value (0 = auto);
+ * `themeDuration` is Kirigami.Units.longDuration (0 when "reduce animations" is on). Returns 0
+ * whenever the theme says animations are off (reduce-animations always wins), otherwise the
+ * requested override, or the themed default when no override is set (requested <= 0).
+ */
+function effectiveDuration(requested, themeDuration) {
+    if (themeDuration <= 0)
+        return 0;                                     // reduce-animations wins
+    return requested > 0 ? requested : themeDuration; // override, else themed default
+}
+
+/**
  * Desktops per line for a grid of `rows` rows — mirrors KWin's desktop grid, where the column
  * count is derived from the configured row count: columns = ceil(count / rows). Returns 0 for an
  * empty set, and treats a missing/<1 `rows` as 1 (a single line — the default desktop layout).

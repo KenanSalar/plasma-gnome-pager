@@ -52,6 +52,21 @@ PlasmoidItem {
     readonly property bool showTooltips: Plasmoid.configuration.showTooltips ?? true
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? true
 
+    // Appearance + animation settings, read the same way and passed down to the indicator as plain
+    // values (it forwards them per-dot). dotSize/animationDuration use a `0 = auto` sentinel: the
+    // indicator/dot turn 0 into the HiDPI/themed default (so main.qml stays free of Kirigami and
+    // these stay headless-testable — see WorkspaceIndicator/WorkspaceDot). Each `?? <default>`
+    // mirrors the schema default for the transient-undefined frame, exactly like the booleans above.
+    readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? 0
+    readonly property int dotSize: Plasmoid.configuration.dotSize ?? 0
+    readonly property real spacingFactor: Plasmoid.configuration.spacingFactor ?? 0.5
+    readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? 2.5
+    readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? 0.45
+    readonly property real hoverOpacity: Plasmoid.configuration.hoverOpacity ?? 0.8
+    readonly property bool followThemeColors: Plasmoid.configuration.followThemeColors ?? true
+    readonly property color activeColor: Plasmoid.configuration.activeColor ?? "#3daee9"
+    readonly property color inactiveColor: Plasmoid.configuration.inactiveColor ?? "#eff0f1"
+
     // A pager renders inline in the panel. Plasma will not instantiate ANY
     // representation unless a fullRepresentation is defined (a compact-only applet
     // renders nothing at all), so the dot strip IS the full representation and we
@@ -67,6 +82,17 @@ PlasmoidItem {
         enableScroll: root.enableScroll
         scrollWrap: root.scrollWrap
         showTooltips: root.showTooltips
+
+        // Appearance/animation config (dotSize passed as the raw 0=auto request; resolved here).
+        dotSizeRequest: root.dotSize
+        spacingFactor: root.spacingFactor
+        pillWidthFactor: root.pillWidthFactor
+        inactiveOpacity: root.inactiveOpacity
+        hoverOpacity: root.hoverOpacity
+        followThemeColors: root.followThemeColors
+        activeColor: root.activeColor
+        inactiveColor: root.inactiveColor
+        animationDuration: root.animationDuration
 
         onSwitchRequested: uuid => root.switchTo(uuid)
     }

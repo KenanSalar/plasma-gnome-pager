@@ -12,10 +12,11 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 **integration** tiers, though it covers only the Kirigami-only components, not `main.qml`.
 
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
-and switches on click; a wider highlight "pill" slides over the active dot. Not built yet:
-scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, the settings UI, and
-robustness hardening. The ordered roadmap — what to build next, in what order — lives in
-`TODO.txt`; this file and `.claude/rules/*` describe how the code is built, not the schedule.
+and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
+below). Scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, and the
+settings UI are built; remaining work is robustness hardening and packaging/release. The
+ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
+`.claude/rules/*` describe how the code is built, not the schedule.
 
 ## The rules are the law — read them first
 
@@ -117,9 +118,9 @@ how GNOME and the KDE `compact_pager` actually work.
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
 > single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
 > Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
-> test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metrics (`dotSize`,
-> `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) are named to match the M5
-> settings keys.
+> test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
+> (`dotSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match the
+> `main.xml` settings keys exactly (see "Config flow" below).
 >
 > **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
@@ -186,17 +187,41 @@ desktop via `logic.js::canRemoveDesktop`).
 > — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
 > importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
 
-**Config flow (M3: schema only; settings UI is M5).** The four behaviour keys live in
-`package/contents/config/main.xml` (KConfigXT) and are read **live** in `main.qml`:
-`enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`. Their `main.xml` defaults apply
-even though no settings UI exists yet. M5 adds the **settings UI** + the appearance keys via two
-more files that must agree with the schema:
-- `package/contents/config/config.qml` — `ConfigModel` listing the settings categories.
-- `package/contents/ui/config/*.qml` — the settings pages, two-way bound via
-  `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml` entry exactly.
+**Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
+**live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
+(`Plasmoid.configuration.<key> ?? <default>`) → `WorkspaceIndicator` → `WorkspaceDot`. This keeps
+the sub-components free of `plasmoid.configuration` so they stay headless-testable. The keys:
+behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`, `animationDuration`;
+appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
+`followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
+with the schema:
+- `package/contents/config/config.qml` — `ConfigModel` listing the settings categories
+  (Behavior, Appearance).
+- `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),
+  two-way bound via `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml`
+  entry exactly. Built with `Kirigami.FormLayout` + `QtQuick.Controls as QQC2` (real-valued ratios
+  use `QQC2.Slider`, not the integer-only `SpinBox`); the colour pickers are
+  `org.kde.kquickcontrols` `ColorButton` — a public module that is NOT on robustness.md's allowlist
+  but is acceptable here **only because a config page is lazy-loaded** (instantiated by the settings
+  dialog, never by the always-on widget), so a break there cannot kill the running pager. The config
+  pages + `config.qml` are **e2e-only** (the dialog needs `org.kde.plasma.configuration`), so they
+  are not in the headless test harness — `make lint` covers them, but verify behaviour in-shell.
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
+
+> **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
+> fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`
+> — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize` and
+> `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
+> components** (the indicator's `dotSize`, and `Logic.effectiveDuration` for the morph) — NOT in
+> `main.qml`, which has no Kirigami import and is not headless-testable. `effectiveDuration` also
+> folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),
+> so `animationDuration` overrides the duration but can never re-enable motion the user turned off.
+> The dimensionless ratios (`spacingFactor`/`pillWidthFactor`/`inactiveOpacity`/`hoverOpacity`) are
+> plain literal defaults. Colours follow the scheme unless `followThemeColors` is false, then
+> `activeColor`/`inactiveColor` apply (`Logic.dotColor`; the binding still references the live
+> `Kirigami.Theme.*` so it re-evaluates on a colour-scheme change).
 
 > **Gotcha — guard every config read with `?? <default>`.** `readonly property bool enableScroll:
 > Plasmoid.configuration.enableScroll ?? true`. A freshly-added schema can read back `undefined`

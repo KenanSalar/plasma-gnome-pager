@@ -145,21 +145,41 @@ VERIFY: move widget between top/bottom panel, a side panel, and the desktop — 
 
 
 -------------------------------------------------------------------------------
- MILESTONE 5 — Configurability (settings UI wired to behavior)          [ ]
+ MILESTONE 5 — Configurability (settings UI wired to behavior)          [x] DONE
 -------------------------------------------------------------------------------
 Goal: expose every main.xml entry and make it actually drive the widget.
 (ref: plasmoid.md config section, kirigami.md)
-  [ ] Finish the config subsystem: EXPAND contents/config/main.xml (M3 created it with the
-      4 behavior keys) with the appearance entries + add contents/config/config.qml categories
-  [ ] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
-      showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases
-  [ ] ConfigAppearance.qml (Appearance): dotSize, dotSpacing, pillWidthFactor,
-      inactiveOpacity, followThemeColors, activeColor, inactiveColor
-  [ ] Make the widget read every key live from plasmoid.configuration.*
-  [ ] followThemeColors=false -> use activeColor/inactiveColor; true -> Kirigami.Theme
-  [ ] Hide/disable color pickers when followThemeColors is true
+NOTE: config keys match the existing component property names (CLAUDE.md authoritative over the
+old TODO wording): spacingFactor (dimensionless), NOT a px dotSpacing; hoverOpacity included. The
+two theme/HiDPI-derived keys use a `0 = auto` sentinel — dotSize 0 -> Kirigami.Units.iconSizes.small/2,
+animationDuration 0 -> Kirigami.Units.longDuration (which also inherits "reduce animations"). The
+sentinel + reduce-animations guard resolve INSIDE the components (Logic.effectiveDuration / the
+indicator's dotSize), not in main.qml, so main.qml stays Kirigami-free and the resolution is
+headless-testable. Config flow unchanged: main.xml -> main.qml (?? default) -> indicator -> dot.
+  [x] Finish the config subsystem: EXPANDED contents/config/main.xml (M3 created it with the
+      4 behavior keys) with animationDuration + an Appearance group (dotSize, spacingFactor,
+      pillWidthFactor, inactiveOpacity, hoverOpacity, followThemeColors, activeColor, inactiveColor)
+      + added contents/config/config.qml (Behavior + Appearance categories)
+  [x] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
+      showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases (SpinBox shows 0 = "Default")
+  [x] ConfigAppearance.qml (Appearance): dotSize (SpinBox, 0 = "Default"), spacingFactor /
+      pillWidthFactor / inactiveOpacity / hoverOpacity (QQC2.Slider — real value — + read-out Label),
+      followThemeColors, activeColor, inactiveColor (org.kde.kquickcontrols ColorButton; config page
+      is lazy-loaded so the import can't affect the always-on widget — robustness.md)
+  [x] Widget reads every key live from plasmoid.configuration.* (each ?? <default>), passed down
+      as plain values; the new appearance/colour/duration props forward indicator -> dot
+  [x] followThemeColors=false -> Logic.dotColor uses activeColor/inactiveColor; true -> Kirigami.Theme
+      (binding still references the theme colours so it re-evaluates on a colour-scheme change)
+  [x] Color pickers disabled (enabled: !followThemeColors) when following the theme
 VERIFY: every setting changes the widget immediately; settings persist across a
         shell restart; defaults give the intended GNOME look out of the box.
+        DONE: make check (153 tests: +Logic dotColor/effectiveDuration, +WorkspaceDot custom-colours/
+        follow-theme/duration-sentinel, +WorkspaceIndicator metrics/colours/duration flow-through) +
+        make lint clean (lint now also covers contents/ui/config/*.qml + contents/config/config.qml;
+        only the documented benign i18n unqualified warnings). In-shell smoke test (make dev/restart,
+        open Configure…: confirm live changes, the followThemeColors toggle disabling the pickers,
+        persistence across restart, and that reduce-animations forces instant morphs) is the user's
+        manual step — the config dialog (config.qml + pages) is e2e-only, not headless-testable.
 
 
 -------------------------------------------------------------------------------
