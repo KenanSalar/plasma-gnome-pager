@@ -35,17 +35,14 @@ plasma-gnome-pager/
 └── package/                 # the KPackage (this is what gets installed)
     ├── metadata.json
     └── contents/
-        ├── ui/
-        │   ├── main.qml             # PlasmoidItem root, data sources, DBus helpers
-        │   ├── WorkspaceIndicator.qml  # row/column of dots + sliding pill
-        │   ├── WorkspaceDot.qml        # one dot
-        │   └── config/
-        │       ├── ConfigGeneral.qml   # behavior settings page
-        │       └── ConfigAppearance.qml# appearance settings page
-        └── config/
-            ├── config.qml          # settings categories
-            └── main.xml            # settings schema
+        └── ui/
+            ├── main.qml             # PlasmoidItem root, data sources, DBus helpers
+            ├── WorkspaceIndicator.qml  # row/column of dots + sliding pill
+            └── WorkspaceDot.qml        # one dot
 ```
+
+> The config subsystem (`contents/config/` schema + settings pages) is deferred to
+> Milestone 5; it will be added when settings actually drive the widget.
 
 ## Development
 
