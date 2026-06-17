@@ -76,3 +76,44 @@ function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
         return 1.0;
     return hovered ? hoverOpacity : inactiveOpacity;
 }
+
+/**
+ * Desktops per line for a grid of `rows` rows — mirrors KWin's desktop grid, where the column
+ * count is derived from the configured row count: columns = ceil(count / rows). Returns 0 for an
+ * empty set, and treats a missing/<1 `rows` as 1 (a single line — the default desktop layout).
+ */
+function gridColumns(count, rows) {
+    if (count <= 0)
+        return 0;
+    var r = (rows && rows > 0) ? rows : 1;
+    return Math.ceil(count / r);
+}
+
+/**
+ * Split `arr` into consecutive chunks of at most `size` — the row-major lines of the grid (line 0
+ * is the first `size` desktops, etc.; the last line may be shorter). Returns [] for a null/empty
+ * input or a `size` < 1 (the transient no-desktops state), so a Repeater over it is simply empty.
+ */
+function chunk(arr, size) {
+    if (!arr || arr.length === 0 || !size || size < 1)
+        return [];
+    var out = [];
+    for (var i = 0; i < arr.length; i += size)
+        out.push(arr.slice(i, i + size));
+    return out;
+}
+
+/**
+ * Total extent of one reflow line of `count` slots laid end to end with a uniform `gap` between
+ * every adjacent pair: ONE slot is the active capsule (`activeExtent`), the rest are dots
+ * (`dotSize`). The length is position-independent — it does not matter which slot holds the
+ * capsule, only that exactly one does. Returns a single `dotSize` for count <= 0 (the transient
+ * no-desktops fallback, so the panel cell never collapses). The cross axis carries no capsule,
+ * so callers pass `activeExtent === dotSize` there — the degenerate all-dots case
+ * (n·dotSize + (n-1)·gap). Used for both the major-axis strip length and the cross thickness.
+ */
+function lineExtent(count, dotSize, gap, activeExtent) {
+    if (count <= 0)
+        return dotSize;
+    return activeExtent + (count - 1) * (dotSize + gap);
+}
