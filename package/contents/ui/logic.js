@@ -51,6 +51,17 @@ var DEFAULTS = Object.freeze({
 });
 
 /**
+ * Coerce a value to a string, mapping a null/undefined to "" (so callers never throw on a
+ * transient absent value). Anything else goes through String() unchanged (0 → "0", false →
+ * "false"). Shared by the sanitize* functions, which both need this exact "absent → empty,
+ * else stringify" rule. NOT used by resolveCurrentDesktop, whose prefer/fallback semantics
+ * differ (it excludes "" from the prefer branch and uses truthiness for the global one).
+ */
+function toStringOrEmpty(value) {
+    return (value === undefined || value === null) ? "" : String(value);
+}
+
+/**
  * Step the active index by `delta` (+1 next, -1 previous).
  *
  * Returns the new index in [0, count-1], or -1 for any state the caller must ignore:
@@ -237,7 +248,7 @@ function sanitizeHtml(input) {
         "\"": "&quot;",
         "\u00a0": "&nbsp;"
     };
-    return String(input === undefined || input === null ? "" : input).replace(/[<>&'"\u00a0]/g, function (c) {
+    return toStringOrEmpty(input).replace(/[<>&'"\u00a0]/g, function (c) {
         return table[c];
     });
 }
@@ -250,13 +261,23 @@ function sanitizeHtml(input) {
  * tooltip/markup. The QML caller does `if (!clean) return;` before issuing the call.
  */
 function sanitizeDesktopName(input) {
-    if (input === undefined || input === null)
-        return "";
-    var s = String(input).trim();
+    var s = toStringOrEmpty(input).trim();
     if (s.length === 0)
         return "";
     var MAX = 100;
     return s.length > MAX ? s.slice(0, MAX) : s;
+}
+
+/**
+ * Membership test for groupWindowsByDesktop: does this window belong on the desktop `uuid`?
+ * True only for a real window (`isWindow`) that is either on all desktops (`onAll`) or whose
+ * `desktops` list contains `uuid`. A null/undefined window or a missing `desktops` list yields
+ * false (guards the transient model state). Returns a strict boolean.
+ */
+function windowIsOnDesktop(window, uuid) {
+    if (!window || !window.isWindow)
+        return false;
+    return !!(window.onAll || (window.desktops && window.desktops.indexOf(uuid) !== -1));
 }
 
 /**
@@ -282,10 +303,7 @@ function groupWindowsByDesktop(windows, desktopIds) {
         var minimized = [];
         for (var i = 0; i < wins.length; i++) {
             var w = wins[i];
-            if (!w || !w.isWindow)
-                continue;
-            var here = w.onAll || (w.desktops && w.desktops.indexOf(uuid) !== -1);
-            if (!here)
+            if (!windowIsOnDesktop(w, uuid))
                 continue;
             if (w.minimized)
                 minimized.push(w.title);
