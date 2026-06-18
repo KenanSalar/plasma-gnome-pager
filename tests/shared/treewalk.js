@@ -1,4 +1,4 @@
-// GNOME Workspace Switcher — tests/shared/treewalk.js
+// Plasma Gnome Pager — tests/shared/treewalk.js
 //
 // SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-or-later

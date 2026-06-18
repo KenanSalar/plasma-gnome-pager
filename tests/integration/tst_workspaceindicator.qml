@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — tst_workspaceindicator.qml
+ * Plasma Gnome Pager — tst_workspaceindicator.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -23,7 +23,9 @@ import QtQuick.Layouts
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
+import "../shared"                          // VdiMock.qml (the shared VirtualDesktopInfo double)
 import "../shared/treewalk.js" as TreeWalk
+import "../shared/elements.js" as Elements
 
 TestCase {
     id: testCase
@@ -44,29 +46,12 @@ TestCase {
         Pager.WorkspaceIndicator {}
     }
 
-    // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator reads
-    // .desktopIds, .currentDesktop, — for tooltips — .desktopNames, and the per-screen
-    // current via .currentDesktopByScreenName / .currentDesktopForScreenChanged). Built per
-    // test via makeMock(...).
+    // Stands in for TaskManager.VirtualDesktopInfo — the shared, canonical double (duck-typed to the
+    // members the indicator reads; see tests/shared/VdiMock.qml). Built per test via makeMock(...);
+    // per-screen tests set perScreenCurrent and emit currentDesktopForScreenChanged.
     Component {
         id: vdiMockComponent
-        QtObject {
-            property var desktopIds: []
-            property string currentDesktop: ""
-            property var desktopNames: []
-            property int desktopLayoutRows: 1   // KWin's row count; 1 = single line (default)
-
-            // Plasma 6.7 per-screen API. perScreenCurrent maps a screen name -> its current desktop
-            // UUID; an absent screen falls back to the global currentDesktop. The default (empty map)
-            // models the feature OFF — every screen equals the global current — so the existing
-            // (screen-agnostic) tests stay valid. Per-screen tests set perScreenCurrent and emit
-            // currentDesktopForScreenChanged to mimic a single output switching.
-            property var perScreenCurrent: ({})
-            signal currentDesktopForScreenChanged(string screenName)
-            function currentDesktopByScreenName(name) {
-                return perScreenCurrent[name] !== undefined ? perScreenCurrent[name] : currentDesktop;
-            }
-        }
+        VdiMock {}
     }
 
     SignalSpy {
@@ -95,15 +80,12 @@ TestCase {
         return createTemporaryObject(indicatorComponent, testCase, p);
     }
 
-    // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is
-    // uniquely identified by its required `modelData` (the desktop UUID) plus the
-    // `active` bool — no other item in the tree carries both. The subtree walk is shared
-    // with the unit tier (tests/shared/treewalk.js); only the predicate is dot-specific.
-    function isDot(c) {
-        return c.modelData !== undefined && typeof c.active === "boolean";
-    }
+    // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is uniquely
+    // identified by its required `modelData` (the desktop UUID) plus the `active` bool — no other
+    // item in the tree carries both. The walk + duck-type predicates are shared with the unit tier
+    // (tests/shared/elements.js).
     function collectDots(indicator) {
-        return TreeWalk.collect(indicator, isDot);
+        return TreeWalk.collect(indicator, Elements.isDot);
     }
 
     // Find the dot delegate for a given desktop UUID (or null) — used by the
@@ -125,11 +107,10 @@ TestCase {
         return dots;
     }
 
-    // The dim circle/capsule Rectangle inside a given dot — uniquely identified by carrying both
-    // `radius` and `color` (same predicate as the unit tier). Used by the colour flow-through test.
+    // The dim circle/capsule Rectangle inside a given dot (shared locator, tests/shared/elements.js).
+    // Used by the colour flow-through test.
     function circleOf(dot) {
-        const found = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
-        return found.length ? found[0] : null;
+        return Elements.circleOf(dot);
     }
 
     // One dot per desktop UUID in the source.

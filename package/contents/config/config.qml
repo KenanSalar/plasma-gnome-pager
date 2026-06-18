@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — config.qml
+ * Plasma Gnome Pager — config.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later

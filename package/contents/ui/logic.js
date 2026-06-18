@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — logic.js
+ * Plasma Gnome Pager — logic.js
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -14,6 +14,37 @@
  * keeps this file pure.
  */
 .pragma library
+
+/**
+ * Single source of truth for the QML-side config defaults. Each value mirrors the matching
+ * contents/config/main.xml <default> and is the fallback the QML uses when a key reads back
+ * `undefined` (a freshly-added schema, a removed/re-added widget). Referenced by main.qml's
+ * `?? Logic.DEFAULTS.<key>` guards and by the WorkspaceIndicator/WorkspaceDot property defaults,
+ * so the same literal is no longer written three times and cannot drift between them. main.xml
+ * stays the SCHEMA source; this is the QML mirror. The theme/HiDPI-derived render fallbacks
+ * (dotSize → Kirigami.Units, the theme colours) are NOT here — they are intentionally different
+ * from the hex schema defaults and live in the components. `Object.freeze` keeps this one shared
+ * (.pragma library) instance immutable. `dotSize`/`animationDuration` 0 are the "auto" sentinels.
+ */
+var DEFAULTS = Object.freeze({
+    // Behaviour (General group)
+    enableScroll: true,
+    scrollWrap: false,
+    showTooltips: true,
+    enableAddRemove: true,
+    animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
+    // Appearance group
+    dotSize: 0,                  // px; 0 = auto (HiDPI themed size, resolved in the indicator)
+    spacingFactor: 0.5,
+    pillWidthFactor: 3.5,
+    inactiveOpacity: 0.45,
+    hoverOpacity: 0.8,
+    followThemeColors: true,
+    activeColor: "#3daee9",      // Breeze highlight; used only when followThemeColors is false
+    inactiveColor: "#eff0f1",    // Breeze text; used only when followThemeColors is false
+    // Interaction
+    wheelNotchDelta: 120         // QWheelEvent angleDelta units per mouse notch
+});
 
 /**
  * Step the active index by `delta` (+1 next, -1 previous).

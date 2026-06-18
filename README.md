@@ -1,4 +1,4 @@
-# GNOME Workspace Switcher (Plasma 6)
+# Plasma Gnome Pager (Plasma 6)
 
 A GNOME-style virtual-desktop switcher for KDE Plasma 6 panels: small circles with a
 sliding **pill** highlighting the current workspace.

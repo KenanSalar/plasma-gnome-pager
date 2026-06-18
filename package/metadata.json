@@ -6,7 +6,7 @@
     ],
     "KPlugin": {
         "Id": "com.github.kenansalar.plasma-gnome-pager",
-        "Name": "GNOME Workspace Switcher",
+        "Name": "Plasma Gnome Pager",
         "Description": "A GNOME-style virtual desktop switcher: dots with a pill on the current workspace.",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",

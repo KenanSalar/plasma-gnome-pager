@@ -1,5 +1,5 @@
 ===============================================================================
- GNOME Workspace Switcher (plasma-gnome-pager) — Implementation TODO
+ Plasma Gnome Pager (plasma-gnome-pager) — Implementation TODO
  id: com.github.kenansalar.plasma-gnome-pager   target: KDE Plasma 6.6+ / Qt 6
 ===============================================================================
 

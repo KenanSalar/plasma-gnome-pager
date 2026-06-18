@@ -68,28 +68,33 @@ Put it in the right tier folder and name it `tst_<thing>.qml` (the `tst_` prefix
 **Import depth:** test files are now two levels under the repo root, so the component import is
 `import "../../package/contents/ui" as Pager` (note the `../../`).
 
-**Shared helpers** live in `tests/shared/` and are imported by path from either tier, e.g.
-`import "../shared/treewalk.js" as TreeWalk` — `treewalk.js` is a `.pragma library` that
-depth-first collects descendants matching a predicate (the dot/circle/tooltip delegates are
-nested, so a flat `children` scan misses them). `qmltestrunner` only discovers `tst_*.qml`, so
-files here are never run as tests; they're plain imports.
+**Shared helpers** live in `tests/shared/` and are imported by path from either tier.
+`qmltestrunner` only discovers `tst_*.qml`, so files here are never run as tests; they're plain
+imports:
+
+- `treewalk.js` (`import "../shared/treewalk.js" as TreeWalk`) — a `.pragma library` that
+  depth-first collects descendants matching a predicate (the dot/circle/tooltip delegates are
+  nested, so a flat `children` scan misses them).
+- `elements.js` (`import "../shared/elements.js" as Elements`) — element locators built on
+  `treewalk.js`: the duck-type predicates (`isCircle`/`isDot`/`isTooltip`) and the
+  `circleOf`/`tooltipOf` collectors, shared by both tiers.
+- `VdiMock.qml` (`import "../shared"`, then `VdiMock {}`) — the **canonical**
+  `VirtualDesktopInfo` double; instantiate it inside a `Component` and build per-test via a
+  factory (see `tst_workspaceindicator.qml`'s `makeMock`).
 
 ```qml
 import QtQuick
 import QtTest
 import "../../package/contents/ui" as Pager   // for component tests
+import "../shared"                             // VdiMock (integration tests)
 
 TestCase {
     name: "MyThing"
     when: windowShown
 
-    // Mock VirtualDesktopInfo for integration tests (duck-typed; the indicator only reads
-    // .desktopIds and .currentDesktop):
-    QtObject {
-        id: vdiMock
-        property var desktopIds: ["uuid-a", "uuid-b"]
-        property string currentDesktop: "uuid-b"
-    }
+    // The shared VirtualDesktopInfo double — instantiate inside a Component and set its props
+    // per test (see tests/shared/VdiMock.qml for the full duck-typed surface).
+    Component { id: vdiMockComponent; VdiMock {} }
 
     function test_something() {
         compare(actual, expected);   // also: verify(cond), fuzzyCompare, tryCompare, tryVerify
@@ -99,8 +104,8 @@ TestCase {
 
 Conventions:
 - **Component tests** directory-import `../../package/contents/ui` and instantiate via a
-  `Component` + `createTemporaryObject` (auto cleanup). Mock `virtualDesktopInfo` with a
-  `QtObject`. Use `SignalSpy` to assert emitted signals; you can emit a signal directly
+  `Component` + `createTemporaryObject` (auto cleanup). Mock `virtualDesktopInfo` with the shared
+  `VdiMock`. Use `SignalSpy` to assert emitted signals; you can emit a signal directly
   (`dot.activated()`) instead of simulating a headless mouse click — except when the click
   path itself is what you're testing (e.g. hit areas / click-through), where `mouseClick()`
   is the point.

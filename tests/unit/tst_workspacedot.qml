@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — tst_workspacedot.qml
+ * Plasma Gnome Pager — tst_workspacedot.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar <kenansalar@gmail.com>
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -22,6 +22,7 @@ import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
 import "../shared/treewalk.js" as TreeWalk
+import "../shared/elements.js" as Elements
 
 TestCase {
     id: testCase
@@ -46,21 +47,15 @@ TestCase {
         return createTemporaryObject(dotComponent, testCase, props || {});
     }
 
-    // The circle and the tooltip are nested inside the per-dot ToolTipArea, so a flat
-    // children scan would miss them — TreeWalk.collect walks the whole subtree (shared with
-    // the integration tier; see tests/shared/treewalk.js).
-
-    // The dim circle is a Rectangle — uniquely identified by having both `radius` and
-    // `color` (the MouseArea/ToolTipArea have neither). Avoids relying on child order/depth.
+    // The circle and the tooltip are nested inside the per-dot ToolTipArea, so a flat children
+    // scan would miss them — the element locators (subtree walk + duck-type predicates) are shared
+    // with the integration tier; see tests/shared/elements.js. Thin local aliases keep the call
+    // sites below readable.
     function circleOf(dot) {
-        const found = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
-        return found.length ? found[0] : null;
+        return Elements.circleOf(dot);
     }
-
-    // The per-dot tooltip — identified by exposing `mainText` (the ToolTipArea).
     function tooltipOf(dot) {
-        const found = TreeWalk.collect(dot, c => c.mainText !== undefined);
-        return found.length ? found[0] : null;
+        return Elements.tooltipOf(dot);
     }
 
     // An inactive dot advertises a dot-sized footprint and renders exactly one element.
@@ -70,7 +65,7 @@ TestCase {
         compare(dot.implicitWidth, dot.dotSize, "inactive footprint is a dot wide");
         compare(dot.implicitHeight, dot.dotSize, "implicitHeight advertises the dot size");
 
-        const rects = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
+        const rects = TreeWalk.collect(dot, Elements.isCircle);
         compare(rects.length, 1, "renders exactly one dot/capsule rectangle");
     }
 

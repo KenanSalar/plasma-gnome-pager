@@ -219,8 +219,14 @@ desktop via `logic.js::canRemoveDesktop`).
 
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
-(`Plasmoid.configuration.<key> ?? <default>`) → `WorkspaceIndicator` → `WorkspaceDot`. This keeps
-the sub-components free of `plasmoid.configuration` so they stay headless-testable. The keys:
+(`Plasmoid.configuration.<key> ?? Logic.DEFAULTS.<key>`) → `WorkspaceIndicator` → `WorkspaceDot`.
+This keeps the sub-components free of `plasmoid.configuration` so they stay headless-testable.
+`Logic.DEFAULTS` (a frozen object in `logic.js`) is the **single source of truth for the QML-side
+fallback defaults** — referenced by `main.qml`'s `??` guards AND by the indicator/dot property
+defaults, so the same literal is no longer written three times and cannot drift. `main.xml` stays
+the SCHEMA source; `Logic.DEFAULTS` mirrors it. (Theme/HiDPI render fallbacks — the auto `dotSize`,
+the `Kirigami.Theme.*` colours — are NOT in `DEFAULTS`; they live in the components, see the sentinel
+gotcha below.) The keys:
 behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`, `animationDuration`;
 appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
 `followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
@@ -229,9 +235,10 @@ with the schema:
   (Behavior, Appearance).
 - `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),
   two-way bound via `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml`
-  entry exactly. Each page's root is a `Kirigami.ScrollablePage` (on robustness.md's allowlist; the
-  stock `KCM.SimpleKCM` is just a subclass) so the dialog renders the standard KDE title header +
-  spacing + scrolling. Every numeric metric (sizes, ratios, opacities, duration — including the
+  entry exactly. Both pages subclass the shared **`ConfigPageBase.qml`** (a `Kirigami.ScrollablePage`
+  — on robustness.md's allowlist; the stock `KCM.SimpleKCM` is just a subclass) so the dialog renders
+  the standard KDE title header + spacing + scrolling AND each page gets the Defaults header action
+  for free (see below). Every numeric metric (sizes, ratios, opacities, duration — including the
   integer keys) uses the shared `ConfigSlider.qml`; only the colours use `org.kde.kquickcontrols`
   `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
   **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
@@ -239,10 +246,12 @@ with the schema:
   are **e2e-only** (the dialog needs `org.kde.plasma.configuration`), so they are not in the headless
   test harness — `make lint` covers them, but verify behaviour in-shell.
 - **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
-  **no** Defaults button. Each page adds one as a header `Kirigami.Action` that resets every
-  `cfg_<key>` to its `cfg_<key>Default` (a property the dialog injects from the schema default —
-  declared on the page with no initializer so `main.xml` stays the single source of truth), gated by
-  an `isModified` check.
+  **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
+  `root.isModified`, firing `root.defaultsRequested()`); each derived page fulfils that contract by
+  **binding** `isModified` (any `cfg_<key>` differs from its `cfg_<key>Default`) and **handling**
+  `onDefaultsRequested` (reset every `cfg_<key>` to its `cfg_<key>Default`). `cfg_<key>Default` is a
+  property the dialog injects from the schema default — declared on the page with no initializer so
+  `main.xml` stays the single source of truth.
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
@@ -251,9 +260,14 @@ with the schema:
 > `RowLayout` with a `Layout.fillWidth` track plus a value read-out `Label` makes the track/handle
 > appear to jump while dragging, because the label's implicit width changes with the value
 > (`"45%" → "100%"`, and even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font),
-> reflowing the row. `ConfigSlider.qml` fixes this by pinning the label's width (via `TextMetrics`)
-> to its widest possible text (`widestText`) + a small buffer — every labelled slider must go through
-> it and set `widestText` to the longest string the read-out can show.
+> reflowing the row. `ConfigSlider.qml` fixes this with a single `format` closure (value → display
+> string): each call site supplies `format` once, and the component uses it for BOTH the live
+> read-out AND the reserved width — pinning the label (via `TextMetrics`) to the wider of
+> `format(from)`/`format(to)` + a small buffer. Because every formatter here is monotonic in string
+> width with magnitude AND the sentinel sliders put their special text at `from` (`0 → "Default"`),
+> reserving over the two extremes bounds every value between them (no separate `widestText` to keep
+> in sync). `snapMode` defaults to `SnapAlways` in the component; callers just set `from/to/stepSize`
+> + `format`.
 
 > **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
 > fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`
@@ -268,13 +282,14 @@ with the schema:
 > `activeColor`/`inactiveColor` apply (`Logic.dotColor`; the binding still references the live
 > `Kirigami.Theme.*` so it re-evaluates on a colour-scheme change).
 
-> **Gotcha — guard every config read with `?? <default>`.** `readonly property bool enableScroll:
-> Plasmoid.configuration.enableScroll ?? true`. A freshly-added schema can read back `undefined`
-> for a frame (or until the widget is removed/re-added), and a bare `bool` then collapses to
-> `false`, **silently disabling every interaction**. The `?? <default>` mirrors each schema default
-> and is a no-op once the value is real (`false ?? true === false`). After editing `main.xml`,
-> reload with `make restart`; if keys still read stale, `rm -rf ~/.cache/plasmashell/qmlcache` or
-> remove/re-add the widget.
+> **Gotcha — guard every config read with `?? Logic.DEFAULTS.<key>`.** `readonly property bool
+> enableScroll: Plasmoid.configuration.enableScroll ?? Logic.DEFAULTS.enableScroll`. A freshly-added
+> schema can read back `undefined` for a frame (or until the widget is removed/re-added), and a bare
+> `bool` then collapses to `false`, **silently disabling every interaction**. The `??` fallback comes
+> from `Logic.DEFAULTS` (the SSOT mirror of the schema defaults; see "Config flow") and is a no-op
+> once the value is real (`false ?? true === false`). After editing `main.xml`, reload with
+> `make restart`; if keys still read stale, `rm -rf ~/.cache/plasmashell/qmlcache` or remove/re-add
+> the widget.
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
 
