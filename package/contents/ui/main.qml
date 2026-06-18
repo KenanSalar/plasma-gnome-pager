@@ -60,7 +60,7 @@ PlasmoidItem {
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? 0
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? 0
     readonly property real spacingFactor: Plasmoid.configuration.spacingFactor ?? 0.5
-    readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? 2.5
+    readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? 3.5
     readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? 0.45
     readonly property real hoverOpacity: Plasmoid.configuration.hoverOpacity ?? 0.8
     readonly property bool followThemeColors: Plasmoid.configuration.followThemeColors ?? true

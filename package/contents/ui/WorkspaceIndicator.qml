@@ -131,7 +131,7 @@ Item {
     readonly property real dotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
     property real inactiveOpacity: 0.45
     property real hoverOpacity: 0.8                      // inactive-dot hover brighten target
-    property real pillWidthFactor: 2.5                  // active capsule length, as a multiple of a dot
+    property real pillWidthFactor: 3.5                  // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dotSize * pillWidthFactor
     property real spacingFactor: 0.5                    // uniform gap as a multiple of a dot (GNOME-tight)
     readonly property real dotSpacing: dotSize * spacingFactor

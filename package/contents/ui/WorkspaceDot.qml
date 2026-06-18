@@ -44,7 +44,7 @@ Item {
     // Inputs supplied by WorkspaceIndicator's Repeater delegate (with sane defaults).
     property bool active: false
     property real dotSize: Kirigami.Units.iconSizes.small / 2   // inactive circle diameter
-    property real pillWidthFactor: 2.5                          // active capsule length, as a multiple of a dot
+    property real pillWidthFactor: 3.5                          // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dot.dotSize * dot.pillWidthFactor
     property real inactiveOpacity: 0.45
     property real hoverOpacity: 0.8                             // dimensionless ratio

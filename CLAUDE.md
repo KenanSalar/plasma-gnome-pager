@@ -253,7 +253,7 @@ Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pa
 ```bash
 make dev        # symlink package/ -> ~/.local/share/plasma/plasmoids/<id> for live editing
 make test       # plasmawindowed <id> — run standalone; QML errors print to the terminal
-make restart    # kquitapp6 plasmashell && kstart plasmashell — reload the real panel
+make restart    # reload the real panel (systemd user service if active, else kquitapp6 + setsid -f plasmashell)
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
 make lint       # qmllint-qt6 package/contents/ui/*.qml

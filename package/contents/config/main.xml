@@ -57,7 +57,7 @@
         </entry>
         <!-- Active-capsule length, as a multiple of the dot size. -->
         <entry name="pillWidthFactor" type="Double">
-            <default>2.5</default>
+            <default>3.5</default>
         </entry>
         <!-- Opacity of an inactive (dim) dot. -->
         <entry name="inactiveOpacity" type="Double">
