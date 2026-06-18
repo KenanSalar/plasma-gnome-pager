@@ -272,6 +272,24 @@ VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes 
               click-away cancels, an empty/whitespace name is a no-op; toggle enableRename off and
               confirm the entry disappears. (main.qml's dialog + DBus write are not headless-testable.)
 
+  [x] Cross-axis scale-to-fit (mirror the stock KDE pager's "never overflow the panel thickness"):
+      M6 scale-to-fit shrank the dots only along the MAJOR axis, so a multi-row KWin grid (Rows > 1) on a
+      THIN panel could still exceed the cross thickness. Now the effective dotSize is
+      min(majorFitDotSize, crossFitDotSize) — a dot must fit BOTH axes, so the binding constraint is the
+      smaller fit. The cross fit REUSES the existing pure Logic.fitDotSize with pillWidthFactor == 1 (no
+      capsule — the exact algebraic inverse of naturalCrossThickness) and count == lineCount; logic.js is
+      UNCHANGED. The cross-axis Layout MINIMUM drops to a new floorCrossThickness (mirroring the major
+      axis's floorStripLength) so a thin panel can compress the thickness; preferred stays
+      naturalCrossThickness, maximum stays -1 (free to fill the thickness). All Layout hints stay
+      natural/floor-based, so no binding loop; the roomy-panel common case is byte-for-byte unchanged.
+      Covered by tst_logic (fitDotSize cross-single-line / cross-two-lines) + tst_workspaceindicator
+      (scaleDotsShrinkOnThinCrossMultiRow / ...CrossUnchangedWhenAmpleThickness / ...ShrinkOnThinCrossVertical,
+      updated gridSizingTwoRows + verticalAdvertisesHeightViaLayout cross-floor assertions).
+      VERIFY: in-shell — on a THIN panel, raise System Settings → Virtual Desktops → "Rows" to 2+ and add
+              desktops until the stacked grid would exceed the thickness; confirm the dots SHRINK to fit
+              rather than overflow/clip, and grow back when rows/desktops drop. Repeat on a vertical side
+              panel (cross axis = width). On a normal-thickness panel the look is unchanged.
+
 
 -------------------------------------------------------------------------------
  MILESTONE 7 — Packaging & release                                      [ ]
@@ -291,8 +309,4 @@ VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
  BACKLOG / NICE-TO-HAVE (post-1.0, optional)
 -------------------------------------------------------------------------------
   [ ] Translations (i18n catalogs) for shipped strings
-  [ ] Cross-axis scale-to-fit: M6 scale-to-fit shrinks dots only along the MAJOR axis; a multi-row
-      KWin grid (Rows > 1) with many desktops on a THIN panel can still exceed the cross thickness
-      (panel-thickness fill is pinned to naturalCrossThickness). Consider also fitting the dot size
-      to the cross allocation (min of the major-fit and a cross-fit) for the multi-row + thin-panel case.
 ===============================================================================

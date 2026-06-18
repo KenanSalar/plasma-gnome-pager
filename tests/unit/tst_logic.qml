@@ -241,7 +241,12 @@ TestCase {
             // ample room returns MORE than natural (the caller caps it at naturalDotSize)
             { tag: "ample-room-exceeds-natural", avail: 130, perLine: 3, pill: 3.5, spacing: 0.5, exp: 20 },
             // wider spacing widens the denom -> smaller fit for the same width
-            { tag: "wider-spacing-smaller-fit", avail: 80, perLine: 3, pill: 3.5, spacing: 1.0, exp: 80 / 7.5 }
+            { tag: "wider-spacing-smaller-fit", avail: 80, perLine: 3, pill: 3.5, spacing: 1.0, exp: 80 / 7.5 },
+            // CROSS-axis usage (no capsule -> pill factor 1, count = lineCount): the exact inverse of
+            // naturalCrossThickness. Single line: denom == 1, so the fit is the whole thickness.
+            { tag: "cross-single-line", avail: 10, perLine: 1, pill: 1, spacing: 0.5, exp: 10 },
+            // Cross, two lines: denom == 1 + (2-1)*(1+0.5) == 2.5, so 25 / 2.5 -> 10.
+            { tag: "cross-two-lines", avail: 25, perLine: 2, pill: 1, spacing: 0.5, exp: 10 }
         ];
     }
     function test_fitDotSize(data) {

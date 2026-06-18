@@ -661,6 +661,9 @@ TestCase {
         compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth is one dot thick");
         const maxW = indicator.Layout.maximumWidth;
         verify(maxW < 0 || maxW > indicator.implicitWidth, "width axis is free (max unconstrained), so the panel fills the thickness");
+        // Cross (width) MINIMUM drops to floorCrossThickness too (cross scale-to-fit), so an ultra-thin
+        // side panel can compress the thickness and the dot shrinks rather than overflowing it.
+        fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorCrossThickness, 0.5, "cross (width) min is the floor");
     }
 
     // The cross axis is one dot thick.
@@ -760,7 +763,8 @@ TestCase {
     }
 
     // 2-D sizing: the major (width) axis is pinned to one line's length; the cross (height) axis
-    // carries both lines (min/preferred), with its maximum left free to fill the panel thickness.
+    // preferreds both lines, but its minimum drops to the floor (cross scale-to-fit) and its maximum is
+    // left free to fill the panel thickness.
     function test_gridSizingTwoRows() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
         const major = indicator.pillWidth + (indicator.perLine - 1) * (indicator.dotSize + indicator.dotSpacing);
@@ -768,7 +772,10 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, major, 0.5, "width is one line long");
         fuzzyCompare(indicator.implicitHeight, cross, 0.5, "height carries both lines");
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "major (width) axis is pinned");
-        compare(indicator.Layout.minimumHeight, indicator.implicitHeight, "cross (height) min holds both lines");
+        // Cross (height) MIN now drops to floorCrossThickness so a thin panel can compress the thickness
+        // and the dots cross-fit instead of overflowing it (was pinned to the natural thickness pre-fit).
+        verify(indicator.Layout.minimumHeight < indicator.implicitHeight, "cross (height) min drops below natural so the panel can compress us");
+        fuzzyCompare(indicator.Layout.minimumHeight, indicator.floorCrossThickness, 0.5, "cross (height) min is the floor (both lines at the min legible dot)");
         const maxH = indicator.Layout.maximumHeight;
         verify(maxH < 0 || maxH > indicator.implicitHeight, "cross axis max is free (fills panel thickness)");
     }
@@ -1095,6 +1102,50 @@ TestCase {
             const last = dots[dots.length - 1];
             return last.mapToItem(indicator, 0, last.height).y <= indicator.height + 0.5;
         }, 2000, "the shrunken column fits the allocated height");
+    }
+
+    // CROSS-axis scale-to-fit: a multi-row KWin grid (4 rows) on a THIN horizontal panel. The major
+    // (width) axis has natural room, so only the cross (height) thickness is constrained — the dots must
+    // shrink so the stacked lines fit the thickness instead of overflowing it. Setting height to a
+    // fraction f of naturalCrossThickness yields an effective dotSize of f × naturalDotSize (the cross
+    // fit is the exact inverse), so f == 0.6 stays comfortably above the legible floor (0.5 × natural).
+    function test_scaleDotsShrinkOnThinCrossMultiRow() {
+        const big = manyIds(12);
+        const indicator = makeIndicator(makeMock(big, big[0], [], 4));   // 4 lines of 3
+        indicator.height = indicator.naturalCrossThickness * 0.6;        // panel thinner than the 4 stacked lines need
+        tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "cross-fit shrank the dot below natural");
+        verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
+        // tryVerify: the rendered dot sizes morph, so wait for the reflow to settle; the last line (highest
+        // globalIndex) sits in the bottom row, so its bottom must land within the allocated thickness.
+        tryVerify(() => {
+            const dots = dotsByIndex(indicator);
+            const last = dots[dots.length - 1];
+            return last.mapToItem(indicator, 0, last.height).y <= indicator.height + 0.5;
+        }, 2000, "the shrunken grid fits the allocated cross thickness");
+    }
+
+    // With ample thickness the multi-row grid is unchanged: the cross fit exceeds natural, so the caller
+    // keeps natural — the common case (a roomy panel) stays byte-for-byte as today.
+    function test_scaleDotsCrossUnchangedWhenAmpleThickness() {
+        const big = manyIds(12);
+        const indicator = makeIndicator(makeMock(big, big[0], [], 4));
+        indicator.height = indicator.naturalCrossThickness * 2;          // plenty of cross room
+        fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.5, "no shrink when the thickness is ample");
+    }
+
+    // Vertical transpose of the cross-fit: on a side panel the cross axis is WIDTH, so a thin side panel
+    // with a multi-row grid shrinks the dots to fit the width (the lines stack along x).
+    function test_scaleDotsShrinkOnThinCrossVertical() {
+        const big = manyIds(12);
+        const indicator = makeIndicator(makeMock(big, big[0], [], 4), { vertical: true });
+        indicator.width = indicator.naturalCrossThickness * 0.6;         // side panel thinner than the stacked lines need
+        tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "cross-fit shrank the dot below natural (vertical)");
+        verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
+        tryVerify(() => {
+            const dots = dotsByIndex(indicator);
+            const last = dots[dots.length - 1];
+            return last.mapToItem(indicator, last.width, 0).x <= indicator.width + 0.5;
+        }, 2000, "the shrunken grid fits the allocated cross thickness (width)");
     }
 
     // robustness.md: an empty desktopIds ARRAY (distinct from a null source) during a transient

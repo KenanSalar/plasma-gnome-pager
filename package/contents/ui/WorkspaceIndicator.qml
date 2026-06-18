@@ -182,8 +182,9 @@ Item {
     // simply wider in place; its neighbours are pushed out by the Row, never covered.
     //
     // NATURAL vs EFFECTIVE size: naturalDotSize is the upper bound (the config/themed request); the
-    // rendered `dotSize` SHRINKS below it to fit a crowded panel (scale-to-fit, robustness.md), floored
-    // at minDotSize so the dots stay legible. naturalDotSize (NOT the effective size) drives the Layout
+    // rendered `dotSize` SHRINKS below it to fit a crowded panel on EITHER axis — the major line length
+    // OR the cross thickness (scale-to-fit, robustness.md) — floored at minDotSize so the dots stay
+    // legible. naturalDotSize (NOT the effective size) drives the Layout
     // hints below, so the panel allocation never feeds back into the hints — no binding loop. In the
     // common case (room available) the effective size == naturalDotSize, so the look is unchanged.
     // Everything downstream (pillWidth, dotSpacing, each WorkspaceDot, the Grid spacing) reads the
@@ -194,10 +195,21 @@ Item {
     // configured dot never scales UP (keeps the room-available common case byte-for-byte identical).
     readonly property real minDotSize: Math.min(naturalDotSize, Kirigami.Units.iconSizes.small / 4)
     // Dot size that makes one full line exactly fill the panel-allocated MAJOR length (width when
-    // horizontal, height when vertical). Pure math (logic.js); +Infinity before layout / with no line.
-    readonly property real fitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillWidthFactor, spacingFactor)
+    // horizontal, height when vertical): one capsule + the rest of that line's dots + uniform gaps.
+    // Pure math (logic.js); +Infinity before layout / with no line, so it does not bind there.
+    readonly property real majorFitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillWidthFactor, spacingFactor)
+    // Dot size that makes the stacked lines exactly fill the panel-allocated CROSS thickness (height
+    // when horizontal, width when vertical). The cross axis carries no capsule — every line is one dot
+    // thick — so the "pill factor" is 1, which makes this the exact inverse of naturalCrossThickness.
+    // +Infinity on a single thick panel (room to spare) or before layout, so it does not bind in the
+    // common case; it only bites for a multi-row grid on a thin panel.
+    readonly property real crossFitDotSize: Logic.fitDotSize(vertical ? width : height, lineCount, 1, spacingFactor)
+    // A dot must fit BOTH axes, so the binding constraint is the smaller fit (the unconstrained axis
+    // returns +Infinity, so min keeps the other). This generalises the M6 major-axis fit to the
+    // multi-row + thin-panel case without ever overflowing the panel thickness (robustness.md).
+    readonly property real fitDotSize: Math.min(majorFitDotSize, crossFitDotSize)
     // EFFECTIVE (rendered) dot size: shrink-to-fit, capped at natural, floored at minDotSize. Common
-    // case (room available): fitDotSize >= naturalDotSize, so this == naturalDotSize exactly.
+    // case (room available on both axes): fitDotSize >= naturalDotSize, so this == naturalDotSize exactly.
     readonly property real dotSize: Math.max(minDotSize, Math.min(naturalDotSize, fitDotSize))
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
@@ -222,12 +234,16 @@ Item {
     // morph or while activeIndex is transiently -1 (a switch conserves total length). floorStripLength
     // is the same line at minDotSize — the major-axis MINIMUM, so the panel may compress the strip into
     // the scale-to-fit path but no further than still-legible dots. naturalCrossThickness is the
-    // perpendicular extent: lineCount lines of one dot each + the gaps between them (one dot when
-    // single-line — today's value). All reduce to the M3 single-line formula when desktopRows == 1.
+    // perpendicular extent at the natural dot size: lineCount lines of one dot each + the gaps between
+    // them (one dot when single-line). floorCrossThickness is that same stack at minDotSize — the
+    // cross-axis MINIMUM, so a thin panel may compress the thickness into the cross scale-to-fit path
+    // (a multi-row grid on a thin panel) but no further than still-legible dots, exactly mirroring
+    // floorStripLength on the major axis. All reduce to the M3 single-line formula when desktopRows == 1.
     readonly property real naturalStripLength: Logic.lineExtent(perLine, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize * pillWidthFactor)
     readonly property real floorStripLength: Logic.lineExtent(perLine, minDotSize, minDotSize * spacingFactor, minDotSize * pillWidthFactor)
-    // No capsule on the cross axis: pass activeExtent == naturalDotSize (the all-dots degenerate case).
+    // No capsule on the cross axis: pass activeExtent == the dot size (the all-dots degenerate case).
     readonly property real naturalCrossThickness: Logic.lineExtent(lineCount, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize)
+    readonly property real floorCrossThickness: Logic.lineExtent(lineCount, minDotSize, minDotSize * spacingFactor, minDotSize)
 
     // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
     // a KWin switch.
@@ -255,11 +271,13 @@ Item {
     // Advertise size so the panel allocates space. On the MAJOR (line) axis, preferred == maximum ==
     // naturalStripLength (one line at the natural dot size) so the applet never grows past its natural
     // length, while the MINIMUM drops to floorStripLength so the panel CAN compress us — when it does,
-    // the dots scale down to fill the allocation exactly (fitDotSize above) instead of overflowing onto
-    // the neighbours (robustness.md). The CROSS axis carries the lineCount lines (preferred ==
-    // naturalCrossThickness) but its maximum is reset to -1 (Qt maps that to the unconstrained
-    // Number.POSITIVE_INFINITY default), so the panel can still stretch it to the panel thickness with
-    // the centred grid in the middle, while min keeps room for every line. A panel honours these Layout
+    // the dots scale down to fill the allocation exactly (majorFitDotSize above) instead of overflowing
+    // onto the neighbours (robustness.md). The CROSS axis carries the lineCount lines (preferred ==
+    // naturalCrossThickness) with its maximum reset to -1 (Qt maps that to the unconstrained
+    // Number.POSITIVE_INFINITY default), so the panel can stretch it to the panel thickness with the
+    // centred grid in the middle; its MINIMUM likewise drops to floorCrossThickness so a thin panel can
+    // compress the thickness and the dots shrink to fit it too (cross scale-to-fit — a multi-row grid on
+    // a thin panel no longer exceeds the thickness, crossFitDotSize above). A panel honours these Layout
     // hints, not implicitWidth alone — without them the inline full-representation gets a default square
     // cell and the dots overflow onto the neighbours. All hints are NATURAL/floor-based (never the
     // effective dotSize), so the allocation never feeds back into them — no binding loop. Which axis is
@@ -267,10 +285,10 @@ Item {
     // single-line); a vertical panel pins height.
     implicitWidth: vertical ? naturalCrossThickness : naturalStripLength
     implicitHeight: vertical ? naturalStripLength : naturalCrossThickness
-    Layout.minimumWidth: vertical ? naturalCrossThickness : floorStripLength
+    Layout.minimumWidth: vertical ? floorCrossThickness : floorStripLength
     Layout.preferredWidth: implicitWidth
     Layout.maximumWidth: vertical ? -1 : naturalStripLength
-    Layout.minimumHeight: vertical ? floorStripLength : naturalCrossThickness
+    Layout.minimumHeight: vertical ? floorStripLength : floorCrossThickness
     Layout.preferredHeight: implicitHeight
     Layout.maximumHeight: vertical ? naturalStripLength : -1
 
