@@ -11,6 +11,7 @@
         "Description[de]": "Ein Arbeitsflächen-Umschalter im GNOME-Stil: Punkte mit einer Pille auf der aktuellen Arbeitsfläche.",
         "Description[fr]": "Un sélecteur de bureaux virtuels façon GNOME : des points avec une pilule sur l'espace de travail actuel.",
         "Description[es]": "Un cambiador de escritorios virtuales al estilo de GNOME: puntos con una píldora en el espacio de trabajo actual.",
+        "Description[el]": "Εναλλάκτης εικονικών επιφανειών εργασίας σε στυλ GNOME: κουκκίδες με ένα χάπι στον τρέχοντα χώρο εργασίας.",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
         "Version": "0.1.0",
