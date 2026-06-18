@@ -256,7 +256,7 @@ make test       # plasmawindowed <id> — run standalone; QML errors print to th
 make restart    # reload the real panel (systemd user service if active, else kquitapp6 + setsid -f plasmashell)
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
-make lint       # qmllint-qt6 package/contents/ui/*.qml
+make lint       # qmllint-qt6 package/contents/ui/*.qml + ui/config/*.qml + config/config.qml
 make dev-undev  # remove the dev symlink
 make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove
 ```
