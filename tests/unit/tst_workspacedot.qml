@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — tst_workspacedot.qml
+ * Plasma Gnome Pager — tst_workspacedot.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -22,6 +22,7 @@ import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
 import "../shared/treewalk.js" as TreeWalk
+import "../shared/elements.js" as Elements
 
 TestCase {
     id: testCase
@@ -46,21 +47,15 @@ TestCase {
         return createTemporaryObject(dotComponent, testCase, props || {});
     }
 
-    // The circle and the tooltip are nested inside the per-dot ToolTipArea, so a flat
-    // children scan would miss them — TreeWalk.collect walks the whole subtree (shared with
-    // the integration tier; see tests/shared/treewalk.js).
-
-    // The dim circle is a Rectangle — uniquely identified by having both `radius` and
-    // `color` (the MouseArea/ToolTipArea have neither). Avoids relying on child order/depth.
+    // The circle and the tooltip are nested inside the per-dot ToolTipArea, so a flat children
+    // scan would miss them — the element locators (subtree walk + duck-type predicates) are shared
+    // with the integration tier; see tests/shared/elements.js. Thin local aliases keep the call
+    // sites below readable.
     function circleOf(dot) {
-        const found = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
-        return found.length ? found[0] : null;
+        return Elements.circleOf(dot);
     }
-
-    // The per-dot tooltip — identified by exposing `mainText` (the ToolTipArea).
     function tooltipOf(dot) {
-        const found = TreeWalk.collect(dot, c => c.mainText !== undefined);
-        return found.length ? found[0] : null;
+        return Elements.tooltipOf(dot);
     }
 
     // An inactive dot advertises a dot-sized footprint and renders exactly one element.
@@ -70,7 +65,7 @@ TestCase {
         compare(dot.implicitWidth, dot.dotSize, "inactive footprint is a dot wide");
         compare(dot.implicitHeight, dot.dotSize, "implicitHeight advertises the dot size");
 
-        const rects = TreeWalk.collect(dot, c => c.radius !== undefined && c.color !== undefined);
+        const rects = TreeWalk.collect(dot, Elements.isCircle);
         compare(rects.length, 1, "renders exactly one dot/capsule rectangle");
     }
 
@@ -225,5 +220,74 @@ TestCase {
         dot.showTooltips = true;
         dot.desktopName = "";
         verify(!tip.active, "tooltip is inactive for an empty name");
+    }
+
+    // --- Milestone 5: configurable colours -----------------------------------------
+    // With followThemeColors false the dot uses the configured activeColor/inactiveColor instead
+    // of the colour scheme. (The 2×2 branch is covered exhaustively by tst_logic::test_dotColor;
+    // this proves the dot wires its colour props through to the binding.)
+    function test_customColorsWhenNotFollowingTheme() {
+        const dot = makeDot({ followThemeColors: false, activeColor: "#ff0000", inactiveColor: "#00ff00", active: false });
+        const circle = circleOf(dot);
+        compare(circle.color, dot.inactiveColor, "inactive uses the custom inactive colour");
+
+        dot.active = true;
+        compare(circle.color, dot.activeColor, "active uses the custom active colour");
+    }
+
+    // followThemeColors true (the default) keeps the colour-scheme binding — a regression guard
+    // that the M5 colour props did not break theme-following. Asserted against theme tokens.
+    function test_followThemeColorsUsesTheme() {
+        const dot = makeDot({ followThemeColors: true, active: false });
+        const circle = circleOf(dot);
+        compare(circle.color, Kirigami.Theme.textColor, "inactive follows the theme text colour");
+
+        dot.active = true;
+        compare(circle.color, Kirigami.Theme.highlightColor, "active follows the theme highlight colour");
+    }
+
+    // --- Milestone 5: configurable animation duration ------------------------------
+    // animationDuration 0 = auto (the themed longDuration); a positive value overrides it. The
+    // reduce-animations branch (longDuration 0 → instant) cannot be toggled headlessly and is
+    // covered by tst_logic::test_effectiveDuration; here we prove the dot resolves the sentinel.
+    function test_effectiveDurationSentinelAndOverride() {
+        const auto = makeDot({ animationDuration: 0 });
+        compare(auto.effectiveDuration, Kirigami.Units.longDuration, "0 resolves to the themed default");
+
+        const overridden = makeDot({ animationDuration: 250 });
+        compare(overridden.effectiveDuration, 250, "a positive value overrides the themed default");
+    }
+
+    // --- morph gating: the FIRST placement is instant, later switches animate -------
+    // morphEnabled (= animate && effectiveDuration > 0) is the single gate on the four morph
+    // Behaviors. Every other dot test runs with animate:false (the instant first-placement
+    // path, also the gate-off path), so these are the only cases that assert the gate value
+    // and the only ones that actually fire a Behavior.
+
+    // The gate combines the animate latch with the resolved duration: off until BOTH hold.
+    function test_morphGateReflectsAnimateAndDuration() {
+        const notLatched = makeDot({ animate: false, animationDuration: 200 });
+        compare(notLatched.morphEnabled, false, "gate is off before the animate latch (instant first placement)");
+
+        const latched = makeDot({ animate: true, animationDuration: 200 });
+        compare(latched.morphEnabled, true, "gate is on once latched with a positive duration");
+    }
+
+    // With the latch on, toggling `active` MORPHS the width over effectiveDuration rather than
+    // jumping — i.e. a Behavior fires. Contrast test_activeChangesAppearance (animate:false),
+    // where the same toggle changes width instantly. Guarded against a reduce-animations headless
+    // theme (longDuration == 0 → effectiveDuration 0 → morphEnabled false → no Behavior to observe).
+    function test_morphAnimatesWhenLatched() {
+        const dot = makeDot({ active: false, animate: true, animationDuration: 200 });
+        if (!dot.morphEnabled)
+            skip("animations disabled in this environment (reduce-animations / longDuration == 0)");
+
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.width, dot.dotSize, 0.5, "starts as a dot");
+
+        dot.active = true;   // morph dot → capsule
+        // Mid-morph on this tick: the Behavior eases from dotSize, so width has NOT jumped to pillWidth.
+        verify(circle.width < dot.pillWidth - 0.5, "width animates toward the capsule (no instant jump)");
+        tryCompare(circle, "width", dot.pillWidth, 2000, "the morph settles at the capsule width");
     }
 }

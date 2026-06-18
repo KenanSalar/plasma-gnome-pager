@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — WorkspaceIndicator.qml
+ * Plasma Gnome Pager — WorkspaceIndicator.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -43,8 +43,10 @@
  * (a switch conserves total length: the shrinking and growing elements cancel). Which axis is the
  * major one swaps with `vertical` — width for a horizontal panel, height for a vertical one.
  *
- * TODO(M5):  metrics (dotSize/spacingFactor/pillWidthFactor/inactiveOpacity) + colours
- *            from plasmoid.configuration.* instead of the Kirigami defaults below.
+ * The visual metrics + colours + animation duration are supplied by main.qml (read from
+ * plasmoid.configuration); this component holds the same Kirigami-derived defaults so it still
+ * renders sensibly standalone and under qmltestrunner. It forwards them per-dot unchanged — the
+ * indicator draws nothing itself.
  */
 pragma ComponentBehavior: Bound
 
@@ -66,17 +68,62 @@ Item {
     // Null-safe live views of the reactive desktop state — one source of truth that
     // the bindings below read, so the guard isn't repeated (virtualDesktopInfo can be
     // transiently null during a desktop add/remove or shell reload; see robustness.md).
+    // The desktop SET (ids/names/count/rows) is global — only "which is current" is per-screen.
     readonly property var desktopIds: virtualDesktopInfo?.desktopIds ?? []
-    readonly property string currentDesktop: virtualDesktopInfo?.currentDesktop ?? ""
     // Display names, index-aligned with desktopIds. Null-safe like the views above
     // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
     readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
 
+    // This panel's physical output (KWin connector name, e.g. "DP-1"), read live from the QtQuick
+    // Screen attached property of the placed representation, so it reflects THIS monitor. Plasma 6.7
+    // lets each output show a different current desktop; we resolve the current FOR this screen below.
+    // Tests override it to drive per-screen scenarios; "" falls back to the global current.
+    property string screenName: Screen.name
+
+    // The current desktop FOR THIS SCREEN (a UUID), the one element that morphs into the capsule.
+    // VirtualDesktopInfo.currentDesktopByScreenName is a METHOD with a per-screen change SIGNAL (not a
+    // notifying property), so a plain binding would never re-evaluate — instead this is a mutable
+    // source-of-truth property recomputed in updateCurrentDesktop() (driven by the Connections below).
+    // activeIndex and each dot's `active` bind off it, so they stay declarative and per-screen-correct.
+    property string currentDesktop: ""
+
+    // Resolve currentDesktop for screenName, preferring the per-screen value (Plasma 6.7) and falling
+    // back to the global current when there is no per-screen info — an unknown screen, the feature off,
+    // or an older Plasma without currentDesktopByScreenName (the typeof guard; see robustness.md). The
+    // perScreen-vs-global decision is the pure Logic.resolveCurrentDesktop (unit-tested).
+    function updateCurrentDesktop() {
+        const vdi = indicator.virtualDesktopInfo;
+        const globalCurrent = vdi?.currentDesktop ?? "";
+        let perScreen;   // stays undefined unless we have a screen AND the 6.7 API
+        if (vdi && indicator.screenName && typeof vdi.currentDesktopByScreenName === "function")
+            perScreen = vdi.currentDesktopByScreenName(indicator.screenName);
+        indicator.currentDesktop = Logic.resolveCurrentDesktop(perScreen, globalCurrent);
+    }
+
+    // Recompute when the source's current changes (globally, or for THIS screen), when desktops are
+    // added/removed (a screen's current may have been removed), when the source itself swaps in, and
+    // when this panel moves to another output. "Bind, don't cache": every external change re-resolves.
+    Connections {
+        target: indicator.virtualDesktopInfo
+        function onCurrentDesktopChanged() {
+            indicator.updateCurrentDesktop();
+        }
+        function onCurrentDesktopForScreenChanged(screenName) {
+            if (screenName === indicator.screenName)
+                indicator.updateCurrentDesktop();
+        }
+        function onDesktopIdsChanged() {
+            indicator.updateCurrentDesktop();
+        }
+    }
+    onScreenNameChanged: indicator.updateCurrentDesktop()
+    onVirtualDesktopInfoChanged: indicator.updateCurrentDesktop()
+
     // Behaviour flags, supplied by main.qml from plasmoid.configuration. Defaults match the
     // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
-    property bool enableScroll: true
-    property bool scrollWrap: false
-    property bool showTooltips: true   // passed down to each dot's tooltip
+    property bool enableScroll: Logic.DEFAULTS.enableScroll
+    property bool scrollWrap: Logic.DEFAULTS.scrollWrap
+    property bool showTooltips: Logic.DEFAULTS.showTooltips   // passed down to each dot's tooltip
 
     // Panel orientation, supplied by main.qml from Plasmoid.formFactor. false = horizontal row
     // (also the Planar/desktop/floating default); true = vertical column. Default false keeps the
@@ -89,7 +136,7 @@ Item {
 
     // Standard Qt angleDelta units per wheel notch (QWheelEvent reports ±120 for one mouse
     // notch; touchpads send fractions of this that accumulate). Passed to Logic.accumulateWheel.
-    readonly property int wheelNotchDelta: 120
+    readonly property int wheelNotchDelta: Logic.DEFAULTS.wheelNotchDelta
 
     // Number of desktops (drives the stable size formula below).
     readonly property int desktopCount: desktopIds.length
@@ -113,20 +160,33 @@ Item {
     // capsule (robustness.md: guard the index before acting on it).
     readonly property int activeIndex: desktopIds.indexOf(currentDesktop)
 
-    // Visual metrics. Named to forward-match the M5 ConfigAppearance keys; M5 swaps these
-    // defaults for `plasmoid.configuration.*` reads. Sizes go through Kirigami.Units (HiDPI);
-    // pillWidthFactor / inactiveOpacity / hoverOpacity / spacingFactor are dimensionless ratios.
+    // Visual metrics, supplied by main.qml from plasmoid.configuration (Appearance keys), with the
+    // Kirigami/dimensionless defaults below so the indicator renders sensibly standalone and under
+    // qmltestrunner. Sizes go through Kirigami.Units (HiDPI); pillWidthFactor / inactiveOpacity /
+    // hoverOpacity / spacingFactor are dimensionless ratios.
+    //
+    // dotSize is a `0 = auto` request: a positive value is the user's px override, 0 falls back to
+    // the HiDPI-aware themed default (a fixed schema literal would bake a px value — see kirigami.md).
+    // Resolving the sentinel here (not in main.qml) keeps it headless-testable and main.qml Kirigami-free.
     //
     // ONE uniform spacing (spacingFactor × dotSize) sits between every adjacent element —
     // dot-to-dot AND capsule-to-dot are the same gap (the GNOME look). The active element is
     // simply wider in place; its neighbours are pushed out by the Row, never covered.
-    readonly property real dotSize: Kirigami.Units.iconSizes.small / 2
-    readonly property real inactiveOpacity: 0.45
-    readonly property real hoverOpacity: 0.8              // inactive-dot hover brighten target
-    readonly property real pillWidthFactor: 2.5          // active capsule length, as a multiple of a dot
+    property int dotSizeRequest: Logic.DEFAULTS.dotSize  // px override from config; 0 = auto
+    readonly property real dotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
+    property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
+    property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dotSize * pillWidthFactor
-    readonly property real spacingFactor: 0.5            // uniform gap as a multiple of a dot (GNOME-tight)
+    property real spacingFactor: Logic.DEFAULTS.spacingFactor      // uniform gap as a multiple of a dot (GNOME-tight)
     readonly property real dotSpacing: dotSize * spacingFactor
+
+    // Colour + animation config, passed straight through to each dot (the indicator draws nothing
+    // itself). Defaults are the theme colours / auto duration so a standalone dot is unchanged.
+    property bool followThemeColors: Logic.DEFAULTS.followThemeColors
+    property color activeColor: Kirigami.Theme.highlightColor
+    property color inactiveColor: Kirigami.Theme.textColor
+    property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme (longDuration)
 
     // Axis-neutral size primitives the orientation-aware sizing binds to. stripLength is the
     // content extent along the MAJOR (line) axis — the longest a line can be: one capsule + the
@@ -191,6 +251,7 @@ Item {
         }
     }
     Component.onCompleted: {
+        indicator.updateCurrentDesktop();   // resolve the per-screen current before the latch check
         if (activeIndex >= 0) {
             animate = true;
         }
@@ -258,6 +319,10 @@ Item {
                         pillWidthFactor: indicator.pillWidthFactor
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
+                        followThemeColors: indicator.followThemeColors
+                        activeColor: indicator.activeColor
+                        inactiveColor: indicator.inactiveColor
+                        animationDuration: indicator.animationDuration
                         active: indicator.currentDesktop === workspaceDot.modelData
                         animate: indicator.animate
 

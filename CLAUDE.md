@@ -12,10 +12,11 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 **integration** tiers, though it covers only the Kirigami-only components, not `main.qml`.
 
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
-and switches on click; a wider highlight "pill" slides over the active dot. Not built yet:
-scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, the settings UI, and
-robustness hardening. The ordered roadmap — what to build next, in what order — lives in
-`TODO.txt`; this file and `.claude/rules/*` describe how the code is built, not the schedule.
+and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
+below). Scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, and the
+settings UI are built; remaining work is robustness hardening and packaging/release. The
+ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
+`.claude/rules/*` describe how the code is built, not the schedule.
 
 ## The rules are the law — read them first
 
@@ -44,6 +45,36 @@ general habits. They are detailed and specific; do not re-derive or contradict t
   **async fire-and-forget**. You do not get a return value; you issue the call and let
   `VirtualDesktopInfo` report the new state. Desktops are keyed by **UUID strings**, not
   indices — map UI dot → desktop via `vdi.desktopIds[i]`.
+
+**Per-screen current desktop (Plasma 6.7 "switch desktops independently for each screen").** The
+desktop *set* (`desktopIds`/`desktopNames`/`numberOfDesktops`/`desktopLayoutRows`) is **global**;
+only *which* desktop is "current" can differ **per output**. So each pager must reflect ITS
+monitor's current — using `vdi.currentDesktop` (the global/active-output current) makes every
+pager follow whichever monitor switched, the exact symptom this feature breaks. `WorkspaceIndicator`
+therefore resolves its own current: it reads its panel's output name from the QtQuick `Screen.name`
+attached property (KWin connector name, e.g. `DP-1`) and calls
+`vdi.currentDesktopByScreenName(screenName)` (public, in `org.kde.taskmanager`). The
+perScreen-vs-global decision is the pure `Logic.resolveCurrentDesktop(perScreen, global)` —
+**prefer the per-screen value, fall back to the global** — so it degrades to single-desktop
+behaviour when the feature is off, the screen is unknown, or the API is absent (older Plasma; guarded
+with `typeof … === "function"`). No config key: it auto-mirrors KWin (see "Mirror System Settings").
+There is **no public per-output _write_** — `switchTo` still sets the one global `current`, which KWin
+routes to the active output; interacting with a pager makes its output active, so click/scroll target
+that monitor. (Read API verified live: `currentDesktopByScreenName("DP-6")` ≠ `("DP-5")` when the two
+monitors are on different desktops.)
+
+> **Gotcha — `currentDesktopByScreenName` is a METHOD with a SIGNAL, not a notifying property —
+> so it needs an imperative recompute, not a plain binding.** `VirtualDesktopInfo` exposes the
+> per-screen current as a method (`currentDesktopByScreenName(name)`) plus a
+> `currentDesktopForScreenChanged(screenName)` signal (and the global `currentDesktopChanged`). A
+> binding like `currentDesktop: vdi.currentDesktopByScreenName(screenName)` would evaluate **once**
+> and never refresh — there is no property to depend on. So `WorkspaceIndicator.currentDesktop` is a
+> mutable source-of-truth property recomputed in `updateCurrentDesktop()`, driven by a
+> `Connections { target: virtualDesktopInfo }` on those signals (plus `onScreenNameChanged` /
+> `onVirtualDesktopInfoChanged` / `Component.onCompleted`); `activeIndex` and each dot's `active`
+> bind off it, staying declarative. The integration mock duck-types the same method+signal (the
+> default models the feature OFF: per-screen == global, so every pre-existing test stays valid), and
+> `tst_logic.qml` covers `resolveCurrentDesktop`.
 
 > **Gotcha — DBus typed-arg constructors are lowercase, and `variant` takes a _plain_ value.**
 > The `org.kde.plasma.workspace.dbus` module exports `new DBus.string(s)`, `new DBus.int32(n)`,
@@ -117,9 +148,9 @@ how GNOME and the KDE `compact_pager` actually work.
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
 > single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
 > Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
-> test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metrics (`dotSize`,
-> `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) are named to match the M5
-> settings keys.
+> test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
+> (`dotSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match the
+> `main.xml` settings keys exactly (see "Config flow" below).
 >
 > **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
@@ -186,25 +217,79 @@ desktop via `logic.js::canRemoveDesktop`).
 > — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
 > importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
 
-**Config flow (M3: schema only; settings UI is M5).** The four behaviour keys live in
-`package/contents/config/main.xml` (KConfigXT) and are read **live** in `main.qml`:
-`enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`. Their `main.xml` defaults apply
-even though no settings UI exists yet. M5 adds the **settings UI** + the appearance keys via two
-more files that must agree with the schema:
-- `package/contents/config/config.qml` — `ConfigModel` listing the settings categories.
-- `package/contents/ui/config/*.qml` — the settings pages, two-way bound via
-  `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml` entry exactly.
+**Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
+**live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
+(`Plasmoid.configuration.<key> ?? Logic.DEFAULTS.<key>`) → `WorkspaceIndicator` → `WorkspaceDot`.
+This keeps the sub-components free of `plasmoid.configuration` so they stay headless-testable.
+`Logic.DEFAULTS` (a frozen object in `logic.js`) is the **single source of truth for the QML-side
+fallback defaults** — referenced by `main.qml`'s `??` guards AND by the indicator/dot property
+defaults, so the same literal is no longer written three times and cannot drift. `main.xml` stays
+the SCHEMA source; `Logic.DEFAULTS` mirrors it. (Theme/HiDPI render fallbacks — the auto `dotSize`,
+the `Kirigami.Theme.*` colours — are NOT in `DEFAULTS`; they live in the components, see the sentinel
+gotcha below.) The keys:
+behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`, `animationDuration`;
+appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
+`followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
+with the schema:
+- `package/contents/config/config.qml` — `ConfigModel` listing the settings categories
+  (Behavior, Appearance).
+- `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),
+  two-way bound via `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml`
+  entry exactly. Both pages subclass the shared **`ConfigPageBase.qml`** (a `Kirigami.ScrollablePage`
+  — on robustness.md's allowlist; the stock `KCM.SimpleKCM` is just a subclass) so the dialog renders
+  the standard KDE title header + spacing + scrolling AND each page gets the Defaults header action
+  for free (see below). Every numeric metric (sizes, ratios, opacities, duration — including the
+  integer keys) uses the shared `ConfigSlider.qml`; only the colours use `org.kde.kquickcontrols`
+  `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
+  **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
+  always-on widget), so a break there cannot kill the running pager. The config pages + `config.qml`
+  are **e2e-only** (the dialog needs `org.kde.plasma.configuration`), so they are not in the headless
+  test harness — `make lint` covers them, but verify behaviour in-shell.
+- **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
+  **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
+  `root.isModified`, firing `root.defaultsRequested()`); each derived page fulfils that contract by
+  **binding** `isModified` (any `cfg_<key>` differs from its `cfg_<key>Default`) and **handling**
+  `onDefaultsRequested` (reset every `cfg_<key>` to its `cfg_<key>Default`). `cfg_<key>Default` is a
+  property the dialog injects from the schema default — declared on the page with no initializer so
+  `main.xml` stays the single source of truth.
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
 
-> **Gotcha — guard every config read with `?? <default>`.** `readonly property bool enableScroll:
-> Plasmoid.configuration.enableScroll ?? true`. A freshly-added schema can read back `undefined`
-> for a frame (or until the widget is removed/re-added), and a bare `bool` then collapses to
-> `false`, **silently disabling every interaction**. The `?? <default>` mirrors each schema default
-> and is a no-op once the value is real (`false ?? true === false`). After editing `main.xml`,
-> reload with `make restart`; if keys still read stale, `rm -rf ~/.cache/plasmashell/qmlcache` or
-> remove/re-add the widget.
+> **Gotcha — reserve a config slider's value-label width or the slider jitters.** A slider in a
+> `RowLayout` with a `Layout.fillWidth` track plus a value read-out `Label` makes the track/handle
+> appear to jump while dragging, because the label's implicit width changes with the value
+> (`"45%" → "100%"`, and even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font),
+> reflowing the row. `ConfigSlider.qml` fixes this with a single `format` closure (value → display
+> string): each call site supplies `format` once, and the component uses it for BOTH the live
+> read-out AND the reserved width — pinning the label (via `TextMetrics`) to the wider of
+> `format(from)`/`format(to)` + a small buffer. Because every formatter here is monotonic in string
+> width with magnitude AND the sentinel sliders put their special text at `from` (`0 → "Default"`),
+> reserving over the two extremes bounds every value between them (no separate `widestText` to keep
+> in sync). `snapMode` defaults to `SnapAlways` in the component; callers just set `from/to/stepSize`
+> + `format`.
+
+> **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
+> fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`
+> — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize` and
+> `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
+> components** (the indicator's `dotSize`, and `Logic.effectiveDuration` for the morph) — NOT in
+> `main.qml`, which has no Kirigami import and is not headless-testable. `effectiveDuration` also
+> folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),
+> so `animationDuration` overrides the duration but can never re-enable motion the user turned off.
+> The dimensionless ratios (`spacingFactor`/`pillWidthFactor`/`inactiveOpacity`/`hoverOpacity`) are
+> plain literal defaults. Colours follow the scheme unless `followThemeColors` is false, then
+> `activeColor`/`inactiveColor` apply (`Logic.dotColor`; the binding still references the live
+> `Kirigami.Theme.*` so it re-evaluates on a colour-scheme change).
+
+> **Gotcha — guard every config read with `?? Logic.DEFAULTS.<key>`.** `readonly property bool
+> enableScroll: Plasmoid.configuration.enableScroll ?? Logic.DEFAULTS.enableScroll`. A freshly-added
+> schema can read back `undefined` for a frame (or until the widget is removed/re-added), and a bare
+> `bool` then collapses to `false`, **silently disabling every interaction**. The `??` fallback comes
+> from `Logic.DEFAULTS` (the SSOT mirror of the schema defaults; see "Config flow") and is a no-op
+> once the value is real (`false ?? true === false`). After editing `main.xml`, reload with
+> `make restart`; if keys still read stale, `rm -rf ~/.cache/plasmashell/qmlcache` or remove/re-add
+> the widget.
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
 
@@ -213,10 +298,10 @@ Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pa
 ```bash
 make dev        # symlink package/ -> ~/.local/share/plasma/plasmoids/<id> for live editing
 make test       # plasmawindowed <id> — run standalone; QML errors print to the terminal
-make restart    # kquitapp6 plasmashell && kstart plasmashell — reload the real panel
+make restart    # reload the real panel (systemd user service if active, else kquitapp6 + setsid -f plasmashell)
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
-make lint       # qmllint-qt6 package/contents/ui/*.qml
+make lint       # qmllint-qt6 package/contents/ui/*.qml + ui/config/*.qml + config/config.qml
 make dev-undev  # remove the dev symlink
 make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove
 ```

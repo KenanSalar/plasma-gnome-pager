@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — tst_logic.qml
+ * Plasma Gnome Pager — tst_logic.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -83,6 +83,25 @@ TestCase {
         compare(Logic.lastDesktopId(data.ids), data.exp, data.tag);
     }
 
+    // --- resolveCurrentDesktop: per-screen current, else the global current ----------
+    // Plasma 6.7 per-output desktops: prefer the per-screen value when present; fall back to the
+    // global current when it's missing — undefined/null (no per-screen API or unknown screen) or ""
+    // (transient). Both empty -> "" (the no-source state the indicator treats as no capsule).
+    function test_resolveCurrentDesktop_data() {
+        return [
+            { tag: "per-screen-wins", perScreen: "uuid-screen", global: "uuid-global", exp: "uuid-screen" },
+            { tag: "undefined-falls-back", perScreen: undefined, global: "uuid-global", exp: "uuid-global" },
+            { tag: "null-falls-back", perScreen: null, global: "uuid-global", exp: "uuid-global" },
+            { tag: "empty-falls-back", perScreen: "", global: "uuid-global", exp: "uuid-global" },
+            { tag: "both-empty", perScreen: undefined, global: "", exp: "" },
+            { tag: "per-screen-no-global", perScreen: "uuid-screen", global: "", exp: "uuid-screen" },
+            { tag: "global-undefined", perScreen: undefined, global: undefined, exp: "" }
+        ];
+    }
+    function test_resolveCurrentDesktop(data) {
+        compare(Logic.resolveCurrentDesktop(data.perScreen, data.global), data.exp, data.tag);
+    }
+
     // --- accumulateWheel: whole notches step, sub-notch motion carries --------------
     function test_accumulateWheel_data() {
         return [
@@ -93,7 +112,14 @@ TestCase {
             { tag: "touchpad-sub-notch", acc: 0, d: 40, t: 120, steps: 0, rem: 40 },
             { tag: "overshoot-carries-remainder", acc: 0, d: 200, t: 120, steps: 1, rem: 80 },
             { tag: "double-notch", acc: 0, d: 240, t: 120, steps: 2, rem: 0 },
-            { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 }
+            { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 },
+
+            // negative deltas (wheel up / upward touchpad): (total / t) | 0 truncates TOWARD
+            // zero, so the step and the carried remainder are both negative — the path the
+            // indicator relies on for upward scroll (only positive overshoot was covered before).
+            { tag: "negative-overshoot-carries", acc: 0, d: -200, t: 120, steps: -1, rem: -80 },
+            { tag: "negative-double-notch", acc: 0, d: -240, t: 120, steps: -2, rem: 0 },
+            { tag: "negative-remainder-feeds-back", acc: -80, d: -60, t: 120, steps: -1, rem: -20 }
         ];
     }
     function test_accumulateWheel(data) {
@@ -113,6 +139,35 @@ TestCase {
     }
     function test_dotOpacity(data) {
         fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, 0.45, 0.8), data.exp, 0.001, data.tag);
+    }
+
+    // --- dotColor: follow the theme, or use custom colours (the 2×2 branch) ---------
+    // Distinct string sentinels stand in for the four colours so each branch is identifiable.
+    function test_dotColor_data() {
+        return [
+            { tag: "theme-active", active: true, follow: true, exp: "themeActive" },
+            { tag: "theme-inactive", active: false, follow: true, exp: "themeInactive" },
+            { tag: "custom-active", active: true, follow: false, exp: "customActive" },
+            { tag: "custom-inactive", active: false, follow: false, exp: "customInactive" }
+        ];
+    }
+    function test_dotColor(data) {
+        compare(Logic.dotColor(data.active, data.follow, "themeActive", "themeInactive", "customActive", "customInactive"), data.exp, data.tag);
+    }
+
+    // --- effectiveDuration: override vs themed default, reduce-animations always wins ---
+    function test_effectiveDuration_data() {
+        return [
+            { tag: "auto-uses-theme", req: 0, theme: 200, exp: 200 },
+            { tag: "override-wins", req: 250, theme: 200, exp: 250 },
+            { tag: "reduce-animations-beats-override", req: 250, theme: 0, exp: 0 },
+            { tag: "reduce-animations-and-auto", req: 0, theme: 0, exp: 0 },
+            { tag: "negative-theme-is-off", req: 250, theme: -1, exp: 0 },
+            { tag: "negative-request-is-auto", req: -5, theme: 200, exp: 200 }
+        ];
+    }
+    function test_effectiveDuration(data) {
+        compare(Logic.effectiveDuration(data.req, data.theme), data.exp, data.tag);
     }
 
     // --- gridColumns: KWin-style desktops-per-line = ceil(count / rows) -------------
@@ -169,5 +224,41 @@ TestCase {
     }
     function test_lineExtent(data) {
         fuzzyCompare(Logic.lineExtent(data.count, data.dot, data.gap, data.active), data.exp, 0.001, data.tag);
+    }
+
+    // --- DEFAULTS: the single source of truth for the QML-side config defaults --------
+    // A change-detector + contract doc: every value mirrors a contents/config/main.xml <default>
+    // and is referenced by main.qml's `?? Logic.DEFAULTS.X` and the component property defaults,
+    // so accidental drift here (or a missing key) fails loudly instead of silently desyncing.
+    function test_defaults_data() {
+        return [
+            { tag: "enableScroll", key: "enableScroll", exp: true },
+            { tag: "scrollWrap", key: "scrollWrap", exp: false },
+            { tag: "showTooltips", key: "showTooltips", exp: true },
+            { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
+            { tag: "animationDuration", key: "animationDuration", exp: 0 },
+            { tag: "dotSize", key: "dotSize", exp: 0 },
+            { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
+            { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
+            { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
+            { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
+            { tag: "followThemeColors", key: "followThemeColors", exp: true },
+            { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
+            { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
+            { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
+        ];
+    }
+    function test_defaults(data) {
+        compare(Logic.DEFAULTS[data.key], data.exp, data.tag);
+    }
+
+    // DEFAULTS is shared (.pragma library) and must stay immutable — a stray write would corrupt
+    // every importer for the session. Object.freeze makes the assignment a no-op (silent in
+    // non-strict JS, a TypeError under "use strict"); tolerate either so the test asserts the
+    // value stays put, not which JS mode the engine happens to run.
+    function test_defaultsAreFrozen() {
+        verify(Object.isFrozen(Logic.DEFAULTS), "Logic.DEFAULTS must be frozen");
+        try { Logic.DEFAULTS.dotSize = 999; } catch (e) { /* strict-mode TypeError is expected */ }
+        compare(Logic.DEFAULTS.dotSize, 0, "a frozen DEFAULTS ignores writes");
     }
 }

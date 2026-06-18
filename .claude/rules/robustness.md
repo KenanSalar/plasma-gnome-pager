@@ -78,5 +78,5 @@ These were valid in Plasma 5 and are **gone** in Plasma 6 — using them breaks 
 - Run **`qmllint`** on every `.qml` before installing — it flags removed/renamed symbols and
   unqualified accesses that would otherwise fail silently at runtime on a new Plasma version.
 - Smoke-test with `plasmawindowed <id>` (errors print to the terminal) **and** after a real
-  `kquitapp6 plasmashell && kstart plasmashell`, since some failures only show in-shell.
+  shell reload (`make restart`), since some failures only show in-shell.
 - After any Plasma upgrade, re-run both before assuming the widget still works.

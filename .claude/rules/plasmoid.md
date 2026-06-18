@@ -162,7 +162,8 @@ kpackagetool6 --type Plasma/Applet --remove   <id>      # uninstall
 # Live dev: symlink the package, then reload the shell after edits.
 ln -sfn "$PWD/package" ~/.local/share/plasma/plasmoids/<id>
 plasmawindowed <id>                       # run standalone; QML errors print to terminal
-kquitapp6 plasmashell && kstart plasmashell   # reload in the real panel
+kquitapp6 plasmashell && setsid -f plasmashell   # reload in the real panel (detached; avoids
+                                                 # kstart's noisy xdg-portal app-ID warning)
 ```
 
 - User widgets live in `~/.local/share/plasma/plasmoids/<id>/`; system ones in
