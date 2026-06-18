@@ -290,7 +290,6 @@ VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
 -------------------------------------------------------------------------------
  BACKLOG / NICE-TO-HAVE (post-1.0, optional)
 -------------------------------------------------------------------------------
-  [ ] Configurable click action on current desktop (none / show desktop / overview) and the feature itself
   [ ] Translations (i18n catalogs) for shipped strings
   [ ] Cross-axis scale-to-fit: M6 scale-to-fit shrinks dots only along the MAJOR axis; a multi-row
       KWin grid (Rows > 1) with many desktops on a THIN panel can still exceed the cross thickness
