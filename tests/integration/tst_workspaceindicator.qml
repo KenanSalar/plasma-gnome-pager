@@ -45,8 +45,9 @@ TestCase {
     }
 
     // Stands in for TaskManager.VirtualDesktopInfo (duck-typed: the indicator reads
-    // .desktopIds, .currentDesktop and — for tooltips — .desktopNames). Built per test
-    // via makeMock(...).
+    // .desktopIds, .currentDesktop, — for tooltips — .desktopNames, and the per-screen
+    // current via .currentDesktopByScreenName / .currentDesktopForScreenChanged). Built per
+    // test via makeMock(...).
     Component {
         id: vdiMockComponent
         QtObject {
@@ -54,6 +55,17 @@ TestCase {
             property string currentDesktop: ""
             property var desktopNames: []
             property int desktopLayoutRows: 1   // KWin's row count; 1 = single line (default)
+
+            // Plasma 6.7 per-screen API. perScreenCurrent maps a screen name -> its current desktop
+            // UUID; an absent screen falls back to the global currentDesktop. The default (empty map)
+            // models the feature OFF — every screen equals the global current — so the existing
+            // (screen-agnostic) tests stay valid. Per-screen tests set perScreenCurrent and emit
+            // currentDesktopForScreenChanged to mimic a single output switching.
+            property var perScreenCurrent: ({})
+            signal currentDesktopForScreenChanged(string screenName)
+            function currentDesktopByScreenName(name) {
+                return perScreenCurrent[name] !== undefined ? perScreenCurrent[name] : currentDesktop;
+            }
         }
     }
 
@@ -297,6 +309,75 @@ TestCase {
         tryVerify(function () {
             return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5;
         }, 2000, "the surviving current desktop is the capsule");
+    }
+
+    // --- Plasma 6.7: per-screen current desktop -----------------------------------
+    // "Switch desktops independently for each screen": each output can show a different current
+    // desktop. The indicator resolves the current FOR ITS screen (screenName) via the mock's
+    // currentDesktopByScreenName, falling back to the global currentDesktop when there is no
+    // per-screen entry. These prove (a) the active dot reflects this screen, not the global current;
+    // (b) a switch on ANOTHER screen does not move this strip's pill (the reported bug); and
+    // (c) this screen's own switch is reactive.
+
+    // The active dot follows THIS screen's current desktop, not the global one.
+    function test_perScreenActiveFollowsOwnScreen() {
+        const vdi = makeMock(ids, ids[0]);              // global current = first desktop
+        vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+        compare(indicator.currentDesktop, ids[2], "resolves this screen's current, not the global one");
+        verify(dotByUuid(indicator, ids[2]).active, "this screen's current desktop is the active dot");
+        verify(!dotByUuid(indicator, ids[0]).active, "the global current is NOT active on this screen");
+    }
+
+    // The reported bug: switching ANOTHER monitor's desktop must NOT move this strip's pill.
+    function test_perScreenIgnoresOtherScreenSwitch() {
+        const vdi = makeMock(ids, ids[0]);
+        vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+        verify(dotByUuid(indicator, ids[2]).active, "starts on this screen's current (uuid-c)");
+
+        // Monitor DP-1 switches to uuid-b: its per-screen current and the global current both move.
+        vdi.perScreenCurrent = { "DP-1": ids[1], "DP-2": ids[2] };
+        vdi.currentDesktop = ids[1];                    // global follows the active output (DP-1)
+        vdi.currentDesktopForScreenChanged("DP-1");
+
+        compare(indicator.currentDesktop, ids[2], "this screen's current is unchanged");
+        verify(dotByUuid(indicator, ids[2]).active, "this screen's pill stays put when ANOTHER screen switches");
+        verify(!dotByUuid(indicator, ids[1]).active, "it does not follow the other screen's new desktop");
+    }
+
+    // This screen's own switch updates the active dot reactively (bind, don't cache).
+    function test_perScreenReactiveToOwnScreenSwitch() {
+        const vdi = makeMock(ids, ids[0]);
+        vdi.perScreenCurrent = { "DP-2": ids[0] };
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+        verify(dotByUuid(indicator, ids[0]).active, "starts on uuid-a");
+
+        vdi.perScreenCurrent = { "DP-2": ids[1] };
+        vdi.currentDesktopForScreenChanged("DP-2");     // this output switched
+
+        compare(indicator.currentDesktop, ids[1], "current re-resolves to this screen's new desktop");
+        verify(dotByUuid(indicator, ids[1]).active, "the active dot moves to the new current");
+        verify(!dotByUuid(indicator, ids[0]).active, "the old dot deactivates");
+    }
+
+    // An unknown screen falls back to the global current (matches the mock's by-name fallback, and
+    // models a screen the per-screen API doesn't know — e.g. the feature off).
+    function test_perScreenFallsBackToGlobalWhenScreenUnknown() {
+        const vdi = makeMock(ids, ids[1]);
+        vdi.perScreenCurrent = { "DP-1": ids[2] };       // only DP-1 has an entry
+        const indicator = makeIndicator(vdi, { screenName: "DP-UNKNOWN" });
+        compare(indicator.currentDesktop, ids[1], "unknown screen falls back to the global current");
+        verify(dotByUuid(indicator, ids[1]).active, "global current is active when this screen is unknown");
+    }
+
+    // Empty screenName (representation not yet placed) → global current, exercising the screenName guard.
+    function test_perScreenEmptyScreenNameUsesGlobal() {
+        const vdi = makeMock(ids, ids[2]);
+        vdi.perScreenCurrent = { "DP-1": ids[0] };
+        const indicator = makeIndicator(vdi, { screenName: "" });
+        compare(indicator.currentDesktop, ids[2], "empty screenName uses the global current");
+        verify(dotByUuid(indicator, ids[2]).active, "global current is active with no screen name");
     }
 
     // --- animate latch: instant first placement, morph thereafter -----------------

@@ -68,11 +68,56 @@ Item {
     // Null-safe live views of the reactive desktop state — one source of truth that
     // the bindings below read, so the guard isn't repeated (virtualDesktopInfo can be
     // transiently null during a desktop add/remove or shell reload; see robustness.md).
+    // The desktop SET (ids/names/count/rows) is global — only "which is current" is per-screen.
     readonly property var desktopIds: virtualDesktopInfo?.desktopIds ?? []
-    readonly property string currentDesktop: virtualDesktopInfo?.currentDesktop ?? ""
     // Display names, index-aligned with desktopIds. Null-safe like the views above
     // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
     readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
+
+    // This panel's physical output (KWin connector name, e.g. "DP-1"), read live from the QtQuick
+    // Screen attached property of the placed representation, so it reflects THIS monitor. Plasma 6.7
+    // lets each output show a different current desktop; we resolve the current FOR this screen below.
+    // Tests override it to drive per-screen scenarios; "" falls back to the global current.
+    property string screenName: Screen.name
+
+    // The current desktop FOR THIS SCREEN (a UUID), the one element that morphs into the capsule.
+    // VirtualDesktopInfo.currentDesktopByScreenName is a METHOD with a per-screen change SIGNAL (not a
+    // notifying property), so a plain binding would never re-evaluate — instead this is a mutable
+    // source-of-truth property recomputed in updateCurrentDesktop() (driven by the Connections below).
+    // activeIndex and each dot's `active` bind off it, so they stay declarative and per-screen-correct.
+    property string currentDesktop: ""
+
+    // Resolve currentDesktop for screenName, preferring the per-screen value (Plasma 6.7) and falling
+    // back to the global current when there is no per-screen info — an unknown screen, the feature off,
+    // or an older Plasma without currentDesktopByScreenName (the typeof guard; see robustness.md). The
+    // perScreen-vs-global decision is the pure Logic.resolveCurrentDesktop (unit-tested).
+    function updateCurrentDesktop() {
+        const vdi = indicator.virtualDesktopInfo;
+        const globalCurrent = vdi?.currentDesktop ?? "";
+        let perScreen;   // stays undefined unless we have a screen AND the 6.7 API
+        if (vdi && indicator.screenName && typeof vdi.currentDesktopByScreenName === "function")
+            perScreen = vdi.currentDesktopByScreenName(indicator.screenName);
+        indicator.currentDesktop = Logic.resolveCurrentDesktop(perScreen, globalCurrent);
+    }
+
+    // Recompute when the source's current changes (globally, or for THIS screen), when desktops are
+    // added/removed (a screen's current may have been removed), when the source itself swaps in, and
+    // when this panel moves to another output. "Bind, don't cache": every external change re-resolves.
+    Connections {
+        target: indicator.virtualDesktopInfo
+        function onCurrentDesktopChanged() {
+            indicator.updateCurrentDesktop();
+        }
+        function onCurrentDesktopForScreenChanged(screenName) {
+            if (screenName === indicator.screenName)
+                indicator.updateCurrentDesktop();
+        }
+        function onDesktopIdsChanged() {
+            indicator.updateCurrentDesktop();
+        }
+    }
+    onScreenNameChanged: indicator.updateCurrentDesktop()
+    onVirtualDesktopInfoChanged: indicator.updateCurrentDesktop()
 
     // Behaviour flags, supplied by main.qml from plasmoid.configuration. Defaults match the
     // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
@@ -206,6 +251,7 @@ Item {
         }
     }
     Component.onCompleted: {
+        indicator.updateCurrentDesktop();   // resolve the per-screen current before the latch check
         if (activeIndex >= 0) {
             animate = true;
         }

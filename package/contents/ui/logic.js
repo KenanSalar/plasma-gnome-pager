@@ -53,6 +53,21 @@ function lastDesktopId(ids) {
 }
 
 /**
+ * Resolve the current desktop for one screen. Plasma 6.7's "switch desktops independently for each
+ * screen" (kwinrc PerOutputVirtualDesktops) lets each output show a different current desktop, read
+ * via VirtualDesktopInfo.currentDesktopByScreenName(name): `perScreen` is that value (a UUID string,
+ * or undefined/null/"" when there is no per-screen info — an unknown screen name, the feature off,
+ * or an older Plasma without the API). `global` is VirtualDesktopInfo.currentDesktop (the global /
+ * active-output current). Prefer the per-screen value when present, else fall back to the global one,
+ * so the widget degrades to its single-desktop behaviour whenever per-screen data is missing.
+ */
+function resolveCurrentDesktop(perScreen, global) {
+    if (perScreen !== undefined && perScreen !== null && perScreen !== "")
+        return String(perScreen);
+    return global ? String(global) : "";
+}
+
+/**
  * Accumulate high-resolution / touchpad wheel deltas and emit whole "notches" as integer
  * steps. A standard mouse wheel reports ±120 angle units per notch; touchpads report many
  * small deltas that must sum to a notch before stepping. Returns { steps, remainder } —

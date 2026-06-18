@@ -83,6 +83,25 @@ TestCase {
         compare(Logic.lastDesktopId(data.ids), data.exp, data.tag);
     }
 
+    // --- resolveCurrentDesktop: per-screen current, else the global current ----------
+    // Plasma 6.7 per-output desktops: prefer the per-screen value when present; fall back to the
+    // global current when it's missing — undefined/null (no per-screen API or unknown screen) or ""
+    // (transient). Both empty -> "" (the no-source state the indicator treats as no capsule).
+    function test_resolveCurrentDesktop_data() {
+        return [
+            { tag: "per-screen-wins", perScreen: "uuid-screen", global: "uuid-global", exp: "uuid-screen" },
+            { tag: "undefined-falls-back", perScreen: undefined, global: "uuid-global", exp: "uuid-global" },
+            { tag: "null-falls-back", perScreen: null, global: "uuid-global", exp: "uuid-global" },
+            { tag: "empty-falls-back", perScreen: "", global: "uuid-global", exp: "uuid-global" },
+            { tag: "both-empty", perScreen: undefined, global: "", exp: "" },
+            { tag: "per-screen-no-global", perScreen: "uuid-screen", global: "", exp: "uuid-screen" },
+            { tag: "global-undefined", perScreen: undefined, global: undefined, exp: "" }
+        ];
+    }
+    function test_resolveCurrentDesktop(data) {
+        compare(Logic.resolveCurrentDesktop(data.perScreen, data.global), data.exp, data.tag);
+    }
+
     // --- accumulateWheel: whole notches step, sub-notch motion carries --------------
     function test_accumulateWheel_data() {
         return [

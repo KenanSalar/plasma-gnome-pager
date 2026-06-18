@@ -46,6 +46,36 @@ general habits. They are detailed and specific; do not re-derive or contradict t
   `VirtualDesktopInfo` report the new state. Desktops are keyed by **UUID strings**, not
   indices — map UI dot → desktop via `vdi.desktopIds[i]`.
 
+**Per-screen current desktop (Plasma 6.7 "switch desktops independently for each screen").** The
+desktop *set* (`desktopIds`/`desktopNames`/`numberOfDesktops`/`desktopLayoutRows`) is **global**;
+only *which* desktop is "current" can differ **per output**. So each pager must reflect ITS
+monitor's current — using `vdi.currentDesktop` (the global/active-output current) makes every
+pager follow whichever monitor switched, the exact symptom this feature breaks. `WorkspaceIndicator`
+therefore resolves its own current: it reads its panel's output name from the QtQuick `Screen.name`
+attached property (KWin connector name, e.g. `DP-1`) and calls
+`vdi.currentDesktopByScreenName(screenName)` (public, in `org.kde.taskmanager`). The
+perScreen-vs-global decision is the pure `Logic.resolveCurrentDesktop(perScreen, global)` —
+**prefer the per-screen value, fall back to the global** — so it degrades to single-desktop
+behaviour when the feature is off, the screen is unknown, or the API is absent (older Plasma; guarded
+with `typeof … === "function"`). No config key: it auto-mirrors KWin (see "Mirror System Settings").
+There is **no public per-output _write_** — `switchTo` still sets the one global `current`, which KWin
+routes to the active output; interacting with a pager makes its output active, so click/scroll target
+that monitor. (Read API verified live: `currentDesktopByScreenName("DP-6")` ≠ `("DP-5")` when the two
+monitors are on different desktops.)
+
+> **Gotcha — `currentDesktopByScreenName` is a METHOD with a SIGNAL, not a notifying property —
+> so it needs an imperative recompute, not a plain binding.** `VirtualDesktopInfo` exposes the
+> per-screen current as a method (`currentDesktopByScreenName(name)`) plus a
+> `currentDesktopForScreenChanged(screenName)` signal (and the global `currentDesktopChanged`). A
+> binding like `currentDesktop: vdi.currentDesktopByScreenName(screenName)` would evaluate **once**
+> and never refresh — there is no property to depend on. So `WorkspaceIndicator.currentDesktop` is a
+> mutable source-of-truth property recomputed in `updateCurrentDesktop()`, driven by a
+> `Connections { target: virtualDesktopInfo }` on those signals (plus `onScreenNameChanged` /
+> `onVirtualDesktopInfoChanged` / `Component.onCompleted`); `activeIndex` and each dot's `active`
+> bind off it, staying declarative. The integration mock duck-types the same method+signal (the
+> default models the feature OFF: per-screen == global, so every pre-existing test stays valid), and
+> `tst_logic.qml` covers `resolveCurrentDesktop`.
+
 > **Gotcha — DBus typed-arg constructors are lowercase, and `variant` takes a _plain_ value.**
 > The `org.kde.plasma.workspace.dbus` module exports `new DBus.string(s)`, `new DBus.int32(n)`,
 > `new DBus.uint32(n)`, `new DBus.variant(v)`, etc. (verified from `dbusplugin.qmltypes`). Two
