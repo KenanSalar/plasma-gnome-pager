@@ -14,6 +14,8 @@
         "Description[el]": "Εναλλάκτης εικονικών επιφανειών εργασίας σε στυλ GNOME: κουκκίδες με ένα χάπι στον τρέχοντα χώρο εργασίας.",
         "Description[it]": "Un selettore di desktop virtuali in stile GNOME: punti con una pillola sullo spazio di lavoro attuale.",
         "Description[tr]": "GNOME tarzı bir sanal masaüstü değiştirici: geçerli çalışma alanında bir hap ile noktalar.",
+        "Description[pt]": "Um comutador de áreas de trabalho virtuais ao estilo do GNOME: pontos com uma pílula no espaço de trabalho atual.",
+        "Description[pt_BR]": "Um alternador de áreas de trabalho virtuais no estilo do GNOME: pontos com uma pílula no espaço de trabalho atual.",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
         "Version": "0.1.0",
