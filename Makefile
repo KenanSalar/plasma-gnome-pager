@@ -9,7 +9,26 @@ TESTS_DIR   := $(CURDIR)/tests
 # scans the given dir for every tst_*.qml. Shared by the per-tier check targets below.
 QMLTEST     := QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input
 
-.PHONY: help install update uninstall dev dev-undev test restart check check-unit check-integration lint _no-dev-symlink
+# --- Translations (i18n) -------------------------------------------------------------------------
+# The plasmoid runtime auto-binds the QML i18n() calls to the catalog domain plasma_applet_<Id>, so
+# catalogs install as compiled .mo under contents/locale/<lang>/LC_MESSAGES/. The .po/.pot are the
+# committed source of truth; the .mo are generated (gitignored) and compiled by `i18n`, which
+# install/update/dev depend on (kpackagetool6 ships the tree verbatim — it does no compilation).
+# See CLAUDE.md "Internationalization (i18n)". logic.js is i18n-free by design, so only .qml is scanned.
+DOMAIN      := plasma_applet_$(PLASMOID_ID)
+PO_DIR      := po
+POT         := $(PO_DIR)/$(DOMAIN).pot
+PO_FILES    := $(wildcard $(PO_DIR)/*.po)
+LOCALE_DIR  := $(PKG_DIR)/contents/locale
+# ki18n keyword set so i18nc/i18np/i18ncp contexts + plural forms extract correctly.
+XGETTEXT    := xgettext --from-code=UTF-8 -C --kde \
+	-ci18n -ki18n:1 -ki18nc:1c,2 -ki18np:1,2 -ki18ncp:1c,2,3 \
+	--package-name="Plasma Gnome Pager" --package-version="0.1.0" \
+	--copyright-holder="Kenan Salar" \
+	--msgid-bugs-address="https://github.com/KenanSalar/plasma-gnome-pager/issues" \
+	--width=200
+
+.PHONY: help install update uninstall dev dev-undev test restart check check-unit check-integration lint messages i18n _no-dev-symlink
 
 help:
 	@echo "Targets:"
@@ -20,7 +39,9 @@ help:
 	@echo "  make check      Run all headless QML tests (unit + integration)"
 	@echo "  make check-unit Run only the unit tests (tests/unit)"
 	@echo "  make check-integration  Run only the integration tests (tests/integration)"
-	@echo "  make lint       qmllint the widget UI (two benign warnings expected; see CLAUDE.md)"
+	@echo "  make lint       qmllint the widget UI (clean — i18n globals resolved via .contextProperties.ini)"
+	@echo "  make messages   Extract translatable strings into po/ (.pot template) and merge .po files"
+	@echo "  make i18n       Compile po/*.po into the package (contents/locale/.../*.mo)"
 	@echo "  make install    Install the package with kpackagetool6"
 	@echo "  make update     Upgrade the installed package"
 	@echo "  make uninstall  Remove the installed package"
@@ -37,17 +58,18 @@ _no-dev-symlink:
 		exit 1; \
 	fi
 
-install: _no-dev-symlink
+install: _no-dev-symlink i18n
 	kpackagetool6 --type Plasma/Applet --install $(PKG_DIR)
 
-update: _no-dev-symlink
+update: _no-dev-symlink i18n
 	kpackagetool6 --type Plasma/Applet --upgrade $(PKG_DIR)
 
 uninstall:
 	kpackagetool6 --type Plasma/Applet --remove $(PLASMOID_ID)
 
-# Live-development symlink: edit files in ./package and just `make restart`.
-dev:
+# Live-development symlink: edit files in ./package and just `make restart`. Depends on i18n so the
+# symlinked package carries compiled catalogs (otherwise the live widget shows only source strings).
+dev: i18n
 	mkdir -p $(HOME)/.local/share/plasma/plasmoids
 	ln -sfn "$(CURDIR)/$(PKG_DIR)" "$(PLASMOID_DIR)"
 	@echo "Symlinked $(PLASMOID_DIR) -> $(CURDIR)/$(PKG_DIR)"
@@ -84,9 +106,33 @@ check-integration:
 	$(QMLTEST) $(TESTS_DIR)/integration
 
 # Lints the UI components, the settings pages (contents/ui/config/), the config model
-# (contents/config/config.qml), and the test QML (tests/{unit,integration}/*.qml). Expected
-# non-defects: i18n/i18np flagged unqualified (a plasmoid global) and any DBus.* ctor flagged
-# unresolved-type — see CLAUDE.md "Verifying a change".
+# (contents/config/config.qml), and the test QML (tests/{unit,integration}/*.qml). Clean: the
+# i18n*/Plasmoid globals (KLocalizedContext context properties qmllint can't statically resolve)
+# are declared in ./.contextProperties.ini, so they no longer warn while real unqualified accesses
+# still do. (A DBus.* ctor may print an unresolved-type info on some qmllint versions — benign,
+# runtime JS types the plugin provides.) See CLAUDE.md "Verifying a change".
 lint:
 	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml \
 		$(TESTS_DIR)/unit/*.qml $(TESTS_DIR)/integration/*.qml
+
+# Extract translatable strings from the QML into the .pot template, then merge them into every
+# existing po/<lang>.po (so translators pick up new/changed strings without losing their work).
+# Run after adding or changing any i18n() string. Commit the updated .pot + .po.
+messages:
+	$(XGETTEXT) -o $(POT) $$(find $(PKG_DIR)/contents -name '*.qml' | sort)
+	@for po in $(PO_FILES); do \
+		echo "  msgmerge $$po"; \
+		msgmerge --update --backup=none --width=200 "$$po" $(POT); \
+	done
+	@echo "Extracted to $(POT) and merged $(words $(PO_FILES)) translation(s)."
+
+# Compile every po/<lang>.po into the package as contents/locale/<lang>/LC_MESSAGES/<domain>.mo.
+# The .mo are generated artifacts (gitignored); install/update/dev depend on this target.
+i18n:
+	@for po in $(PO_FILES); do \
+		lang=$$(basename "$$po" .po); \
+		dest="$(LOCALE_DIR)/$$lang/LC_MESSAGES"; \
+		mkdir -p "$$dest"; \
+		echo "  msgfmt $$po -> $$dest/$(DOMAIN).mo"; \
+		msgfmt --check -o "$$dest/$(DOMAIN).mo" "$$po" || exit 1; \
+	done

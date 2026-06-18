@@ -222,6 +222,32 @@ TestCase {
         verify(!tip.active, "tooltip is inactive for an empty name");
     }
 
+    // --- window-list tooltip: the dot renders tooltipText as rich-text subText ----------
+
+    // The window-list HTML is wired into the tooltip's subText.
+    function test_tooltipShowsSubText() {
+        const html = "2 Windows:<ul><li>Foo</li><li>Bar</li></ul>";
+        const dot = makeDot({ desktopName: "Web", tooltipText: html });
+        const tip = tooltipOf(dot);
+        verify(tip, "the dot has a tooltip area");
+        compare(tip.subText, html, "tooltip subText is the window-list HTML");
+    }
+
+    // The subText is rich text (a <ul> list), so the area must render RichText, not PlainText.
+    function test_tooltipTextFormatIsRichText() {
+        const dot = makeDot({ desktopName: "Web", tooltipText: "<ul><li>Foo</li></ul>" });
+        const tip = tooltipOf(dot);
+        compare(tip.textFormat, Text.RichText, "tooltip renders as rich text");
+    }
+
+    // The tooltip is still gated on the NAME: a window list with no name (the transient state where
+    // names lag ids) does not show a tooltip, matching the desktopName gate.
+    function test_subTextDoesNotActivateWithoutName() {
+        const dot = makeDot({ desktopName: "", tooltipText: "<ul><li>Foo</li></ul>", showTooltips: true });
+        const tip = tooltipOf(dot);
+        verify(!tip.active, "no name → no tooltip even when a window list is present");
+    }
+
     // --- Milestone 5: configurable colours -----------------------------------------
     // With followThemeColors false the dot uses the configured activeColor/inactiveColor instead
     // of the colour scheme. (The 2×2 branch is covered exhaustively by tst_logic::test_dotColor;

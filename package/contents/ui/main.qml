@@ -10,13 +10,17 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQml                                      // Instantiator (materialise TasksModel rows)
+import QtQuick.Layouts                            // Column/RowLayout (rename dialog content)
 
 import org.kde.plasma.plasmoid
 
 // Public, stable imports only (intentionally no org.kde.plasma.private.*):
-import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action (contextual menu)
-import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo (read state)
-import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove)
+import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action (menu) + PlasmaCore.Dialog (rename)
+import org.kde.plasma.components as PlasmaComponents3  // TextField/Button/Label (rename dialog)
+import org.kde.kirigami as Kirigami              // Units (rename dialog spacing)
+import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksModel/ActivityInfo (read)
+import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
 
 import "logic.js" as Logic
 
@@ -50,12 +54,15 @@ PlasmoidItem {
     readonly property bool enableScroll: Plasmoid.configuration.enableScroll ?? Logic.DEFAULTS.enableScroll
     readonly property bool scrollWrap: Plasmoid.configuration.scrollWrap ?? Logic.DEFAULTS.scrollWrap
     readonly property bool showTooltips: Plasmoid.configuration.showTooltips ?? Logic.DEFAULTS.showTooltips
+    readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
+    readonly property bool enableRename: Plasmoid.configuration.enableRename ?? Logic.DEFAULTS.enableRename
 
     // Appearance + animation settings, read the same way and passed down to the indicator as plain
     // values (it forwards them per-dot). dotSize/animationDuration use a `0 = auto` sentinel: the
-    // indicator/dot turn 0 into the HiDPI/themed default (so main.qml stays free of Kirigami and
-    // these stay headless-testable — see WorkspaceIndicator/WorkspaceDot). Each `?? <default>`
+    // indicator/dot turn 0 into the HiDPI/themed default — resolved there because the components are
+    // the headless-tested rendering layer (main.qml imports Kirigami only for the rename dialog's
+    // spacing, not for these; see WorkspaceIndicator/WorkspaceDot). Each `?? <default>`
     // mirrors the schema default for the transient-undefined frame, exactly like the booleans above.
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
@@ -82,6 +89,7 @@ PlasmoidItem {
         enableScroll: root.enableScroll
         scrollWrap: root.scrollWrap
         showTooltips: root.showTooltips
+        desktopTooltips: root.desktopTooltips
 
         // Appearance/animation config (dotSize passed as the raw 0=auto request; resolved here).
         dotSizeRequest: root.dotSize
@@ -102,6 +110,150 @@ PlasmoidItem {
     // (switch/add/remove) goes through KWin DBus below. (see virtual-desktops.md)
     TaskManager.VirtualDesktopInfo {
         id: vdi
+    }
+
+    // Per-desktop tooltip subText (a rich-text <ul> of the windows open on each desktop), index-aligned
+    // with vdi.desktopIds and passed DOWN to the indicator/dots as plain strings (so those sub-components
+    // stay free of Plasma data types and headless-testable). Built here — the e2e boundary that may touch
+    // live Plasma models + i18n. Empty [] when the window list is off (the Loader is then inactive), so
+    // each dot falls back to a name-only tooltip. Mirrors the stock KDE pager's tooltip text, but sourced
+    // from the PUBLIC TaskManager.TasksModel instead of the private PagerModel (robustness.md). The `as`
+    // cast gives qmllint a typed read of the loaded item's property (no missing-property on Loader.item).
+    readonly property var desktopTooltips: tooltipLoader.item ? (tooltipLoader.item as TooltipAggregator).desktopTooltips : []
+
+    // The whole window-list machinery (a TasksModel + ActivityInfo + the row Instantiator) lives behind a
+    // Loader gated by showTooltips && showWindowList, so when the window list is off it — and its always-on
+    // model cost — simply does not exist (qml-performance.md: this widget is always on screen).
+    Loader {
+        id: tooltipLoader
+        active: root.showTooltips && root.showWindowList
+        sourceComponent: aggregatorComponent
+    }
+    Component {
+        id: aggregatorComponent
+        TooltipAggregator {}
+    }
+
+    // One materialised TasksModel row, as a NAMED inline component so objectAt(i) can be `as`-cast to it
+    // for typed (lint-clean) role access — the stock pager's `itemAt(i) as WindowDelegate` idiom. The
+    // capitalised TasksModel roles aren't valid lowercase identifiers, so they can't be required
+    // properties; read them off the var `model` (only the lowercase `display` role is a required property).
+    component WindowRow: QtObject {
+        required property var model
+        required property string display                  // window title (Qt::DisplayRole)
+        readonly property var windowDesktops: model.VirtualDesktops
+        readonly property bool onAllDesktops: model.IsOnAllVirtualDesktops
+        readonly property bool minimized: model.IsMinimized
+        readonly property bool isWindow: model.IsWindow   // false for launchers / startup tasks
+    }
+
+    // The window-list aggregator — a NAMED inline component (so tooltipLoader.item can be `as`-cast to it
+    // above). Non-visual zero-size Item: Loader.item must be a QQuickItem, not a bare QtObject. ONE
+    // unfiltered public TasksModel + grouping in pure JS (Logic.groupWindowsByDesktop), not N filtered
+    // models, so the grouping/truncation stays headless-unit-tested. GroupDisabled → one row per window
+    // (an accurate per-desktop count); filterByActivity keeps other activities' windows out of the lists.
+    component TooltipAggregator: Item {
+        id: aggregator
+
+        property var desktopTooltips: []
+
+        TaskManager.ActivityInfo {
+            id: activityInfo
+        }
+        TaskManager.TasksModel {
+            id: tasksModel
+            groupMode: TaskManager.TasksModel.GroupDisabled
+            filterByVirtualDesktop: false
+            filterByActivity: true
+            activity: activityInfo.currentActivity
+        }
+
+        // Materialise the rows so objectAt(i) can read role values by name (a C++ QAbstractItemModel has
+        // no model.get(i)). Row add/remove triggers a rebuild here; role-value changes (title rename,
+        // minimise, desktop move) arrive via the model's dataChanged below.
+        Instantiator {
+            id: winInstantiator
+            model: tasksModel
+            delegate: WindowRow {}
+            onObjectAdded: aggregator.scheduleRebuild()
+            onObjectRemoved: aggregator.scheduleRebuild()
+        }
+
+        // Rebuild on any role-value change (dataChanged covers title/minimise/desktop) or a full reset,
+        // and when the desktop SET changes (the index alignment shifts). All funnel through the debounced
+        // scheduleRebuild so a burst collapses to one rebuild per frame.
+        Connections {
+            target: tasksModel
+            function onDataChanged() {
+                aggregator.scheduleRebuild();
+            }
+            function onModelReset() {
+                aggregator.scheduleRebuild();
+            }
+        }
+        Connections {
+            target: vdi
+            function onDesktopIdsChanged() {
+                aggregator.scheduleRebuild();
+            }
+        }
+
+        // Coalesce a burst of change signals into ONE rebuild per frame — never per signal. No binding
+        // loop: the rows read the model, rebuild() writes desktopTooltips, and the dots only read it.
+        function scheduleRebuild() {
+            Qt.callLater(aggregator.rebuild);
+        }
+
+        // Snapshot the materialised rows into a plain JS array, group per desktop (pure logic.js), then
+        // format each summary into the tooltip subText. The `as WindowRow` cast gives typed role access;
+        // normalise VirtualDesktops to plain strings so the UUID compare against desktopIds can't silently
+        // miss (variant wrappers).
+        function rebuild() {
+            let windows = [];
+            for (let i = 0; i < winInstantiator.count; ++i) {
+                const o = winInstantiator.objectAt(i) as WindowRow;
+                if (!o)
+                    continue;
+                windows.push({
+                    title: o.display || "",
+                    minimized: o.minimized,
+                    onAll: o.onAllDesktops,
+                    isWindow: o.isWindow,
+                    desktops: (o.windowDesktops || []).map(x => String(x))
+                });
+            }
+            aggregator.desktopTooltips = Logic.groupWindowsByDesktop(windows, vdi.desktopIds ?? []).map(aggregator.formatSubText);
+        }
+
+        // Build one desktop's window list as a rich-text <ul> capped at Logic.windowListMaximum, with an
+        // "…and N other windows" overflow line — the stock pager's generateWindowList.
+        function formatList(titles) {
+            const total = titles.length;
+            const max = Logic.windowListMaximum(total);
+            let t = "<ul><li>" + titles.slice(0, max).map(x => Logic.sanitizeHtml(x.length ? x : i18nc("@item:intext window with no title", "Untitled Window"))).join("</li><li>") + "</li></ul>";
+            if (total > max)
+                t += i18ncp("@info:tooltip overflow label", "…and %1 other window", "…and %1 other windows", total - max);
+            return t;
+        }
+
+        // Assemble one desktop's tooltip subText from its { visible, minimized } summary — the stock
+        // pager's updateSubTextIfNeeded: a single visible window shows just its title; >1 shows a
+        // "%1 Windows:" header + the list; minimised windows get their own header + list; a <br>
+        // separates the two sections. The leading <style> kills the <ul>'s default margin.
+        function formatSubText(s) {
+            let t = "";
+            if (s.visible.length === 1)
+                t += Logic.sanitizeHtml(s.visible[0].length ? s.visible[0] : i18nc("@item:intext window with no title", "Untitled Window"));
+            else if (s.visible.length > 1)
+                t += i18ncp("@info:tooltip start of list", "%1 Window:", "%1 Windows:", s.visible.length) + aggregator.formatList(s.visible);
+            if (s.visible.length && s.minimized.length)
+                t += s.visible.length === 1 ? "<br><br>" : "<br>";
+            if (s.minimized.length > 0)
+                t += i18ncp("@info:tooltip", "%1 Minimized Window:", "%1 Minimized Windows:", s.minimized.length) + aggregator.formatList(s.minimized);
+            return t.length ? "<style>ul { margin: 0; }</style>" + t : "";
+        }
+
+        Component.onCompleted: aggregator.rebuild()
     }
 
     // Every virtual-desktop write goes through KWin's VirtualDesktopManager (service + path are
@@ -126,9 +278,12 @@ PlasmoidItem {
         root.kwinCall("org.freedesktop.DBus.Properties", "Set", [new DBus.string("org.kde.KWin.VirtualDesktopManager"), new DBus.string("current"), new DBus.variant(uuid)]);
     }
 
-    // Append a new desktop at the end. `vdi` reports the new count.
+    // Append a new desktop at the end. `vdi` reports the new count. `?? 0` keeps a transient undefined
+    // (shell reload / widget re-add) from reaching DBus.uint32 (an unguarded undefined would coerce to
+    // NaN/throw); when the menu action is actually invoked the widget is live, so numberOfDesktops is a
+    // real count and the position is a true append (robustness.md: guard every transient read before use).
     function addDesktop() {
-        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "createDesktop", [new DBus.uint32(vdi.numberOfDesktops),   // position = append at end
+        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "createDesktop", [new DBus.uint32(vdi.numberOfDesktops ?? 0),   // position = append at end
             new DBus.string(i18n("New Desktop"))]);
     }
 
@@ -143,6 +298,29 @@ PlasmoidItem {
     // "Remove" targets the last desktop (the one addDesktop appended).
     function removeLastDesktop() {
         root.removeDesktop(Logic.lastDesktopId(vdi.desktopIds));
+    }
+
+    // Rename a desktop by UUID via KWin's setDesktopName(id, name). Logic.sanitizeDesktopName trims and
+    // rejects an empty/whitespace-only name (returns ""), so a blank rename is a no-op; uuid can be
+    // transiently empty during reconfigure (robustness.md). `vdi` reports the new name back via the
+    // desktopNames binding — no cache (the read/write split).
+    function renameDesktop(uuid, name) {
+        const clean = Logic.sanitizeDesktopName(name);
+        if (!uuid || !clean) {
+            return;
+        }
+        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "setDesktopName", [new DBus.string(uuid), new DBus.string(clean)]);
+    }
+
+    // Open the rename prompt for a desktop, prefilled with its current name. Resolves the name from the
+    // live vdi arrays (index-aligned; guarded for the transient-empty frame).
+    function openRenameDialog(uuid) {
+        if (!uuid) {
+            return;
+        }
+        const ids = vdi.desktopIds ?? [];
+        const names = vdi.desktopNames ?? [];
+        renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
     }
 
     // Right-click menu. Gated by enableAddRemove; Remove also disables at the last desktop.
@@ -163,6 +341,83 @@ PlasmoidItem {
             visible: root.enableAddRemove
             enabled: root.enableAddRemove && Logic.canRemoveDesktop(vdi.numberOfDesktops)
             onTriggered: root.removeLastDesktop()
+        },
+        PlasmaCore.Action {
+            text: i18n("Rename Current Desktop…")
+            icon.name: "edit-rename"
+            priority: Plasmoid.LowPriorityAction
+            visible: root.enableRename
+            enabled: root.enableRename
+            onTriggered: root.openRenameDialog(vdi.currentDesktop)
         }
     ]
+
+    // Rename prompt — a panel-native PlasmaCore.Dialog (a top-level Window), declared directly (not in a
+    // Loader: a Loader is for Items, and there is no precedent for loading a Window through one; visible:
+    // false keeps it cheap — no native surface until first shown, and its content is just a field + two
+    // buttons). Chosen over Kirigami.PromptDialog, whose base parents to applicationWindow().overlay —
+    // undefined in a plasmoid, so it would be clipped to the thin panel (robustness.md). It pops next to
+    // the widget via visualParent + location (the AppletAlternatives idiom) and lives here in main.qml
+    // (the e2e boundary) so the headless-tested sub-components never touch a dialog or Plasma window type.
+    PlasmaCore.Dialog {
+        id: renameDialog
+
+        property string targetUuid: ""
+
+        visible: false
+        visualParent: root.fullRepresentationItem
+        location: Plasmoid.location
+        hideOnWindowDeactivate: true            // click-away cancels
+
+        // Show prefilled with the desktop's current name, text selected and focused for immediate typing.
+        function openFor(uuid, currentName) {
+            renameDialog.targetUuid = uuid;
+            renameField.text = currentName;
+            renameDialog.visible = true;
+            renameField.selectAll();
+            renameField.forceActiveFocus();
+        }
+
+        // Commit the rename, then close. An empty/whitespace name (sanitize → "") keeps the prompt open
+        // rather than silently doing nothing; renameDesktop re-sanitizes, so the write stays guarded.
+        function commit() {
+            const clean = Logic.sanitizeDesktopName(renameField.text);
+            if (clean === "") {
+                return;
+            }
+            root.renameDesktop(renameDialog.targetUuid, clean);
+            renameDialog.visible = false;
+        }
+
+        mainItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            PlasmaComponents3.Label {
+                text: i18n("Rename desktop:")
+            }
+            PlasmaComponents3.TextField {
+                id: renameField
+                Layout.fillWidth: true
+                Layout.minimumWidth: Kirigami.Units.gridUnit * 12
+                onAccepted: renameDialog.commit()                  // Enter commits
+                Keys.onEscapePressed: renameDialog.visible = false // Esc cancels
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: Kirigami.Units.smallSpacing
+
+                PlasmaComponents3.Button {
+                    text: i18n("Cancel")
+                    icon.name: "dialog-cancel"
+                    onClicked: renameDialog.visible = false
+                }
+                PlasmaComponents3.Button {
+                    text: i18n("Rename")
+                    icon.name: "edit-rename"
+                    enabled: renameField.text.trim().length > 0
+                    onClicked: renameDialog.commit()
+                }
+            }
+        }
+    }
 }

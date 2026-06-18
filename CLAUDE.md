@@ -13,8 +13,10 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
-below). Scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, and the
-settings UI are built; remaining work is robustness hardening and packaging/release. The
+below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
+the windows open on that desktop), add/remove desktops, form-factor (vertical-panel) handling, the
+settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
+guards) are built; the remaining work is packaging/release. The
 ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
 `.claude/rules/*` describe how the code is built, not the schedule.
 
@@ -109,8 +111,10 @@ the Visual model below).
 > (the dots outside it are dead to clicks/scroll/right-click). Fix: the representation root
 > (`WorkspaceIndicator`) advertises its content extent via `Layout.minimum`/`preferred`/`maximum`
 > on **both** axes (needs `import QtQuick.Layouts`). The MAJOR (line) axis — width on a horizontal
-> panel, height on a vertical one (`vertical`) — is **pinned** (`min == preferred == max ==
-> stripLength`); the CROSS axis carries the line(s) (`min == preferred == crossThickness`) with its
+> panel, height on a vertical one (`vertical`) — pins `preferred == max == naturalStripLength` but
+> drops `min` to a smaller `floorStripLength` so the panel can **compress** the strip; when it does,
+> the dots scale down to fill the allocation (scale-to-fit, M6 — see the scale-to-fit gotcha below).
+> The CROSS axis carries the line(s) (`min == preferred == naturalCrossThickness`) with its
 > **maximum reset to `-1`** (Qt's unconstrained `+∞`) so the panel stretches it to the panel
 > thickness and the centred grid sits in the middle. Asserted by
 > `tst_workspaceindicator.qml::{test_advertisesWidthViaLayout,test_verticalAdvertisesHeightViaLayout}`.
@@ -141,9 +145,10 @@ how GNOME and the KDE `compact_pager` actually work.
 > line and can never be covered or clipped — so there is **no** `pillOverhang`/`pillEndGap`/`pillX`
 > math. This is **not** the previously-rejected *uniform-slot* model (every slot as wide as the
 > pill, which spread the dots far apart): here inactive dots stay `dotSize`-tight and only the
-> active one is longer. Size is advertised by a **formula** on the major axis —
-> `stripLength = perLine > 0 ? pillWidth + (perLine-1)*(dotSize+dotSpacing) : dotSize` — and the
-> cross axis carries the lines (`crossThickness = lineCount*dotSize + (lineCount-1)*dotSpacing`),
+> active one is longer. Size is advertised by a **formula** on the major axis (at the natural dot
+> size) — `naturalStripLength = perLine > 0 ? pillWidth + (perLine-1)*(dotSize+dotSpacing) : dotSize`
+> — and the cross axis carries the lines
+> (`naturalCrossThickness = lineCount*dotSize + (lineCount-1)*dotSpacing`),
 > not the live positioner extent, so the panel cell stays put during the morph and when no element
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
 > single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
@@ -151,6 +156,37 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
 > (`dotSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match the
 > `main.xml` settings keys exactly (see "Config flow" below).
+>
+> **Scale-to-fit (M6 major axis; cross axis post-M6) — shrink the dots to the allocation on BOTH axes,
+> never overflow; NATURAL vs EFFECTIVE size.** When the natural strip would exceed the panel-allocated
+> length on **either** axis (many desktops on a crowded panel; a multi-row grid on a thin panel), the
+> dots/pill **shrink** to fill the allocation instead of drawing over the neighbours or past the panel
+> thickness (robustness.md). `naturalDotSize` is the upper bound (the config/themed request); the rendered
+> `dotSize = max(minDotSize, min(naturalDotSize, fitDotSize))` — capped at natural, floored at
+> `minDotSize` (a legibility floor, `min(naturalDotSize, iconSizes.small/4)`, clamped ≤ natural so a
+> tiny configured dot never scales UP). **`fitDotSize = min(majorFitDotSize, crossFitDotSize)`**: a dot
+> must fit BOTH axes, so the binding constraint is the smaller fit. Both reuse the one pure
+> `Logic.fitDotSize(available, count, pillFactor, spacingFactor)`, the algebraic **inverse of
+> `lineExtent`** — the dot size that makes a full line exactly fill `available`: the MAJOR fit reads the
+> live major length with `perLine` and the real `pillWidthFactor` (one capsule + dots); the CROSS fit
+> reads the live cross thickness with `lineCount` and **`pillFactor == 1`** (no capsule — every line is
+> one dot thick, so it is the exact inverse of `naturalCrossThickness`). It returns `+Infinity` when
+> there's nothing to fit (non-positive `available`/`count`/denominator), so the unconstrained axis keeps
+> natural and `min` picks the other. The crucial constraint: **the `Layout.*` hints are computed from
+> the NATURAL/floor sizes only** (`naturalStripLength`/`floorStripLength`/`naturalCrossThickness`/
+> `floorCrossThickness`), never the effective `dotSize` — the fits read the live `width`/`height`, so
+> feeding the effective size back into the hints would be a binding loop. The cross-axis `Layout`
+> **minimum drops to `floorCrossThickness`** (mirroring the major axis's `floorStripLength`) so a thin
+> panel can compress the thickness; preferred stays `naturalCrossThickness`, maximum stays `-1` (free to
+> fill the thickness). Everything *downstream* (`pillWidth`, `dotSpacing`, each `WorkspaceDot`, the
+> `Grid` spacing) reads the effective `dotSize`, so the whole strip scales in lockstep. Common case (room
+> available on both axes): `fitDotSize >= naturalDotSize`, so effective == natural and the look is
+> byte-for-byte unchanged. Guarded by `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
+> test_scaleDotsUnchangedWhenAmple,test_scaleDotsShrinkOnShortHeightVertical,
+> test_scaleDotsShrinkOnThinCrossMultiRow,test_scaleDotsCrossUnchangedWhenAmpleThickness,
+> test_scaleDotsShrinkOnThinCrossVertical,test_advertisesWidthViaLayout,
+> test_verticalAdvertisesHeightViaLayout,test_gridSizingTwoRows}` +
+> `tst_logic.qml::{test_fitDotSize,test_fitDotSizeUnbounded}`.
 >
 > **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
@@ -187,14 +223,29 @@ how GNOME and the KDE `compact_pager` actually work.
 > inline (never a popup, never the default compact icon). Confirmed against
 > develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 
-**Interactions — scroll, hover, tooltips, add/remove.** The branching logic (clamp/wrap, hi-res
-wheel accumulation, never-remove-last, dot/capsule opacity) lives in `package/contents/ui/logic.js`
-(pure `.pragma library`, unit-tested by `tests/unit/tst_logic.qml` with no Plasma deps); the QML is
-a thin caller. Config flags flow one way: `main.qml` reads `plasmoid.configuration.*` → passes
-plain booleans to `WorkspaceIndicator` → each `WorkspaceDot`, so the tested sub-components never
-touch `plasmoid.configuration`. `main.qml` owns add/remove (KWin DBus `createDesktop`/
-`removeDesktop` + `Plasmoid.contextualActions`, gated by `enableAddRemove`, never removing the last
-desktop via `logic.js::canRemoveDesktop`).
+**Interactions — scroll, hover, tooltips, add/remove/rename.** The branching logic (clamp/wrap, hi-res
+wheel accumulation, never-remove-last, dot/capsule opacity, name validation) lives in
+`package/contents/ui/logic.js` (pure `.pragma library`, unit-tested by `tests/unit/tst_logic.qml`
+with no Plasma deps); the QML is a thin caller. Config flags flow one way: `main.qml` reads
+`plasmoid.configuration.*` → passes plain booleans to `WorkspaceIndicator` → each `WorkspaceDot`, so
+the tested sub-components never touch `plasmoid.configuration`. `main.qml` owns add/remove/rename (KWin
+DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActions`, gated by
+`enableAddRemove` / `enableRename`, never removing the last desktop via `logic.js::canRemoveDesktop`).
+
+> **Rename — a public `setDesktopName(id, name)` DBus write + a `PlasmaCore.Dialog`, NOT
+> `Kirigami.PromptDialog`.** "Rename Current Desktop…" is a `Plasmoid.contextualAction` (gated by the
+> `enableRename` key) that renames `vdi.currentDesktop` via `kwinCall(... "setDesktopName", [DBus.string(uuid),
+> DBus.string(name)])` (the verified `ss` signature on `org.kde.KWin.VirtualDesktopManager`). It is
+> menu-only / current-desktop (no per-dot trigger), so `WorkspaceIndicator`/`WorkspaceDot` are untouched.
+> The new name comes back through the live `desktopNames` binding — **no cache** (the read/write split).
+> The name is validated by pure `logic.js::sanitizeDesktopName` (trim, reject empty/whitespace → `""`
+> no-op sentinel, cap length); unit-tested. Text entry is a **`PlasmaCore.Dialog`** (TextField +
+> Cancel/Rename, positioned by `visualParent: root.fullRepresentationItem` + `location: Plasmoid.location`
+> + `hideOnWindowDeactivate`, the stock `AppletAlternatives` idiom) **declared directly** with
+> `visible:false` — *not* wrapped in a `Loader` (a `Loader` is for `Item`s; a `Dialog` is a top-level
+> `Window`, kept cheap by not realising a surface until shown) and *not* `Kirigami.PromptDialog`, whose
+> base `Kirigami.Dialog` parents to `applicationWindow().overlay` — **undefined in a plasmoid**, so it
+> would clip to the thin panel (robustness.md). The dialog + action + DBus live in `main.qml` (e2e-only).
 
 > **Gotcha (learned the hard way) — scroll: a `MouseArea { acceptedButtons: Qt.NoButton; onWheel }`
 > *behind* the dots, NOT a `WheelHandler`.** A `WheelHandler` did **not** deliver wheel reliably in
@@ -217,6 +268,49 @@ desktop via `logic.js::canRemoveDesktop`).
 > — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
 > importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
 
+**Window-list tooltip — windows-per-desktop from the PUBLIC `TasksModel`, NOT the private
+`PagerModel`.** The tooltip's `subText` is the stock KDE pager's window list ("N Windows:" + a
+rich-text `<ul>` of titles + "…and N other windows", a separate "N Minimized Windows:" section),
+gated by the `showWindowList` key. The stock pager builds this from a **private** `PagerModel`/
+`WindowModel` (`org.kde.plasma.private.pager`) — forbidden (robustness.md, the #1 break cause). We
+reproduce the exact *presentation* from the public `org.kde.taskmanager` `TasksModel` + `ActivityInfo`
+instead. The split, following the project's data-source-vs-pure-logic rule:
+> - **`main.qml` (e2e boundary, not headless-testable)** owns the live model. A `Loader` gated by
+>   `showTooltips && showWindowList` (so the always-on model cost is **zero** when the list is off —
+>   qml-performance.md) loads a `TooltipAggregator` Item holding ONE unfiltered
+>   `TasksModel { groupMode: GroupDisabled; filterByActivity: true }` (one row per window; current
+>   activity only). An `Instantiator` materialises the rows so role values can be read **by name**
+>   (a C++ `QAbstractItemModel` has no `model.get(i)`); a debounced `Qt.callLater(rebuild)` (driven by
+>   the model's `dataChanged`/`onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
+>   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
+>   `subText`. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
+>   with `desktopIds` (exactly parallel to `desktopNames`): `main.qml` → `WorkspaceIndicator`
+>   (`desktopTooltips`) → each `WorkspaceDot.tooltipText` by `globalIndex` → `ToolTipArea.subText`
+>   (with `textFormat: Text.RichText`). The sub-components never touch `TasksModel`, so they stay
+>   headless-testable.
+> - **`logic.js` (pure, unit-tested)** does the grouping/truncation with NO Plasma/i18n deps:
+>   `groupWindowsByDesktop(windows, desktopIds)` → per-desktop `{ visible:[title…], minimized:[title…] }`
+>   (a window belongs to a desktop when `isWindow && (onAll || desktops.indexOf(uuid) !== -1)`);
+>   `windowListMaximum(count)` (the stock rule: 4, but all 5 when exactly 5); `sanitizeHtml` (escapes
+>   `<>&'"` and the no-break space ` ` — **not** the ordinary space, which must still wrap). i18n
+>   formatting stays in `main.qml` because `i18n*` is a plasmoid global, absent under `qmltestrunner`.
+>
+> **Gotcha — `as`-cast dynamic `Loader.item`/`Instantiator.objectAt()` to a NAMED inline component, or
+> qmllint flags `missing-property`.** `Loader.item` and `Instantiator.objectAt(i)` are typed `QObject`,
+> so reading a dynamic property off them (`tooltipLoader.item.desktopTooltips`, `o.display`) warns. Fix
+> exactly like the stock pager's `itemAt(i) as WindowDelegate`: declare the loaded item and the row as
+> named inline components (`component TooltipAggregator: Item {…}`, `component WindowRow: QtObject {…}`)
+> and cast — `(tooltipLoader.item as TooltipAggregator).desktopTooltips`,
+> `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
+> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`) aren't valid lowercase identifiers, so they can't
+> be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
+> `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
+> before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings).
+> Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop}` +
+> `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
+> `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
+> itself is e2e-only (verify in-shell).
+
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
 (`Plasmoid.configuration.<key> ?? Logic.DEFAULTS.<key>`) → `WorkspaceIndicator` → `WorkspaceDot`.
@@ -227,7 +321,9 @@ defaults, so the same literal is no longer written three times and cannot drift.
 the SCHEMA source; `Logic.DEFAULTS` mirrors it. (Theme/HiDPI render fallbacks — the auto `dotSize`,
 the `Kirigami.Theme.*` colours — are NOT in `DEFAULTS`; they live in the components, see the sentinel
 gotcha below.) The keys:
-behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`, `animationDuration`;
+behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `showWindowList` (the window list in the
+tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
+`enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `animationDuration`;
 appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
 `followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
 with the schema:
@@ -274,7 +370,9 @@ with the schema:
 > — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize` and
 > `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
 > components** (the indicator's `dotSize`, and `Logic.effectiveDuration` for the morph) — NOT in
-> `main.qml`, which has no Kirigami import and is not headless-testable. `effectiveDuration` also
+> `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
+> Kirigami, but only for the rename dialog's spacing, and is not itself headless-testable).
+> `effectiveDuration` also
 > folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),
 > so `animationDuration` overrides the duration but can never re-enable motion the user turned off.
 > The dimensionless ratios (`spacingFactor`/`pillWidthFactor`/`inactiveOpacity`/`hoverOpacity`) are
@@ -293,6 +391,37 @@ with the schema:
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
 
+## Internationalization (i18n)
+
+All user-visible strings are wrapped at the call site in `i18n`/`i18nc`/`i18np`/`i18ncp` (with
+`@…` context comments on the tooltip strings) — they live **only in the QML** (`main.qml` + the
+config pages). `logic.js` is deliberately **i18n-free**: it keeps strings raw and the formatting
+(i18n + HTML) happens in `main.qml`, because `logic.js` is headless-unit-tested where the `i18n*`
+globals don't exist (see "Config flow"/the window-list section). So extraction scans `*.qml` only.
+
+- **Domain (auto-bound):** the Plasma runtime sets the QML `KLocalizedContext` domain to
+  `plasma_applet_<KPlugin.Id>` = `plasma_applet_com.github.kenansalar.plasma-gnome-pager`, so the
+  bare `i18n(...)` calls resolve to our catalog with **no** explicit domain wiring in QML.
+- **Source vs. artifact:** `po/<domain>.pot` (template) + `po/<lang>.po` (per-language) are the
+  committed **source of truth**; the compiled `po/<lang>.po → package/contents/locale/<lang>/`
+  `LC_MESSAGES/<domain>.mo` catalogs are **generated** (gitignored). `kpackagetool6` ships the
+  package tree verbatim and does **no** compilation, so the `.mo` must exist under `package/`
+  before packaging — `make i18n` compiles them and `install`/`update`/`dev` depend on it.
+- **Workflow:** `make messages` extracts via `xgettext` (ki18n keyword set, so contexts + plural
+  forms come through) into the `.pot` and `msgmerge`s every `.po`; `make i18n` compiles each `.po`
+  (`msgfmt --check`) into the package. Add a language by `msginit --locale=<ll>` from the `.pot`,
+  translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
+  12 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `ar`, `zh_CN`, `ru`,
+  `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for `zh_CN`/`ja`,
+  3 for `ru`, 6 for `ar`).
+- **`metadata.json` Name/Description** are translated by **language-suffixed JSON keys**
+  (`Description[de]`), **not** the `.mo` catalog. `Name` stays the product proper-noun.
+- **The qmllint `i18n` "unqualified" warning is NOT a translation concern.** It fired because the
+  `i18n*`/`Plasmoid` globals are `KLocalizedContext` context properties qmllint can't statically
+  resolve. `./.contextProperties.ini` (`[General] disableUnqualifiedAccess = "i18n,…,Plasmoid"`,
+  KDE's own mechanism) declares them so they no longer warn — while a *genuine* unqualified access
+  is still caught. `make lint` is now fully clean. Adding catalogs alone would not have done this.
+
 ## Commands
 
 ```bash
@@ -302,8 +431,10 @@ make restart    # reload the real panel (systemd user service if active, else kq
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
 make lint       # qmllint-qt6 package/contents/ui/*.qml + ui/config/*.qml + config/config.qml
+make messages   # extract translatable strings -> po/<domain>.pot, then msgmerge each po/*.po
+make i18n       # compile po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo (install/update/dev depend on it)
 make dev-undev  # remove the dev symlink
-make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove
+make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove (install/update compile catalogs first)
 ```
 
 **Lint/format before installing** (the rules say `qmllint`/`qmlformat`, but on this Fedora KDE
@@ -332,9 +463,11 @@ bus), so it still relies on the manual in-shell loop below. New logic should com
 (also in `TODO.txt`) is:
 
 1. `make check` — all tiers green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
-2. `make lint` (`qmllint-qt6 …`) clean (no warnings). Two warnings are **expected non-defects**
-   and can be ignored: `i18n(...)` flagged `unqualified` (a plasmoid global) and any `DBus.*`
-   constructor flagged `unresolved-type` (runtime JS types the plugin provides).
+2. `make lint` (`qmllint-qt6 …`) clean — **zero warnings**. The `i18n*`/`Plasmoid`
+   `KLocalizedContext` globals qmllint can't statically resolve are declared in
+   `./.contextProperties.ini` (so they no longer flag `unqualified`, while a genuine unqualified
+   access still does — see "Internationalization (i18n)"). A `DBus.*` constructor may print an
+   `unresolved-type` info on some qmllint versions (runtime JS types the plugin provides) — benign.
 3. `make dev && make test` — watch the `plasmawindowed` terminal and
    `journalctl --user -f -t plasmashell` for QML errors/warnings.
 4. `make restart` — confirm it works in a real panel (some failures only show in-shell).
@@ -352,3 +485,7 @@ bus), so it still relies on the manual in-shell loop below. New logic should com
   if a stale compile is suspected.
 - To tell "applet didn't load" from "representation didn't render," log from the root
   `Component.onCompleted` (always runs if `main.qml` loads) vs the representation's `onCompleted`.
+
+## User Conventions
+
+- Always call big files/objects/functions **'monolithic'** — no synonyms.

@@ -24,7 +24,8 @@
  * Behaviors, gated by `animate` so the FIRST placement is instant (the active element is already a
  * capsule on frame 0 — no grow-in on shell reload) and by effectiveDuration > 0 (the configured
  * animationDuration, or the themed default; 0 when "reduce animations" is on → instant). Each
- * element also carries its own PlasmaCore.ToolTipArea showing `desktopName` on hover.
+ * element also carries its own PlasmaCore.ToolTipArea showing `desktopName` (mainText) and, when
+ * enabled, the rich-text list of windows on that desktop (`tooltipText` as subText) on hover.
  *
  * Sizing/colour/animation come in as properties from the indicator (one source of truth, fed from
  * plasmoid.configuration via main.qml), with Kirigami-derived defaults so a dot still renders
@@ -48,8 +49,12 @@ Item {
     readonly property real pillWidth: dot.dotSize * dot.pillWidthFactor
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // dimensionless ratio
-    property string desktopName: ""                            // shown in the tooltip
+    property string desktopName: ""                            // tooltip mainText (the desktop name)
     property bool showTooltips: Logic.DEFAULTS.showTooltips
+    // Tooltip subText: the rich-text (HTML <ul>) list of windows open on this desktop, pre-formatted
+    // by main.qml (empty when the window list is off or the desktop has no windows). The indicator
+    // feeds it in by global index alongside desktopName.
+    property string tooltipText: ""
     // Colours. When followThemeColors is true (default) the element follows the colour scheme
     // (active = highlight, inactive = text); when false it uses activeColor/inactiveColor. The
     // defaults are the theme colours so a standalone/headless dot is unchanged. (Logic.dotColor.)
@@ -101,6 +106,10 @@ Item {
         anchors.fill: parent
         active: dot.showTooltips && dot.desktopName !== ""
         mainText: dot.desktopName
+        // The window list is HTML (a <ul> of titles); render it as rich text like the stock pager.
+        // An empty subText just yields a name-only tooltip (window list off / no windows).
+        subText: dot.tooltipText
+        textFormat: Text.RichText
 
         // The dot/capsule. Inactive: a dim circle (width == height == dotSize). Active: a longer
         // highlighted capsule along the major axis (pillWidth) while the cross axis stays dotSize.

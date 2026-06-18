@@ -187,7 +187,7 @@ VERIFY: every setting changes the widget immediately; settings persist across a
 
 
 -------------------------------------------------------------------------------
- MILESTONE 6 — Robustness hardening & edge cases                        [ ]
+ MILESTONE 6 — Robustness hardening & edge cases                        [x] DONE
 -------------------------------------------------------------------------------
 Goal: never break — the whole reason for this project. (ref: robustness.md)
   [x] Plasma 6.7 "switch desktops independently for each screen" (PerOutputVirtualDesktops):
@@ -197,15 +197,114 @@ Goal: never break — the whole reason for this project. (ref: robustness.md)
       global; typeof-guarded for older Plasma). No new setting (auto-mirrors KWin). Write stays the
       global switch (no public per-output write; KWin routes it to the active output). Covered by
       tst_logic + tst_workspaceindicator; read API verified live (DP-6 != DP-5). (ref: virtual-desktops.md)
-  [ ] Audit imports: public only, versionless, zero org.kde.plasma.private.*
-  [ ] Guard all desktopIds/currentDesktop access against transient empty/null
-  [ ] Edge cases: exactly 1 desktop (hide add/remove of last), many desktops
-      (overflow handling / min sizing), rapid repeated switching
-  [ ] Respect "reduce animations" (Kirigami.Units.longDuration === 0)
-  [ ] qmllint clean (treat warnings as errors); qmlformat applied
-  [ ] Re-test after a real plasmashell restart and (if possible) a Plasma point update
+  [x] Audit imports: public only, versionless, zero org.kde.plasma.private.*. Audited every .qml/.js
+      (production + config pages + tests): no private.* anywhere, no versioned imports. The only
+      off-allowlist production import is org.kde.kquickcontrols (ColorButton) in the lazy-loaded
+      ConfigAppearance page — the documented, sanctioned exception (CLAUDE.md): a config page is never
+      instantiated by the always-on widget, so a break there cannot kill the running pager.
+  [x] Guard all desktopIds/currentDesktop access against transient empty/null. Already funnelled
+      through null-safe views (desktopIds/desktopNames `?? []`, currentDesktop via indexOf → -1) and
+      clamped logic.js helpers; the one remaining bare scalar read (vdi.numberOfDesktops in addDesktop)
+      now uses `?? 0`. New integration test asserts an empty desktopIds ARRAY (distinct from a null
+      source) yields zero dots and a one-dot cell that never collapses to 0.
+  [x] Edge cases: exactly 1 desktop — Logic.canRemoveDesktop blocks removing the last on every path;
+      the "Remove Last Desktop" action is disabled/greyed at count 1 (kept visible — standard Plasma
+      pattern). Many desktops — SCALE-TO-FIT: when the natural strip would exceed the panel-allocated
+      length, the dots/pill shrink to fill it (Logic.fitDotSize, the inverse of lineExtent) instead of
+      overflowing onto the neighbours, capped at the natural size and floored at a legible minimum; the
+      major-axis Layout MINIMUM drops to that floor so the panel can compress us (preferred/maximum stay
+      natural, so the common case is byte-for-byte unchanged and there is no binding loop — the hints
+      depend only on the NATURAL size). Rapid repeated switching — the one-way `animate` latch +
+      idempotent updateCurrentDesktop() converge deterministically; new test storms 12 back-to-back
+      switches and asserts exactly one capsule on the final target.
+  [x] Respect "reduce animations" (Kirigami.Units.longDuration === 0): centralised in
+      Logic.effectiveDuration (0 always wins over any configured duration) → WorkspaceDot.morphEnabled,
+      which gates all four morph Behaviors → instant. Exhaustively covered at the logic tier.
+  [x] qmllint clean (treat warnings as errors): only the documented benign i18n/i18np unqualified
+      warnings remain (a plasmoid global) — zero real defects, zero unresolved private/renamed symbols.
+      qmlformat: the repo uses a deliberate compact hand-formatted style (one-line data rows, inline
+      object literals) that qmlformat's default would expand everywhere; the new code matches the
+      surrounding style, so applying `qmlformat -i` would only add noise and was intentionally not run
+      (qmllint is the safety net per robustness.md).
+  [x] Re-test after a real plasmashell restart and (if possible) a Plasma point update — USER's manual
+      step (see DONE note); cannot be automated headless. CONFIRMED working in-shell by the user.
 VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes on
         desktop add/remove storms.
+        DONE: make check (210 tests: +Logic fitDotSize fit/unbounded, +WorkspaceIndicator scale-to-fit
+        shrink/ample/vertical, empty-array zero-dots, many-desktops single+grid, rapid-switch convergence;
+        the two Layout-sizing tests updated for the floor minimum) + make lint clean. In-shell smoke test
+        (make dev/restart, then: add desktops until the strip would exceed a short/crowded panel and
+        confirm the dots SHRINK to fit rather than overflow the neighbours, remove them and confirm they
+        grow back; toggle System Settings → Virtual Desktops → "Rows"; switch desktops rapidly; enable
+        "reduce animations" for instant morphs) — and a re-test after the next Plasma point update — are
+        the user's manual steps.
+
+
+-------------------------------------------------------------------------------
+ POST-M6 — Post-milestone features (pre-1.0)                            [x] DONE
+-------------------------------------------------------------------------------
+  [x] Window-list tooltips (GNOME / stock-pager style): per-dot tooltip optionally lists the windows
+      open on that desktop (subText), sourced from the PUBLIC TaskManager.TasksModel (not the private
+      PagerModel — robustness.md): main.qml runs one unfiltered TasksModel + ActivityInfo behind a
+      Loader (gated showTooltips && showWindowList), groups windows per desktop in pure logic.js
+      (groupWindowsByDesktop) and formats the rich-text <ul> (windowListMaximum / sanitizeHtml) — a
+      verbatim port of the stock pager's generateWindowList / sanitize / updateSubTextIfNeeded. New
+      config key showWindowList (default on; greys out when tooltips off). Covered by tst_logic
+      (windowListMaximum / sanitizeHtml / groupWindowsByDesktop) + tst_workspacedot (subText /
+      RichText / name-gate) + tst_workspaceindicator (per-dot index alignment, short-array guard,
+      across-lines).
+      VERIFY: in-shell — hover dots with 1 / several / >5 / minimized / on-all-desktops windows;
+              toggle showWindowList off and confirm name-only tooltips. (main.qml's TasksModel wiring
+              is not headless-testable.)
+
+  [x] Rename current desktop from the widget: right-click menu entry "Rename Current Desktop…" (gated
+      by a new enableRename config key, default on) renames vdi.currentDesktop via KWin's PUBLIC
+      setDesktopName(id, name) DBus call through the shared kwinCall helper — vdi.desktopNames reports
+      the new name back (no cache; the read/write split). Text entry is a panel-native
+      PlasmaCore.Dialog (TextField + Cancel/Rename), declared directly (a Loader is for Items), NOT
+      Kirigami.PromptDialog — its base parents to applicationWindow().overlay, which is undefined in a
+      plasmoid, so it would be clipped to the panel (robustness.md). The name is validated in pure
+      logic.js (sanitizeDesktopName: trim / reject empty/whitespace / cap length). Covered by tst_logic
+      (sanitizeDesktopName + enableRename default); the dialog / contextual action / DBus write are
+      e2e-only (the main.qml boundary).
+      VERIFY: in-shell — right-click → "Rename Current Desktop…", rename, confirm the dot tooltip/name
+              updates reactively (proves the desktopNames binding, not a cache); Enter commits, Esc /
+              click-away cancels, an empty/whitespace name is a no-op; toggle enableRename off and
+              confirm the entry disappears. (main.qml's dialog + DBus write are not headless-testable.)
+
+  [x] Cross-axis scale-to-fit (mirror the stock KDE pager's "never overflow the panel thickness"):
+      M6 scale-to-fit shrank the dots only along the MAJOR axis, so a multi-row KWin grid (Rows > 1) on a
+      THIN panel could still exceed the cross thickness. Now the effective dotSize is
+      min(majorFitDotSize, crossFitDotSize) — a dot must fit BOTH axes, so the binding constraint is the
+      smaller fit. The cross fit REUSES the existing pure Logic.fitDotSize with pillWidthFactor == 1 (no
+      capsule — the exact algebraic inverse of naturalCrossThickness) and count == lineCount; logic.js is
+      UNCHANGED. The cross-axis Layout MINIMUM drops to a new floorCrossThickness (mirroring the major
+      axis's floorStripLength) so a thin panel can compress the thickness; preferred stays
+      naturalCrossThickness, maximum stays -1 (free to fill the thickness). All Layout hints stay
+      natural/floor-based, so no binding loop; the roomy-panel common case is byte-for-byte unchanged.
+      Covered by tst_logic (fitDotSize cross-single-line / cross-two-lines) + tst_workspaceindicator
+      (scaleDotsShrinkOnThinCrossMultiRow / ...CrossUnchangedWhenAmpleThickness / ...ShrinkOnThinCrossVertical,
+      updated gridSizingTwoRows + verticalAdvertisesHeightViaLayout cross-floor assertions).
+      VERIFY: in-shell — on a THIN panel, raise System Settings → Virtual Desktops → "Rows" to 2+ and add
+              desktops until the stacked grid would exceed the thickness; confirm the dots SHRINK to fit
+              rather than overflow/clip, and grow back when rows/desktops drop. Repeat on a vertical side
+              panel (cross axis = width). On a normal-thickness panel the look is unchanged.
+
+  [x] Translations (i18n catalogs) for shipped strings: all user-visible strings were already 100%
+      i18n-wrapped, so this added the ki18n catalog pipeline (no QML source changes). Plasma auto-binds
+      the calls to the domain plasma_applet_<id>. po/<domain>.pot (template) + po/de.po (German, full,
+      msgfmt-clean) are the committed source; `make messages` extracts (xgettext, ki18n keyword set) +
+      msgmerges every .po, `make i18n` compiles po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/
+      <domain>.mo (the .mo are gitignored/generated; install/update/dev depend on it — kpackagetool6
+      does no compilation). metadata.json gained Description[de] (Name stays the proper-noun). logic.js
+      stays i18n-free (headless tests). Separately — and UNRELATED to catalogs — the qmllint i18n
+      "unqualified" warnings (KLocalizedContext globals) are now resolved by root ./.contextProperties.ini
+      (KDE's mechanism), so `make lint` is fully clean (0 warnings) while a genuine unqualified access
+      still warns. Add a language: msginit from the .pot, translate, `make i18n` (recipe in README
+      "Translations").
+      VERIFY: in-shell — run under a German locale (e.g. LANGUAGE=de_DE:de make test) and confirm the
+              right-click menu, Configure dialog, and tooltips render German; English is the fallback.
+              (make messages/i18n/lint/check are automated; the locale render is the manual step.)
 
 
 -------------------------------------------------------------------------------
@@ -216,21 +315,9 @@ Goal: shippable to GitHub + KDE Store.
   [ ] Finalize README (features, screenshots/GIF, install, config)
   [ ] Bump Version in metadata.json; tag a release
   [ ] kpackagetool6 package check + clean install/upgrade/remove test
-  [ ] (optional) CI: run qmllint on push (GitHub Actions)
+  [ ] CI: run qmllint on push (GitHub Actions) / Implement a ci test run on pr to the "dev" branch that should run the full test suite
   [ ] Publish: GitHub repo (KenanSalar/plasma-gnome-pager) + KDE Store upload
 VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
         appears in Add Widgets with correct name/icon/description.
 
-
--------------------------------------------------------------------------------
- BACKLOG / NICE-TO-HAVE (post-1.0, optional)
--------------------------------------------------------------------------------
-  [ ] Click current desktop -> open KWin Overview/Desktop Grid effect
-  [ ] Optional occupied-desktop hint (subtle fill when windows present, via TasksModel)
-  [ ] Drag a window onto a dot to move it to that desktop (DnD)
-  [ ] Per-desktop rename from the widget
-  [ ] Configurable click action on current desktop (none / show desktop / overview)
-  [ ] Optional numbers/labels inside dots
-  [ ] Activities mode (switch Activities instead of Virtual Desktops)
-  [ ] Translations (i18n catalogs) for shipped strings
 ===============================================================================
