@@ -44,14 +44,17 @@ Kirigami.ScrollablePage {
     property color cfg_inactiveColorDefault
 
     // True when any key on this page differs from its default (gates the Defaults action).
+    // Integers/bools compare exactly; the real-valued sliders use a tolerance because a value
+    // dragged back onto the default (SnapAlways lands it on the step grid) can differ from the
+    // schema default by a float ULP and would otherwise read "modified". Colours are QColor-backed
+    // value types: strict !== compares wrapper identity, not the colour value (equal colours still
+    // read "different"), so use Qt.colorEqual (Qt docs).
     readonly property bool isModified: cfg_dotSize !== cfg_dotSizeDefault
-        || cfg_spacingFactor !== cfg_spacingFactorDefault
-        || cfg_pillWidthFactor !== cfg_pillWidthFactorDefault
-        || cfg_inactiveOpacity !== cfg_inactiveOpacityDefault
-        || cfg_hoverOpacity !== cfg_hoverOpacityDefault
+        || Math.abs(cfg_spacingFactor - cfg_spacingFactorDefault) > 1e-9
+        || Math.abs(cfg_pillWidthFactor - cfg_pillWidthFactorDefault) > 1e-9
+        || Math.abs(cfg_inactiveOpacity - cfg_inactiveOpacityDefault) > 1e-9
+        || Math.abs(cfg_hoverOpacity - cfg_hoverOpacityDefault) > 1e-9
         || cfg_followThemeColors !== cfg_followThemeColorsDefault
-        // Colours are QColor-backed value types: strict !== compares wrapper identity, not the
-        // colour value (equal colours still read "different"), so use Qt.colorEqual (Qt docs).
         || !Qt.colorEqual(cfg_activeColor, cfg_activeColorDefault)
         || !Qt.colorEqual(cfg_inactiveColor, cfg_inactiveColorDefault)
 
@@ -85,7 +88,8 @@ Kirigami.ScrollablePage {
             snapMode: QQC2.Slider.SnapAlways   // whole-pixel steps
             // 0 = auto: the widget falls back to the HiDPI-aware themed size.
             valueText: dotSize.value === 0 ? i18n("Default") : i18np("%1 px", "%1 px", Math.round(dotSize.value))
-            widestText: i18n("Default")   // wider than any "NN px" value
+            widestText: i18np("%1 px", "%1 px", 64)   // widest numeric read-out (to == 64)
+            widestTextAlt: i18n("Default")            // 0 shows "Default"; reserve for whichever wins
         }
 
         ConfigSlider {
