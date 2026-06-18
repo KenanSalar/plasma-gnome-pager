@@ -13,6 +13,7 @@
         "Description[es]": "Un cambiador de escritorios virtuales al estilo de GNOME: puntos con una píldora en el espacio de trabajo actual.",
         "Description[el]": "Εναλλάκτης εικονικών επιφανειών εργασίας σε στυλ GNOME: κουκκίδες με ένα χάπι στον τρέχοντα χώρο εργασίας.",
         "Description[it]": "Un selettore di desktop virtuali in stile GNOME: punti con una pillola sullo spazio di lavoro attuale.",
+        "Description[tr]": "GNOME tarzı bir sanal masaüstü değiştirici: geçerli çalışma alanında bir hap ile noktalar.",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
         "Version": "0.1.0",
