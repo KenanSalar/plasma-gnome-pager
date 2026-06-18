@@ -126,9 +126,10 @@ PlasmoidItem {
         root.kwinCall("org.freedesktop.DBus.Properties", "Set", [new DBus.string("org.kde.KWin.VirtualDesktopManager"), new DBus.string("current"), new DBus.variant(uuid)]);
     }
 
-    // Append a new desktop at the end. `vdi` reports the new count. `?? 0` guards the transient frame
-    // where numberOfDesktops can read back undefined (shell reload / widget re-add); 0 still appends
-    // correctly (robustness.md: guard every transient read before use).
+    // Append a new desktop at the end. `vdi` reports the new count. `?? 0` keeps a transient undefined
+    // (shell reload / widget re-add) from reaching DBus.uint32 (an unguarded undefined would coerce to
+    // NaN/throw); when the menu action is actually invoked the widget is live, so numberOfDesktops is a
+    // real count and the position is a true append (robustness.md: guard every transient read before use).
     function addDesktop() {
         root.kwinCall("org.kde.KWin.VirtualDesktopManager", "createDesktop", [new DBus.uint32(vdi.numberOfDesktops ?? 0),   // position = append at end
             new DBus.string(i18n("New Desktop"))]);

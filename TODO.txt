@@ -265,4 +265,8 @@ VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
   [ ] Optional numbers/labels inside dots
   [ ] Activities mode (switch Activities instead of Virtual Desktops)
   [ ] Translations (i18n catalogs) for shipped strings
+  [ ] Cross-axis scale-to-fit: M6 scale-to-fit shrinks dots only along the MAJOR axis; a multi-row
+      KWin grid (Rows > 1) with many desktops on a THIN panel can still exceed the cross thickness
+      (panel-thickness fill is pinned to naturalCrossThickness). Consider also fitting the dot size
+      to the cross allocation (min of the major-fit and a cross-fit) for the multi-row + thin-panel case.
 ===============================================================================

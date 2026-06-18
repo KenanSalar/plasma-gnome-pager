@@ -109,8 +109,10 @@ the Visual model below).
 > (the dots outside it are dead to clicks/scroll/right-click). Fix: the representation root
 > (`WorkspaceIndicator`) advertises its content extent via `Layout.minimum`/`preferred`/`maximum`
 > on **both** axes (needs `import QtQuick.Layouts`). The MAJOR (line) axis — width on a horizontal
-> panel, height on a vertical one (`vertical`) — is **pinned** (`min == preferred == max ==
-> stripLength`); the CROSS axis carries the line(s) (`min == preferred == crossThickness`) with its
+> panel, height on a vertical one (`vertical`) — pins `preferred == max == naturalStripLength` but
+> drops `min` to a smaller `floorStripLength` so the panel can **compress** the strip; when it does,
+> the dots scale down to fill the allocation (scale-to-fit, M6 — see the scale-to-fit gotcha below).
+> The CROSS axis carries the line(s) (`min == preferred == naturalCrossThickness`) with its
 > **maximum reset to `-1`** (Qt's unconstrained `+∞`) so the panel stretches it to the panel
 > thickness and the centred grid sits in the middle. Asserted by
 > `tst_workspaceindicator.qml::{test_advertisesWidthViaLayout,test_verticalAdvertisesHeightViaLayout}`.
@@ -141,9 +143,10 @@ how GNOME and the KDE `compact_pager` actually work.
 > line and can never be covered or clipped — so there is **no** `pillOverhang`/`pillEndGap`/`pillX`
 > math. This is **not** the previously-rejected *uniform-slot* model (every slot as wide as the
 > pill, which spread the dots far apart): here inactive dots stay `dotSize`-tight and only the
-> active one is longer. Size is advertised by a **formula** on the major axis —
-> `stripLength = perLine > 0 ? pillWidth + (perLine-1)*(dotSize+dotSpacing) : dotSize` — and the
-> cross axis carries the lines (`crossThickness = lineCount*dotSize + (lineCount-1)*dotSpacing`),
+> active one is longer. Size is advertised by a **formula** on the major axis (at the natural dot
+> size) — `naturalStripLength = perLine > 0 ? pillWidth + (perLine-1)*(dotSize+dotSpacing) : dotSize`
+> — and the cross axis carries the lines
+> (`naturalCrossThickness = lineCount*dotSize + (lineCount-1)*dotSpacing`),
 > not the live positioner extent, so the panel cell stays put during the morph and when no element
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
 > single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
@@ -151,6 +154,28 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
 > (`dotSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match the
 > `main.xml` settings keys exactly (see "Config flow" below).
+>
+> **Scale-to-fit (M6) — shrink the dots to the allocation, never overflow; NATURAL vs EFFECTIVE size.**
+> When the natural strip would exceed the panel-allocated major length (many desktops on a crowded
+> panel), the dots/pill **shrink** to fill the allocation instead of drawing over the neighbours
+> (robustness.md). `naturalDotSize` is the upper bound (the config/themed request); the rendered
+> `dotSize = max(minDotSize, min(naturalDotSize, fitDotSize))` — capped at natural, floored at
+> `minDotSize` (a legibility floor, `min(naturalDotSize, iconSizes.small/4)`, clamped ≤ natural so a
+> tiny configured dot never scales UP). `Logic.fitDotSize(available, perLine, pillWidthFactor,
+> spacingFactor)` is the algebraic **inverse of `lineExtent`** — the dot size that makes one full line
+> exactly fill `available` — and returns `+Infinity` when there's nothing to fit (non-positive
+> `available`/`perLine`/denominator), so the caller's `min(naturalDotSize, fit)` simply keeps natural.
+> The crucial constraint: **the `Layout.*` hints are computed from the NATURAL/floor sizes only**
+> (`naturalStripLength`/`floorStripLength`/`naturalCrossThickness`), never the effective `dotSize` —
+> `fitDotSize` reads the live `width`/`height`, so feeding the effective size back into the hints
+> would be a binding loop. Everything *downstream* (`pillWidth`, `dotSpacing`, each `WorkspaceDot`,
+> the `Grid` spacing) reads the effective `dotSize`, so the whole strip scales in lockstep. Common
+> case (room available): `fitDotSize >= naturalDotSize`, so effective == natural and the look is
+> byte-for-byte unchanged. Guarded by `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
+> test_scaleDotsUnchangedWhenAmple,test_scaleDotsShrinkOnShortHeightVertical,
+> test_advertisesWidthViaLayout}` + `tst_logic.qml::{test_fitDotSize,test_fitDotSizeUnbounded}`.
+> Scale-to-fit is **major-axis only** — a multi-row grid on a thin panel can still exceed the cross
+> thickness (a known gap).
 >
 > **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
