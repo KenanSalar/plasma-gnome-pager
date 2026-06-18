@@ -80,6 +80,8 @@ make check              # run all headless QML tests — unit + integration (see
 make check-unit         # run only the unit tier (tests/unit)
 make check-integration  # run only the integration tier (tests/integration)
 make lint               # qmllint the widget UI
+make messages           # extract translatable strings into po/ (.pot + merge .po files)
+make i18n               # compile po/*.po into the package (contents/locale/.../*.mo)
 make dev-undev          # remove the dev symlink
 ```
 
@@ -96,6 +98,28 @@ make uninstall  # kpackagetool6 --remove <id>
 ```
 
 Widget id: `com.github.kenansalar.plasma-gnome-pager`
+
+## Translations
+
+The widget ships **English** (the source language) and **German** (`de`). All user-visible
+strings are translated through `ki18n`; Plasma auto-binds them to the catalog domain
+`plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The translation source lives in `po/`
+(`*.pot` template + per-language `*.po`); compiled `*.mo` catalogs are generated into
+`package/contents/locale/<lang>/LC_MESSAGES/` by `make i18n` (so `make install`/`update`/`dev`
+ship them automatically).
+
+**Contributing a translation** — say, French:
+
+```bash
+make messages                              # refresh po/*.pot from the current strings
+msginit --locale=fr -i po/plasma_applet_com.github.kenansalar.plasma-gnome-pager.pot -o po/fr.po
+$EDITOR po/fr.po                           # translate each msgstr (Lokalize / Poedit work well)
+make i18n                                  # compile, then `make restart` to see it in the panel
+```
+
+Open a pull request with the new `po/fr.po` (and, optionally, a `Description[fr]` key in
+`package/metadata.json` so the name in **Add Widgets** is localized too). After changing any
+in-code string, re-run `make messages` and commit the updated `.pot` + `.po`.
 
 ## License
 

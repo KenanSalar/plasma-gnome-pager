@@ -391,6 +391,35 @@ with the schema:
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
 
+## Internationalization (i18n)
+
+All user-visible strings are wrapped at the call site in `i18n`/`i18nc`/`i18np`/`i18ncp` (with
+`@…` context comments on the tooltip strings) — they live **only in the QML** (`main.qml` + the
+config pages). `logic.js` is deliberately **i18n-free**: it keeps strings raw and the formatting
+(i18n + HTML) happens in `main.qml`, because `logic.js` is headless-unit-tested where the `i18n*`
+globals don't exist (see "Config flow"/the window-list section). So extraction scans `*.qml` only.
+
+- **Domain (auto-bound):** the Plasma runtime sets the QML `KLocalizedContext` domain to
+  `plasma_applet_<KPlugin.Id>` = `plasma_applet_com.github.kenansalar.plasma-gnome-pager`, so the
+  bare `i18n(...)` calls resolve to our catalog with **no** explicit domain wiring in QML.
+- **Source vs. artifact:** `po/<domain>.pot` (template) + `po/<lang>.po` (per-language) are the
+  committed **source of truth**; the compiled `po/<lang>.po → package/contents/locale/<lang>/`
+  `LC_MESSAGES/<domain>.mo` catalogs are **generated** (gitignored). `kpackagetool6` ships the
+  package tree verbatim and does **no** compilation, so the `.mo` must exist under `package/`
+  before packaging — `make i18n` compiles them and `install`/`update`/`dev` depend on it.
+- **Workflow:** `make messages` extracts via `xgettext` (ki18n keyword set, so contexts + plural
+  forms come through) into the `.pot` and `msgmerge`s every `.po`; `make i18n` compiles each `.po`
+  (`msgfmt --check`) into the package. Add a language by `msginit --locale=<ll>` from the `.pot`,
+  translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
+  German (`po/de.po`).
+- **`metadata.json` Name/Description** are translated by **language-suffixed JSON keys**
+  (`Description[de]`), **not** the `.mo` catalog. `Name` stays the product proper-noun.
+- **The qmllint `i18n` "unqualified" warning is NOT a translation concern.** It fired because the
+  `i18n*`/`Plasmoid` globals are `KLocalizedContext` context properties qmllint can't statically
+  resolve. `./.contextProperties.ini` (`[General] disableUnqualifiedAccess = "i18n,…,Plasmoid"`,
+  KDE's own mechanism) declares them so they no longer warn — while a *genuine* unqualified access
+  is still caught. `make lint` is now fully clean. Adding catalogs alone would not have done this.
+
 ## Commands
 
 ```bash
@@ -400,8 +429,10 @@ make restart    # reload the real panel (systemd user service if active, else kq
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
 make lint       # qmllint-qt6 package/contents/ui/*.qml + ui/config/*.qml + config/config.qml
+make messages   # extract translatable strings -> po/<domain>.pot, then msgmerge each po/*.po
+make i18n       # compile po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo (install/update/dev depend on it)
 make dev-undev  # remove the dev symlink
-make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove
+make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove (install/update compile catalogs first)
 ```
 
 **Lint/format before installing** (the rules say `qmllint`/`qmlformat`, but on this Fedora KDE
@@ -430,9 +461,11 @@ bus), so it still relies on the manual in-shell loop below. New logic should com
 (also in `TODO.txt`) is:
 
 1. `make check` — all tiers green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
-2. `make lint` (`qmllint-qt6 …`) clean (no warnings). Two warnings are **expected non-defects**
-   and can be ignored: `i18n(...)` flagged `unqualified` (a plasmoid global) and any `DBus.*`
-   constructor flagged `unresolved-type` (runtime JS types the plugin provides).
+2. `make lint` (`qmllint-qt6 …`) clean — **zero warnings**. The `i18n*`/`Plasmoid`
+   `KLocalizedContext` globals qmllint can't statically resolve are declared in
+   `./.contextProperties.ini` (so they no longer flag `unqualified`, while a genuine unqualified
+   access still does — see "Internationalization (i18n)"). A `DBus.*` constructor may print an
+   `unresolved-type` info on some qmllint versions (runtime JS types the plugin provides) — benign.
 3. `make dev && make test` — watch the `plasmawindowed` terminal and
    `journalctl --user -f -t plasmashell` for QML errors/warnings.
 4. `make restart` — confirm it works in a real panel (some failures only show in-shell).

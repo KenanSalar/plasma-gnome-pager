@@ -290,6 +290,22 @@ VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes 
               rather than overflow/clip, and grow back when rows/desktops drop. Repeat on a vertical side
               panel (cross axis = width). On a normal-thickness panel the look is unchanged.
 
+  [x] Translations (i18n catalogs) for shipped strings: all user-visible strings were already 100%
+      i18n-wrapped, so this added the ki18n catalog pipeline (no QML source changes). Plasma auto-binds
+      the calls to the domain plasma_applet_<id>. po/<domain>.pot (template) + po/de.po (German, full,
+      msgfmt-clean) are the committed source; `make messages` extracts (xgettext, ki18n keyword set) +
+      msgmerges every .po, `make i18n` compiles po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/
+      <domain>.mo (the .mo are gitignored/generated; install/update/dev depend on it — kpackagetool6
+      does no compilation). metadata.json gained Description[de] (Name stays the proper-noun). logic.js
+      stays i18n-free (headless tests). Separately — and UNRELATED to catalogs — the qmllint i18n
+      "unqualified" warnings (KLocalizedContext globals) are now resolved by root ./.contextProperties.ini
+      (KDE's mechanism), so `make lint` is fully clean (0 warnings) while a genuine unqualified access
+      still warns. Add a language: msginit from the .pot, translate, `make i18n` (recipe in README
+      "Translations").
+      VERIFY: in-shell — run under a German locale (e.g. LANGUAGE=de_DE:de make test) and confirm the
+              right-click menu, Configure dialog, and tooltips render German; English is the fallback.
+              (make messages/i18n/lint/check are automated; the locale render is the manual step.)
+
 
 -------------------------------------------------------------------------------
  MILESTONE 7 — Packaging & release                                      [ ]
@@ -304,9 +320,4 @@ Goal: shippable to GitHub + KDE Store.
 VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
         appears in Add Widgets with correct name/icon/description.
 
-
--------------------------------------------------------------------------------
- BACKLOG / NICE-TO-HAVE (post-1.0, optional)
--------------------------------------------------------------------------------
-  [ ] Translations (i18n catalogs) for shipped strings
 ===============================================================================

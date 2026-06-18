@@ -8,6 +8,7 @@
         "Id": "com.github.kenansalar.plasma-gnome-pager",
         "Name": "Plasma Gnome Pager",
         "Description": "A GNOME-style virtual desktop switcher: dots with a pill on the current workspace.",
+        "Description[de]": "Ein Arbeitsflächen-Umschalter im GNOME-Stil: Punkte mit einer Pille auf der aktuellen Arbeitsfläche.",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
         "Version": "0.1.0",
