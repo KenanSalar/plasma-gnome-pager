@@ -33,7 +33,9 @@ var DEFAULTS = Object.freeze({
     enableScroll: true,
     scrollWrap: false,
     showTooltips: true,
+    showWindowList: true,        // list the windows open on a desktop in its tooltip
     enableAddRemove: true,
+    enableRename: true,          // offer "Rename Current Desktop…" in the right-click menu
     animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
     // Appearance group
     dotSize: 0,                  // px; 0 = auto (HiDPI themed size, resolved in the indicator)
@@ -47,6 +49,17 @@ var DEFAULTS = Object.freeze({
     // Interaction (non-config shared constant; no main.xml entry)
     wheelNotchDelta: 120         // QWheelEvent angleDelta units per mouse notch
 });
+
+/**
+ * Coerce a value to a string, mapping a null/undefined to "" (so callers never throw on a
+ * transient absent value). Anything else goes through String() unchanged (0 → "0", false →
+ * "false"). Shared by the sanitize* functions, which both need this exact "absent → empty,
+ * else stringify" rule. NOT used by resolveCurrentDesktop, whose prefer/fallback semantics
+ * differ (it excludes "" from the prefer branch and uses truthiness for the global one).
+ */
+function toStringOrEmpty(value) {
+    return (value === undefined || value === null) ? "" : String(value);
+}
 
 /**
  * Step the active index by `delta` (+1 next, -1 previous).
@@ -188,4 +201,116 @@ function lineExtent(count, dotSize, gap, activeExtent) {
     if (count <= 0)
         return dotSize;
     return activeExtent + (count - 1) * (dotSize + gap);
+}
+
+/**
+ * Dot size that makes ONE full reflow line exactly fill `available` along the major axis — the
+ * inverse of lineExtent's major-axis form. A line of `perLine` slots (one capsule + the rest dots,
+ * uniform gaps) measures dotSize · (pillWidthFactor + (perLine - 1)·(1 + spacingFactor)); solving
+ * that for dotSize at length `available` gives available / denom. Returns POSITIVE_INFINITY (an
+ * unbounded "no constraint") when there is nothing to fit — a non-positive `available` (the
+ * pre-layout frame where width/height is still 0), no slots (perLine <= 0), or a non-positive
+ * denominator — so the caller's min(naturalDotSize, fit) simply keeps the natural size. The caller
+ * clamps the result to a legibility floor and to the natural size, which keeps this Kirigami-free
+ * (the floor/natural are themed values) and unit-testable. Used by WorkspaceIndicator to shrink the
+ * dots/pill to fit a crowded panel instead of overflowing onto the neighbouring widgets.
+ */
+function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
+    if (available <= 0 || perLine <= 0)
+        return Number.POSITIVE_INFINITY;             // nothing to fit -> caller keeps natural
+    var denom = pillWidthFactor + (perLine - 1) * (1 + spacingFactor);
+    if (denom <= 0)
+        return Number.POSITIVE_INFINITY;             // degenerate factors -> no upper bound
+    return available / denom;
+}
+
+/**
+ * How many window titles a tooltip lists before collapsing the rest into an "…and N other windows"
+ * line — the stock KDE pager's rule (applets/pager/qml/main.qml::generateWindowList): show 4, but
+ * show all 5 when there are exactly 5, since "…and 1 other window" would waste a line for no gain.
+ */
+function windowListMaximum(count) {
+    return count === 5 ? 5 : 4;
+}
+
+/**
+ * HTML-escape a window title for the rich-text tooltip (ported verbatim from the stock pager's
+ * sanitize()). Titles are arbitrary user/app strings, so `<`, `>`, `&`, quotes and the no-break
+ * space must be entity-encoded or they would corrupt the <ul><li> markup the formatter builds.
+ * Coerces non-strings (a transient null/undefined title) to "" so the caller never throws.
+ */
+function sanitizeHtml(input) {
+    var table = {
+        ">": "&gt;",
+        "<": "&lt;",
+        "&": "&amp;",
+        "'": "&apos;",
+        "\"": "&quot;",
+        "\u00a0": "&nbsp;"
+    };
+    return toStringOrEmpty(input).replace(/[<>&'"\u00a0]/g, function (c) {
+        return table[c];
+    });
+}
+
+/**
+ * Normalise a user-entered desktop name before the KWin `setDesktopName` DBus write (distinct from
+ * sanitizeHtml above, which escapes markup): coerce a null/undefined/non-string to "", trim
+ * surrounding whitespace, reject an empty/whitespace-only name by returning "" (the same no-op
+ * sentinel convention as lastDesktopId), and cap an absurd length so the name stays sane in the
+ * tooltip/markup. The QML caller does `if (!clean) return;` before issuing the call.
+ */
+function sanitizeDesktopName(input) {
+    var s = toStringOrEmpty(input).trim();
+    if (s.length === 0)
+        return "";
+    var MAX = 100;
+    return s.length > MAX ? s.slice(0, MAX) : s;
+}
+
+/**
+ * Membership test for groupWindowsByDesktop: does this window belong on the desktop `uuid`?
+ * True only for a real window (`isWindow`) that is either on all desktops (`onAll`) or whose
+ * `desktops` list contains `uuid`. A null/undefined window or a missing `desktops` list yields
+ * false (guards the transient model state). Returns a strict boolean.
+ */
+function windowIsOnDesktop(window, uuid) {
+    if (!window || !window.isWindow)
+        return false;
+    return !!(window.onAll || (window.desktops && window.desktops.indexOf(uuid) !== -1));
+}
+
+/**
+ * Group a flat window list into per-desktop title lists, index-aligned with `desktopIds` (parallel
+ * to desktopNames). `windows` is the snapshot the QML aggregator materialises from TasksModel — each
+ * element { title, minimized, onAll, isWindow, desktops:[uuid…] }. For each desktop id it returns
+ * { visible: [title…], minimized: [title…] } in model order: a window belongs to a desktop when it
+ * is a real window AND (it is on all desktops OR its `desktops` list contains that id); minimized
+ * windows go in their own bucket (the stock pager lists them under a separate header). Titles are
+ * kept RAW — the i18n "Untitled" substitution and HTML escaping happen in main.qml's formatter (this
+ * stays pure/headless-testable). Guards the transient states: a null/empty `windows` still yields one
+ * empty entry per desktop, and a null/empty `desktopIds` (desktopIds can be [] for a frame —
+ * robustness.md) yields [].
+ */
+function groupWindowsByDesktop(windows, desktopIds) {
+    if (!desktopIds || desktopIds.length === 0)
+        return [];
+    var wins = windows || [];
+    var out = [];
+    for (var d = 0; d < desktopIds.length; d++) {
+        var uuid = desktopIds[d];
+        var visible = [];
+        var minimized = [];
+        for (var i = 0; i < wins.length; i++) {
+            var w = wins[i];
+            if (!windowIsOnDesktop(w, uuid))
+                continue;
+            if (w.minimized)
+                minimized.push(w.title);
+            else
+                visible.push(w.title);
+        }
+        out.push({ visible: visible, minimized: minimized });
+    }
+    return out;
 }

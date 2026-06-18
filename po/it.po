@@ -1,0 +1,219 @@
+# Italian translation for the Plasma Gnome Pager plasmoid.
+# Copyright (C) 2026 Kenan Salar
+# This file is distributed under the same license as the Plasma Gnome Pager package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
+"Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/"
+"issues\n"
+"POT-Creation-Date: 2026-06-18 17:47+0200\n"
+"PO-Revision-Date: 2026-06-18 17:47+0200\n"
+"Last-Translator: Kenan Salar\n"
+"Language-Team: Italian\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: package/contents/config/config.qml:16
+#, kde-format
+msgid "Behavior"
+msgstr "Comportamento"
+
+#: package/contents/config/config.qml:21
+#, kde-format
+msgid "Appearance"
+msgstr "Aspetto"
+
+#: package/contents/ui/config/ConfigAppearance.qml:77
+#, kde-format
+msgid "Dot size:"
+msgstr "Dimensione dei punti:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:82
+#: package/contents/ui/config/ConfigGeneral.qml:98
+#, kde-format
+msgid "Default"
+msgstr "Predefinito"
+
+#: package/contents/ui/config/ConfigAppearance.qml:82
+#, kde-format
+msgid "%1 px"
+msgid_plural "%1 px"
+msgstr[0] "%1 px"
+msgstr[1] "%1 px"
+
+#: package/contents/ui/config/ConfigAppearance.qml:87
+#, kde-format
+msgid "Spacing:"
+msgstr "Spaziatura:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:91
+#: package/contents/ui/config/ConfigAppearance.qml:100
+#, kde-format
+msgid "%1× dot"
+msgstr "%1× punto"
+
+#: package/contents/ui/config/ConfigAppearance.qml:96
+#, kde-format
+msgid "Pill length:"
+msgstr "Lunghezza della pillola:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:105
+#, kde-format
+msgid "Inactive opacity:"
+msgstr "Opacità inattiva:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:114
+#, kde-format
+msgid "Hover opacity:"
+msgstr "Opacità al passaggio:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:127
+#, kde-format
+msgid "Colors:"
+msgstr "Colori:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:128
+#, kde-format
+msgid "Follow the color scheme"
+msgstr "Segui lo schema di colori"
+
+#: package/contents/ui/config/ConfigAppearance.qml:132
+#, kde-format
+msgid "Active desktop:"
+msgstr "Desktop attivo:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:138
+#, kde-format
+msgid "Inactive desktop:"
+msgstr "Desktop inattivo:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:63
+#, kde-format
+msgid "Mouse:"
+msgstr "Mouse:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:64
+#, kde-format
+msgid "Scroll over the pager to switch desktops"
+msgstr "Scorri sul pager per cambiare desktop"
+
+#: package/contents/ui/config/ConfigGeneral.qml:68
+#, kde-format
+msgid "Wrap around at the first and last desktop"
+msgstr "Cicla tra il primo e l'ultimo desktop"
+
+#: package/contents/ui/config/ConfigGeneral.qml:73
+#, kde-format
+msgid "Tooltips:"
+msgstr "Suggerimenti:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:74
+#, kde-format
+msgid "Show the desktop name on hover"
+msgstr "Mostra il nome del desktop al passaggio del mouse"
+
+#: package/contents/ui/config/ConfigGeneral.qml:78
+#, kde-format
+msgid "List the open windows in the tooltip"
+msgstr "Elenca le finestre aperte nel suggerimento"
+
+#: package/contents/ui/config/ConfigGeneral.qml:83
+#, kde-format
+msgid "Menu:"
+msgstr "Menu:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:84
+#, kde-format
+msgid "Add and remove desktops from the right-click menu"
+msgstr "Aggiungi e rimuovi desktop dal menu contestuale"
+
+#: package/contents/ui/config/ConfigGeneral.qml:88
+#, kde-format
+msgid "Rename the current desktop from the right-click menu"
+msgstr "Rinomina il desktop attuale dal menu contestuale"
+
+#: package/contents/ui/config/ConfigGeneral.qml:93
+#, kde-format
+msgid "Animation duration:"
+msgstr "Durata dell'animazione:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:98
+#, kde-format
+msgid "%1 ms"
+msgid_plural "%1 ms"
+msgstr[0] "%1 ms"
+msgstr[1] "%1 ms"
+
+#: package/contents/ui/config/ConfigPageBase.qml:33
+#, kde-format
+msgid "Defaults"
+msgstr "Valori predefiniti"
+
+#: package/contents/ui/main.qml:233 package/contents/ui/main.qml:246
+#, kde-format
+msgctxt "@item:intext window with no title"
+msgid "Untitled Window"
+msgstr "Finestra senza titolo"
+
+#: package/contents/ui/main.qml:235
+#, kde-format
+msgctxt "@info:tooltip overflow label"
+msgid "…and %1 other window"
+msgid_plural "…and %1 other windows"
+msgstr[0] "… e %1 altra finestra"
+msgstr[1] "… e %1 altre finestre"
+
+#: package/contents/ui/main.qml:248
+#, kde-format
+msgctxt "@info:tooltip start of list"
+msgid "%1 Window:"
+msgid_plural "%1 Windows:"
+msgstr[0] "%1 finestra:"
+msgstr[1] "%1 finestre:"
+
+#: package/contents/ui/main.qml:252
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "%1 Minimized Window:"
+msgid_plural "%1 Minimized Windows:"
+msgstr[0] "%1 finestra minimizzata:"
+msgstr[1] "%1 finestre minimizzate:"
+
+#: package/contents/ui/main.qml:287
+#, kde-format
+msgid "New Desktop"
+msgstr "Nuovo desktop"
+
+#: package/contents/ui/main.qml:330
+#, kde-format
+msgid "Add Desktop"
+msgstr "Aggiungi desktop"
+
+#: package/contents/ui/main.qml:338
+#, kde-format
+msgid "Remove Last Desktop"
+msgstr "Rimuovi l'ultimo desktop"
+
+#: package/contents/ui/main.qml:346
+#, kde-format
+msgid "Rename Current Desktop…"
+msgstr "Rinomina il desktop attuale…"
+
+#: package/contents/ui/main.qml:396
+#, kde-format
+msgid "Rename desktop:"
+msgstr "Rinomina desktop:"
+
+#: package/contents/ui/main.qml:410
+#, kde-format
+msgid "Cancel"
+msgstr "Annulla"
+
+#: package/contents/ui/main.qml:415
+#, kde-format
+msgid "Rename"
+msgstr "Rinomina"

@@ -34,14 +34,16 @@
  * (showing desktopName); the indicator just feeds every dot its name + the showTooltips flag,
  * so it stays free of org.kde.plasma.* and remains headless-testable.
  *
- * Sizing: a panel allocates an applet's space from the representation's Layout.* hints, so the
- * indicator PINS one line's length along the major axis (Layout.minimum/preferred/maximum) and
- * carries the lines on the cross axis with its maximum left FREE to fill the panel thickness (not
- * implicitWidth alone — a panel otherwise gives the inline full-representation a default square cell
- * and the dots overflow onto the neighbours). The pinned length is a FORMULA (one capsule + the rest
- * of a full line's dots) so the panel cell stays put during a morph and when no element is active
- * (a switch conserves total length: the shrinking and growing elements cancel). Which axis is the
- * major one swaps with `vertical` — width for a horizontal panel, height for a vertical one.
+ * Sizing: a panel allocates an applet's space from the representation's Layout.* hints. On the major
+ * (line) axis the indicator pins preferred == maximum to one line's NATURAL length (a FORMULA: one
+ * capsule + the rest of a full line's dots) so it never grows past that and the cell stays put during
+ * a morph or when no element is active (a switch conserves total length: the shrinking and growing
+ * elements cancel); the major MINIMUM drops to a smaller floor so the panel can COMPRESS the strip on
+ * a crowded panel — and when it does, the dots scale down to fill the allocation exactly (fitDotSize)
+ * instead of overflowing onto the neighbours (robustness.md). The cross axis carries the lines with
+ * its maximum left FREE to fill the panel thickness (Layout.* hints, not implicitWidth alone — a panel
+ * otherwise gives the inline full-representation a default square cell and the dots overflow). Which
+ * axis is the major one swaps with `vertical` — width for a horizontal panel, height for a vertical one.
  *
  * The visual metrics + colours + animation duration are supplied by main.qml (read from
  * plasmoid.configuration); this component holds the same Kirigami-derived defaults so it still
@@ -73,6 +75,12 @@ Item {
     // Display names, index-aligned with desktopIds. Null-safe like the views above
     // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
     readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
+
+    // Per-desktop tooltip subText (the rich-text window list), index-aligned with desktopIds,
+    // supplied by main.qml (which owns the TasksModel). Default [] keeps the standalone/headless
+    // behaviour unchanged — each dot then falls back to "" (a name-only tooltip). Passed down to
+    // each dot by global index, exactly like desktopNames.
+    property var desktopTooltips: []
 
     // This panel's physical output (KWin connector name, e.g. "DP-1"), read live from the QtQuick
     // Screen attached property of the placed representation, so it reflects THIS monitor. Plasma 6.7
@@ -172,8 +180,37 @@ Item {
     // ONE uniform spacing (spacingFactor × dotSize) sits between every adjacent element —
     // dot-to-dot AND capsule-to-dot are the same gap (the GNOME look). The active element is
     // simply wider in place; its neighbours are pushed out by the Row, never covered.
+    //
+    // NATURAL vs EFFECTIVE size: naturalDotSize is the upper bound (the config/themed request); the
+    // rendered `dotSize` SHRINKS below it to fit a crowded panel on EITHER axis — the major line length
+    // OR the cross thickness (scale-to-fit, robustness.md) — floored at minDotSize so the dots stay
+    // legible. naturalDotSize (NOT the effective size) drives the Layout
+    // hints below, so the panel allocation never feeds back into the hints — no binding loop. In the
+    // common case (room available) the effective size == naturalDotSize, so the look is unchanged.
+    // Everything downstream (pillWidth, dotSpacing, each WorkspaceDot, the Grid spacing) reads the
+    // effective `dotSize`, so the whole strip scales in lockstep.
     property int dotSizeRequest: Logic.DEFAULTS.dotSize  // px override from config; 0 = auto
-    readonly property real dotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
+    readonly property real naturalDotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
+    // Smallest legible dot we will shrink to: half the default dot, clamped to <= natural so a tiny
+    // configured dot never scales UP (keeps the room-available common case byte-for-byte identical).
+    readonly property real minDotSize: Math.min(naturalDotSize, Kirigami.Units.iconSizes.small / 4)
+    // Dot size that makes one full line exactly fill the panel-allocated MAJOR length (width when
+    // horizontal, height when vertical): one capsule + the rest of that line's dots + uniform gaps.
+    // Pure math (logic.js); +Infinity before layout / with no line, so it does not bind there.
+    readonly property real majorFitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillWidthFactor, spacingFactor)
+    // Dot size that makes the stacked lines exactly fill the panel-allocated CROSS thickness (height
+    // when horizontal, width when vertical). The cross axis carries no capsule — every line is one dot
+    // thick — so the "pill factor" is 1, which makes this the exact inverse of naturalCrossThickness.
+    // +Infinity on a single thick panel (room to spare) or before layout, so it does not bind in the
+    // common case; it only bites for a multi-row grid on a thin panel.
+    readonly property real crossFitDotSize: Logic.fitDotSize(vertical ? width : height, lineCount, 1, spacingFactor)
+    // A dot must fit BOTH axes, so the binding constraint is the smaller fit (the unconstrained axis
+    // returns +Infinity, so min keeps the other). This generalises the M6 major-axis fit to the
+    // multi-row + thin-panel case without ever overflowing the panel thickness (robustness.md).
+    readonly property real fitDotSize: Math.min(majorFitDotSize, crossFitDotSize)
+    // EFFECTIVE (rendered) dot size: shrink-to-fit, capped at natural, floored at minDotSize. Common
+    // case (room available on both axes): fitDotSize >= naturalDotSize, so this == naturalDotSize exactly.
+    readonly property real dotSize: Math.max(minDotSize, Math.min(naturalDotSize, fitDotSize))
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
     property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, as a multiple of a dot
@@ -188,16 +225,25 @@ Item {
     property color inactiveColor: Kirigami.Theme.textColor
     property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme (longDuration)
 
-    // Axis-neutral size primitives the orientation-aware sizing binds to. stripLength is the
-    // content extent along the MAJOR (line) axis — the longest a line can be: one capsule + the
-    // rest of that line's dots + uniform gaps (perLine dots, since full lines are the widest). A
-    // FORMULA, not the live positioner length, so the panel cell never jitters during a morph or
-    // while activeIndex is transiently -1 (a switch conserves total length). crossThickness is the
-    // perpendicular extent: lineCount lines of one dot each + the gaps between them (one dot when
-    // single-line — today's value). Both reduce to the M3 single-line formula when desktopRows == 1.
-    readonly property real stripLength: Logic.lineExtent(perLine, dotSize, dotSpacing, pillWidth)
-    // No capsule on the cross axis: pass activeExtent == dotSize (the all-dots degenerate case).
-    readonly property real crossThickness: Logic.lineExtent(lineCount, dotSize, dotSpacing, dotSize)
+    // Axis-neutral size primitives the orientation-aware sizing binds to — all NATURAL/floor-based
+    // (never the effective dotSize), so the Layout hints they feed do not depend on the panel
+    // allocation and there is no binding loop (see the Layout block below). naturalStripLength is the
+    // content extent along the MAJOR (line) axis at the natural dot size — the longest a line can be:
+    // one capsule + the rest of that line's dots + uniform gaps (perLine dots, since full lines are the
+    // widest). A FORMULA, not the live positioner length, so the panel cell never jitters during a
+    // morph or while activeIndex is transiently -1 (a switch conserves total length). floorStripLength
+    // is the same line at minDotSize — the major-axis MINIMUM, so the panel may compress the strip into
+    // the scale-to-fit path but no further than still-legible dots. naturalCrossThickness is the
+    // perpendicular extent at the natural dot size: lineCount lines of one dot each + the gaps between
+    // them (one dot when single-line). floorCrossThickness is that same stack at minDotSize — the
+    // cross-axis MINIMUM, so a thin panel may compress the thickness into the cross scale-to-fit path
+    // (a multi-row grid on a thin panel) but no further than still-legible dots, exactly mirroring
+    // floorStripLength on the major axis. All reduce to the M3 single-line formula when desktopRows == 1.
+    readonly property real naturalStripLength: Logic.lineExtent(perLine, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize * pillWidthFactor)
+    readonly property real floorStripLength: Logic.lineExtent(perLine, minDotSize, minDotSize * spacingFactor, minDotSize * pillWidthFactor)
+    // No capsule on the cross axis: pass activeExtent == the dot size (the all-dots degenerate case).
+    readonly property real naturalCrossThickness: Logic.lineExtent(lineCount, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize)
+    readonly property real floorCrossThickness: Logic.lineExtent(lineCount, minDotSize, minDotSize * spacingFactor, minDotSize)
 
     // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
     // a KWin switch.
@@ -222,23 +268,29 @@ Item {
         indicator.switchRequested(uuid);
     }
 
-    // Advertise size so the panel allocates space. The MAJOR (line) axis is PINNED to stripLength
-    // (min == preferred == max) so the panel gives the applet exactly one line's content length; the
-    // CROSS axis carries the lineCount lines (preferred == crossThickness) but its maximum is reset to
-    // -1 (Qt maps that to the unconstrained Number.POSITIVE_INFINITY default), so the panel can still
-    // stretch it to the panel thickness with the centred grid in the middle, while min keeps room for
-    // every line. A panel honours these Layout hints, not implicitWidth alone — without them the inline
-    // full-representation gets a default square cell and the dots overflow onto the neighbours. Which
-    // axis is the major one swaps with `vertical`: a horizontal panel pins width (M3 behaviour when
+    // Advertise size so the panel allocates space. On the MAJOR (line) axis, preferred == maximum ==
+    // naturalStripLength (one line at the natural dot size) so the applet never grows past its natural
+    // length, while the MINIMUM drops to floorStripLength so the panel CAN compress us — when it does,
+    // the dots scale down to fill the allocation exactly (majorFitDotSize above) instead of overflowing
+    // onto the neighbours (robustness.md). The CROSS axis carries the lineCount lines (preferred ==
+    // naturalCrossThickness) with its maximum reset to -1 (Qt maps that to the unconstrained
+    // Number.POSITIVE_INFINITY default), so the panel can stretch it to the panel thickness with the
+    // centred grid in the middle; its MINIMUM likewise drops to floorCrossThickness so a thin panel can
+    // compress the thickness and the dots shrink to fit it too (cross scale-to-fit — a multi-row grid on
+    // a thin panel no longer exceeds the thickness, crossFitDotSize above). A panel honours these Layout
+    // hints, not implicitWidth alone — without them the inline full-representation gets a default square
+    // cell and the dots overflow onto the neighbours. All hints are NATURAL/floor-based (never the
+    // effective dotSize), so the allocation never feeds back into them — no binding loop. Which axis is
+    // the major one swaps with `vertical`: a horizontal panel pins width (M3 behaviour when
     // single-line); a vertical panel pins height.
-    implicitWidth: vertical ? crossThickness : stripLength
-    implicitHeight: vertical ? stripLength : crossThickness
-    Layout.minimumWidth: vertical ? crossThickness : stripLength
+    implicitWidth: vertical ? naturalCrossThickness : naturalStripLength
+    implicitHeight: vertical ? naturalStripLength : naturalCrossThickness
+    Layout.minimumWidth: vertical ? floorCrossThickness : floorStripLength
     Layout.preferredWidth: implicitWidth
-    Layout.maximumWidth: vertical ? -1 : stripLength
-    Layout.minimumHeight: vertical ? stripLength : crossThickness
+    Layout.maximumWidth: vertical ? -1 : naturalStripLength
+    Layout.minimumHeight: vertical ? floorStripLength : floorCrossThickness
     Layout.preferredHeight: implicitHeight
-    Layout.maximumHeight: vertical ? stripLength : -1
+    Layout.maximumHeight: vertical ? naturalStripLength : -1
 
     // Gate the morph so the FIRST valid placement is instant (the active element is already a
     // capsule on frame 0 — no grow-in from a dot on shell reload) while later switches animate.
@@ -326,9 +378,11 @@ Item {
                         active: indicator.currentDesktop === workspaceDot.modelData
                         animate: indicator.animate
 
-                        // Feed each dot its tooltip name (|| "" guards the transient state where
-                        // names lag ids during an add/remove — robustness.md) and the showTooltips flag.
+                        // Feed each dot its tooltip name + window-list subText (|| "" guards the
+                        // transient state where names/tooltips lag ids during an add/remove —
+                        // robustness.md) and the showTooltips flag.
                         desktopName: indicator.desktopNames[workspaceDot.globalIndex] || ""
+                        tooltipText: indicator.desktopTooltips[workspaceDot.globalIndex] || ""
                         showTooltips: indicator.showTooltips
 
                         onActivated: indicator.switchRequested(workspaceDot.modelData)

@@ -24,28 +24,36 @@ ConfigPageBase {
     property alias cfg_enableScroll: enableScroll.checked
     property alias cfg_scrollWrap: scrollWrap.checked
     property alias cfg_showTooltips: showTooltips.checked
+    property alias cfg_showWindowList: showWindowList.checked
     property alias cfg_enableAddRemove: enableAddRemove.checked
+    property alias cfg_enableRename: enableRename.checked
     property alias cfg_animationDuration: animationDuration.value
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property bool cfg_enableScrollDefault
     property bool cfg_scrollWrapDefault
     property bool cfg_showTooltipsDefault
+    property bool cfg_showWindowListDefault
     property bool cfg_enableAddRemoveDefault
+    property bool cfg_enableRenameDefault
     property int cfg_animationDurationDefault
 
     // True when any key on this page differs from its default (gates the base's Defaults action).
     isModified: cfg_enableScroll !== cfg_enableScrollDefault
         || cfg_scrollWrap !== cfg_scrollWrapDefault
         || cfg_showTooltips !== cfg_showTooltipsDefault
+        || cfg_showWindowList !== cfg_showWindowListDefault
         || cfg_enableAddRemove !== cfg_enableAddRemoveDefault
+        || cfg_enableRename !== cfg_enableRenameDefault
         || cfg_animationDuration !== cfg_animationDurationDefault
 
     onDefaultsRequested: {
         cfg_enableScroll = cfg_enableScrollDefault;
         cfg_scrollWrap = cfg_scrollWrapDefault;
         cfg_showTooltips = cfg_showTooltipsDefault;
+        cfg_showWindowList = cfg_showWindowListDefault;
         cfg_enableAddRemove = cfg_enableAddRemoveDefault;
+        cfg_enableRename = cfg_enableRenameDefault;
         cfg_animationDuration = cfg_animationDurationDefault;
     }
 
@@ -66,9 +74,18 @@ ConfigPageBase {
             text: i18n("Show the desktop name on hover")
         }
         QQC2.CheckBox {
+            id: showWindowList
+            text: i18n("List the open windows in the tooltip")
+            enabled: showTooltips.checked   // the window list only shows when tooltips are on
+        }
+        QQC2.CheckBox {
             id: enableAddRemove
             Kirigami.FormData.label: i18n("Menu:")
             text: i18n("Add and remove desktops from the right-click menu")
+        }
+        QQC2.CheckBox {
+            id: enableRename
+            text: i18n("Rename the current desktop from the right-click menu")
         }
 
         ConfigSlider {
