@@ -592,9 +592,13 @@ TestCase {
     function test_advertisesWidthViaLayout() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator.implicitWidth > 0, "indicator has a positive content width");
-        compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth advertises the content width");
-        compare(indicator.Layout.minimumWidth, indicator.implicitWidth, "minimumWidth advertises the content width");
-        compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the width (a pager does not stretch)");
+        compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth advertises the natural content width");
+        compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the natural width (a pager does not stretch past it)");
+        // M6 scale-to-fit: the MINIMUM drops to the floor (one line at minDotSize) so the panel can
+        // compress us and the dots shrink to fit instead of overflowing the neighbours.
+        verify(indicator.minDotSize < indicator.naturalDotSize, "the legible floor dot is smaller than natural");
+        verify(indicator.Layout.minimumWidth < indicator.implicitWidth, "minimumWidth drops below natural so the panel can compress us");
+        fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorStripLength, 0.5, "minimumWidth is the floor (strip at the minimum legible dot)");
     }
 
     // --- Milestone 4: vertical form factor ----------------------------------------
@@ -647,9 +651,12 @@ TestCase {
     function test_verticalAdvertisesHeightViaLayout() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         verify(indicator.implicitHeight > 0, "indicator has a positive content height");
-        compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "preferredHeight advertises the content length");
-        compare(indicator.Layout.minimumHeight, indicator.implicitHeight, "minimumHeight advertises the content length");
-        compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "maximumHeight pins the length (a pager does not stretch along its axis)");
+        compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "preferredHeight advertises the natural content length");
+        compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "maximumHeight pins the natural length (a pager does not stretch past it)");
+        // M6 scale-to-fit: the MAJOR (height) minimum drops to the floor so a short panel compresses
+        // the column and the dots shrink to fit.
+        verify(indicator.Layout.minimumHeight < indicator.implicitHeight, "minimumHeight drops below natural so the panel can compress us");
+        fuzzyCompare(indicator.Layout.minimumHeight, indicator.floorStripLength, 0.5, "minimumHeight is the floor (column at the minimum legible dot)");
 
         compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth is one dot thick");
         const maxW = indicator.Layout.maximumWidth;
@@ -1007,5 +1014,113 @@ TestCase {
         compare(indicator.animate, true, "the latch is on after a valid per-screen placement");
         fuzzyCompare(dotByUuid(indicator, ids[2]).width, indicator.pillWidth, 0.5,
                      "this screen's current is already a capsule on the first frame");
+    }
+
+    // --- Milestone 6: robustness hardening & edge cases ---------------------------
+    // Scale-to-fit (overflow), the empty-array transient, many desktops, and rapid switching. The
+    // Layout-hint side of scale-to-fit is asserted in test_advertisesWidthViaLayout /
+    // test_verticalAdvertisesHeightViaLayout (minimum drops to the floor); these assert the rendered
+    // RESULT — the dots actually shrink to fit a crowded allocation and grow back when there is room.
+
+    readonly property var sixIds: ["uuid-a", "uuid-b", "uuid-c", "uuid-d", "uuid-e", "uuid-f"]
+
+    // Build an N-desktop UUID list for the many-desktops cases (no scattered literals).
+    function manyIds(n) {
+        const out = [];
+        for (let i = 0; i < n; i++)
+            out.push("uuid-" + i);
+        return out;
+    }
+
+    // A narrow allocation (half the natural strip) makes the dots shrink below natural so the line
+    // still fits the allocated width instead of overflowing the neighbours. Setting indicator.width
+    // directly replaces the implicitWidth binding — exactly how the panel constrains the applet.
+    function test_scaleDotsShrinkOnNarrowWidth() {
+        const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
+        indicator.width = indicator.naturalStripLength * 0.6;   // panel grants 60% of the natural length
+        tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "effective dot shrank below natural");
+        verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
+        fuzzyCompare(dotByUuid(indicator, sixIds[1]).dotSize, indicator.dotSize, 0.5, "each dot uses the effective size");
+        // tryVerify: the rendered dot widths morph (Behavior on width), so wait for the reflow to settle.
+        tryVerify(() => {
+            const dots = dotsByIndex(indicator);
+            const last = dots[dots.length - 1];
+            return last.mapToItem(indicator, last.width, 0).x <= indicator.width + 0.5;
+        }, 2000, "the shrunken line fits the allocated width");
+    }
+
+    // With ample room the size is unchanged: effective == natural, the look is byte-for-byte as today.
+    function test_scaleDotsUnchangedWhenAmple() {
+        const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
+        indicator.width = indicator.naturalStripLength * 2;     // plenty of room
+        fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.5, "no shrink when there is room");
+        fuzzyCompare(dotByUuid(indicator, sixIds[0]).width, indicator.pillWidth, 0.5, "capsule at the natural pill width");
+    }
+
+    // Vertical transpose: a short allocated HEIGHT is the major axis, so the dots shrink there too.
+    function test_scaleDotsShrinkOnShortHeightVertical() {
+        const indicator = makeIndicator(makeMock(sixIds, sixIds[0]), { vertical: true });
+        indicator.height = indicator.naturalStripLength * 0.6;
+        tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "vertical effective dot shrank");
+        // tryVerify: the rendered dot heights morph (Behavior on height), so wait for the reflow to settle.
+        tryVerify(() => {
+            const dots = dotsByIndex(indicator);
+            const last = dots[dots.length - 1];
+            return last.mapToItem(indicator, 0, last.height).y <= indicator.height + 0.5;
+        }, 2000, "the shrunken column fits the allocated height");
+    }
+
+    // robustness.md: an empty desktopIds ARRAY (distinct from a null source) during a transient
+    // add/remove must yield no dots and a cell that holds one dot, never collapsing to 0.
+    function test_emptyDesktopIdsArrayProducesNoDots() {
+        const indicator = makeIndicator(makeMock([], ""));
+        compare(collectDots(indicator).length, 0, "an empty desktopIds array yields no dots");
+        compare(indicator.activeIndex, -1, "no active index for an empty set");
+        fuzzyCompare(indicator.naturalStripLength, indicator.naturalDotSize, 0.5, "strip length holds one dot, not 0");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalDotSize, 0.5, "the cell stays one dot wide");
+        verify(isFinite(indicator.dotSize) && indicator.dotSize > 0, "effective dot size stays finite/positive (no NaN)");
+    }
+
+    // Many desktops on a single line: every dot renders and the natural strip grows linearly.
+    function test_manyDesktopsRenderAllDots() {
+        const big = manyIds(20);
+        const indicator = makeIndicator(makeMock(big, big[0]));
+        compare(collectDots(indicator).length, 20, "all 20 dots render");
+        compare(indicator.activeIndex, 0, "the first desktop is active");
+        const nd = indicator.naturalDotSize;
+        const expected = nd * indicator.pillWidthFactor + (20 - 1) * (nd + nd * indicator.spacingFactor);
+        fuzzyCompare(indicator.naturalStripLength, expected, 0.5, "natural strip length matches the formula for 20 desktops");
+    }
+
+    // Many desktops across a mirrored KWin grid (4 rows): all dots render, split into the right lines.
+    function test_manyDesktopsMultiRowGrid() {
+        const big = manyIds(20);
+        const indicator = makeIndicator(makeMock(big, big[0], [], 4));
+        compare(collectDots(indicator).length, 20, "all 20 dots render across the grid");
+        compare(indicator.desktopRows, 4, "mirrors KWin's 4 rows");
+        compare(indicator.perLine, 5, "ceil(20/4) per line");
+        compare(indicator.lineCount, 4, "4 grid lines");
+    }
+
+    // Rapid back-to-back switches (a fast keyboard/scroll burst, fired mid-morph) must converge to
+    // exactly one capsule on the final target and never throw — the one-way animate latch and the
+    // idempotent updateCurrentDesktop() recompute settle deterministically.
+    function test_rapidSwitchingConvergesToOneCapsule() {
+        const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0]), { animationDuration: 200 });
+        const vdi = indicator.virtualDesktopInfo;
+        for (let n = 0; n < 12; n++)
+            vdi.currentDesktop = fiveIds[n % fiveIds.length];   // storm of changes, no settle between
+        vdi.currentDesktop = fiveIds[3];                        // final target
+        tryCompare(indicator, "activeIndex", 3, 2000, "activeIndex converges to the final target");
+        tryVerify(() => {
+            const dots = collectDots(indicator);
+            let caps = 0;
+            for (let i = 0; i < dots.length; i++)
+                if (dots[i].active)
+                    caps++;
+            return caps === 1;
+        }, 2000, "exactly one capsule after the burst");
+        tryVerify(() => Math.abs(dotByUuid(indicator, fiveIds[3]).width - indicator.pillWidth) < 0.5,
+                  2000, "the final desktop morphs to the capsule width");
     }
 }

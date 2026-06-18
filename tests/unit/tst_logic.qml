@@ -226,6 +226,43 @@ TestCase {
         fuzzyCompare(Logic.lineExtent(data.count, data.dot, data.gap, data.active), data.exp, 0.001, data.tag);
     }
 
+    // --- fitDotSize: invert lineExtent so one full line fills the allocated major length ---
+    // denom = pillWidthFactor + (perLine-1)*(1+spacingFactor); fitDotSize = available / denom. The
+    // indicator clamps the result to <= naturalDotSize (and >= a floor), so "ample-room" returning
+    // more than natural is fine — the caller caps it.
+    function test_fitDotSize_data() {
+        return [
+            // exact fit: available == lineExtent(perLine 3) at dot 10 (denom 6.5 -> 65) -> back to 10
+            { tag: "exact-fit-multi", avail: 65, perLine: 3, pill: 3.5, spacing: 0.5, exp: 10 },
+            // single line: denom == pillWidthFactor (the lone capsule, no gaps)
+            { tag: "single-line", avail: 35, perLine: 1, pill: 3.5, spacing: 0.5, exp: 10 },
+            // over budget (less room than natural) shrinks the dot below natural
+            { tag: "over-budget-shrinks", avail: 32.5, perLine: 3, pill: 3.5, spacing: 0.5, exp: 5 },
+            // ample room returns MORE than natural (the caller caps it at naturalDotSize)
+            { tag: "ample-room-exceeds-natural", avail: 130, perLine: 3, pill: 3.5, spacing: 0.5, exp: 20 },
+            // wider spacing widens the denom -> smaller fit for the same width
+            { tag: "wider-spacing-smaller-fit", avail: 80, perLine: 3, pill: 3.5, spacing: 1.0, exp: 80 / 7.5 }
+        ];
+    }
+    function test_fitDotSize(data) {
+        fuzzyCompare(Logic.fitDotSize(data.avail, data.perLine, data.pill, data.spacing), data.exp, 0.001, data.tag);
+    }
+
+    // Nothing to fit -> an unbounded (non-finite) result, so the caller's min(natural, fit) keeps the
+    // natural size: a non-positive available (the pre-layout frame), no slots, or a degenerate denom.
+    function test_fitDotSizeUnbounded_data() {
+        return [
+            { tag: "zero-perLine", avail: 100, perLine: 0, pill: 3.5, spacing: 0.5 },
+            { tag: "negative-perLine", avail: 100, perLine: -2, pill: 3.5, spacing: 0.5 },
+            { tag: "zero-available", avail: 0, perLine: 3, pill: 3.5, spacing: 0.5 },
+            { tag: "negative-available", avail: -50, perLine: 3, pill: 3.5, spacing: 0.5 },
+            { tag: "zero-denominator", avail: 100, perLine: 1, pill: 0, spacing: 0.5 }
+        ];
+    }
+    function test_fitDotSizeUnbounded(data) {
+        verify(!isFinite(Logic.fitDotSize(data.avail, data.perLine, data.pill, data.spacing)), data.tag);
+    }
+
     // --- DEFAULTS: the single source of truth for the QML-side config defaults --------
     // A change-detector + contract doc: every value mirrors a contents/config/main.xml <default>
     // and is referenced by main.qml's `?? Logic.DEFAULTS.X` and the component property defaults,

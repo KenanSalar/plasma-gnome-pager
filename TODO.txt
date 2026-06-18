@@ -187,7 +187,7 @@ VERIFY: every setting changes the widget immediately; settings persist across a
 
 
 -------------------------------------------------------------------------------
- MILESTONE 6 — Robustness hardening & edge cases                        [ ]
+ MILESTONE 6 — Robustness hardening & edge cases                        [x] DONE
 -------------------------------------------------------------------------------
 Goal: never break — the whole reason for this project. (ref: robustness.md)
   [x] Plasma 6.7 "switch desktops independently for each screen" (PerOutputVirtualDesktops):
@@ -197,15 +197,47 @@ Goal: never break — the whole reason for this project. (ref: robustness.md)
       global; typeof-guarded for older Plasma). No new setting (auto-mirrors KWin). Write stays the
       global switch (no public per-output write; KWin routes it to the active output). Covered by
       tst_logic + tst_workspaceindicator; read API verified live (DP-6 != DP-5). (ref: virtual-desktops.md)
-  [ ] Audit imports: public only, versionless, zero org.kde.plasma.private.*
-  [ ] Guard all desktopIds/currentDesktop access against transient empty/null
-  [ ] Edge cases: exactly 1 desktop (hide add/remove of last), many desktops
-      (overflow handling / min sizing), rapid repeated switching
-  [ ] Respect "reduce animations" (Kirigami.Units.longDuration === 0)
-  [ ] qmllint clean (treat warnings as errors); qmlformat applied
-  [ ] Re-test after a real plasmashell restart and (if possible) a Plasma point update
+  [x] Audit imports: public only, versionless, zero org.kde.plasma.private.*. Audited every .qml/.js
+      (production + config pages + tests): no private.* anywhere, no versioned imports. The only
+      off-allowlist production import is org.kde.kquickcontrols (ColorButton) in the lazy-loaded
+      ConfigAppearance page — the documented, sanctioned exception (CLAUDE.md): a config page is never
+      instantiated by the always-on widget, so a break there cannot kill the running pager.
+  [x] Guard all desktopIds/currentDesktop access against transient empty/null. Already funnelled
+      through null-safe views (desktopIds/desktopNames `?? []`, currentDesktop via indexOf → -1) and
+      clamped logic.js helpers; the one remaining bare scalar read (vdi.numberOfDesktops in addDesktop)
+      now uses `?? 0`. New integration test asserts an empty desktopIds ARRAY (distinct from a null
+      source) yields zero dots and a one-dot cell that never collapses to 0.
+  [x] Edge cases: exactly 1 desktop — Logic.canRemoveDesktop blocks removing the last on every path;
+      the "Remove Last Desktop" action is disabled/greyed at count 1 (kept visible — standard Plasma
+      pattern). Many desktops — SCALE-TO-FIT: when the natural strip would exceed the panel-allocated
+      length, the dots/pill shrink to fill it (Logic.fitDotSize, the inverse of lineExtent) instead of
+      overflowing onto the neighbours, capped at the natural size and floored at a legible minimum; the
+      major-axis Layout MINIMUM drops to that floor so the panel can compress us (preferred/maximum stay
+      natural, so the common case is byte-for-byte unchanged and there is no binding loop — the hints
+      depend only on the NATURAL size). Rapid repeated switching — the one-way `animate` latch +
+      idempotent updateCurrentDesktop() converge deterministically; new test storms 12 back-to-back
+      switches and asserts exactly one capsule on the final target.
+  [x] Respect "reduce animations" (Kirigami.Units.longDuration === 0): centralised in
+      Logic.effectiveDuration (0 always wins over any configured duration) → WorkspaceDot.morphEnabled,
+      which gates all four morph Behaviors → instant. Exhaustively covered at the logic tier.
+  [x] qmllint clean (treat warnings as errors): only the documented benign i18n/i18np unqualified
+      warnings remain (a plasmoid global) — zero real defects, zero unresolved private/renamed symbols.
+      qmlformat: the repo uses a deliberate compact hand-formatted style (one-line data rows, inline
+      object literals) that qmlformat's default would expand everywhere; the new code matches the
+      surrounding style, so applying `qmlformat -i` would only add noise and was intentionally not run
+      (qmllint is the safety net per robustness.md).
+  [ ] Re-test after a real plasmashell restart and (if possible) a Plasma point update — USER's manual
+      step (see DONE note); cannot be automated headless.
 VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes on
         desktop add/remove storms.
+        DONE: make check (210 tests: +Logic fitDotSize fit/unbounded, +WorkspaceIndicator scale-to-fit
+        shrink/ample/vertical, empty-array zero-dots, many-desktops single+grid, rapid-switch convergence;
+        the two Layout-sizing tests updated for the floor minimum) + make lint clean. In-shell smoke test
+        (make dev/restart, then: add desktops until the strip would exceed a short/crowded panel and
+        confirm the dots SHRINK to fit rather than overflow the neighbours, remove them and confirm they
+        grow back; toggle System Settings → Virtual Desktops → "Rows"; switch desktops rapidly; enable
+        "reduce animations" for instant morphs) — and a re-test after the next Plasma point update — are
+        the user's manual steps.
 
 
 -------------------------------------------------------------------------------

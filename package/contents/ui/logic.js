@@ -189,3 +189,24 @@ function lineExtent(count, dotSize, gap, activeExtent) {
         return dotSize;
     return activeExtent + (count - 1) * (dotSize + gap);
 }
+
+/**
+ * Dot size that makes ONE full reflow line exactly fill `available` along the major axis — the
+ * inverse of lineExtent's major-axis form. A line of `perLine` slots (one capsule + the rest dots,
+ * uniform gaps) measures dotSize · (pillWidthFactor + (perLine - 1)·(1 + spacingFactor)); solving
+ * that for dotSize at length `available` gives available / denom. Returns POSITIVE_INFINITY (an
+ * unbounded "no constraint") when there is nothing to fit — a non-positive `available` (the
+ * pre-layout frame where width/height is still 0), no slots (perLine <= 0), or a non-positive
+ * denominator — so the caller's min(naturalDotSize, fit) simply keeps the natural size. The caller
+ * clamps the result to a legibility floor and to the natural size, which keeps this Kirigami-free
+ * (the floor/natural are themed values) and unit-testable. Used by WorkspaceIndicator to shrink the
+ * dots/pill to fit a crowded panel instead of overflowing onto the neighbouring widgets.
+ */
+function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
+    if (available <= 0 || perLine <= 0)
+        return Number.POSITIVE_INFINITY;             // nothing to fit -> caller keeps natural
+    var denom = pillWidthFactor + (perLine - 1) * (1 + spacingFactor);
+    if (denom <= 0)
+        return Number.POSITIVE_INFINITY;             // degenerate factors -> no upper bound
+    return available / denom;
+}
