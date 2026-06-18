@@ -92,6 +92,7 @@ Kirigami.ScrollablePage {
             // 0 = follow the theme's default (and the global "reduce animations" setting).
             valueText: animationDuration.value === 0 ? i18n("Default") : i18np("%1 ms", "%1 ms", Math.round(animationDuration.value))
             widestText: i18np("%1 ms", "%1 ms", 2000)
+            widestTextAlt: i18n("Default")   // the read-out also shows "Default" at 0; reserve for both
         }
     }
 }
