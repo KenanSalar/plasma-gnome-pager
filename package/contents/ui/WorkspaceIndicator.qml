@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — WorkspaceIndicator.qml
+ * Plasma Gnome Pager — WorkspaceIndicator.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -121,9 +121,9 @@ Item {
 
     // Behaviour flags, supplied by main.qml from plasmoid.configuration. Defaults match the
     // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
-    property bool enableScroll: true
-    property bool scrollWrap: false
-    property bool showTooltips: true   // passed down to each dot's tooltip
+    property bool enableScroll: Logic.DEFAULTS.enableScroll
+    property bool scrollWrap: Logic.DEFAULTS.scrollWrap
+    property bool showTooltips: Logic.DEFAULTS.showTooltips   // passed down to each dot's tooltip
 
     // Panel orientation, supplied by main.qml from Plasmoid.formFactor. false = horizontal row
     // (also the Planar/desktop/floating default); true = vertical column. Default false keeps the
@@ -136,7 +136,7 @@ Item {
 
     // Standard Qt angleDelta units per wheel notch (QWheelEvent reports ±120 for one mouse
     // notch; touchpads send fractions of this that accumulate). Passed to Logic.accumulateWheel.
-    readonly property int wheelNotchDelta: 120
+    readonly property int wheelNotchDelta: Logic.DEFAULTS.wheelNotchDelta
 
     // Number of desktops (drives the stable size formula below).
     readonly property int desktopCount: desktopIds.length
@@ -172,21 +172,21 @@ Item {
     // ONE uniform spacing (spacingFactor × dotSize) sits between every adjacent element —
     // dot-to-dot AND capsule-to-dot are the same gap (the GNOME look). The active element is
     // simply wider in place; its neighbours are pushed out by the Row, never covered.
-    property int dotSizeRequest: 0                       // px override from config; 0 = auto
+    property int dotSizeRequest: Logic.DEFAULTS.dotSize  // px override from config; 0 = auto
     readonly property real dotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
-    property real inactiveOpacity: 0.45
-    property real hoverOpacity: 0.8                      // inactive-dot hover brighten target
-    property real pillWidthFactor: 3.5                  // active capsule length, as a multiple of a dot
+    property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
+    property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dotSize * pillWidthFactor
-    property real spacingFactor: 0.5                    // uniform gap as a multiple of a dot (GNOME-tight)
+    property real spacingFactor: Logic.DEFAULTS.spacingFactor      // uniform gap as a multiple of a dot (GNOME-tight)
     readonly property real dotSpacing: dotSize * spacingFactor
 
     // Colour + animation config, passed straight through to each dot (the indicator draws nothing
     // itself). Defaults are the theme colours / auto duration so a standalone dot is unchanged.
-    property bool followThemeColors: true
+    property bool followThemeColors: Logic.DEFAULTS.followThemeColors
     property color activeColor: Kirigami.Theme.highlightColor
     property color inactiveColor: Kirigami.Theme.textColor
-    property int animationDuration: 0                   // ms; 0 = follow the theme (longDuration)
+    property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme (longDuration)
 
     // Axis-neutral size primitives the orientation-aware sizing binds to. stripLength is the
     // content extent along the MAJOR (line) axis — the longest a line can be: one capsule + the

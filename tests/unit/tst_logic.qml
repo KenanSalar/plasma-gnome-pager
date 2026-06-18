@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — tst_logic.qml
+ * Plasma Gnome Pager — tst_logic.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -224,5 +224,39 @@ TestCase {
     }
     function test_lineExtent(data) {
         fuzzyCompare(Logic.lineExtent(data.count, data.dot, data.gap, data.active), data.exp, 0.001, data.tag);
+    }
+
+    // --- DEFAULTS: the single source of truth for the QML-side config defaults --------
+    // A change-detector + contract doc: every value mirrors a contents/config/main.xml <default>
+    // and is referenced by main.qml's `?? Logic.DEFAULTS.X` and the component property defaults,
+    // so accidental drift here (or a missing key) fails loudly instead of silently desyncing.
+    function test_defaults_data() {
+        return [
+            { tag: "enableScroll", key: "enableScroll", exp: true },
+            { tag: "scrollWrap", key: "scrollWrap", exp: false },
+            { tag: "showTooltips", key: "showTooltips", exp: true },
+            { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
+            { tag: "animationDuration", key: "animationDuration", exp: 0 },
+            { tag: "dotSize", key: "dotSize", exp: 0 },
+            { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
+            { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
+            { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
+            { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
+            { tag: "followThemeColors", key: "followThemeColors", exp: true },
+            { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
+            { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
+            { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
+        ];
+    }
+    function test_defaults(data) {
+        compare(Logic.DEFAULTS[data.key], data.exp, data.tag);
+    }
+
+    // DEFAULTS is shared (.pragma library) and must stay immutable — a stray write would corrupt
+    // every importer for the session. Object.freeze makes the assignment a silent no-op.
+    function test_defaultsAreFrozen() {
+        verify(Object.isFrozen(Logic.DEFAULTS), "Logic.DEFAULTS must be frozen");
+        Logic.DEFAULTS.dotSize = 999;
+        compare(Logic.DEFAULTS.dotSize, 0, "a frozen DEFAULTS ignores writes");
     }
 }

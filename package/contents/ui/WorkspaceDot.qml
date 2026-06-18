@@ -1,5 +1,5 @@
 /*
- * GNOME Workspace Switcher — WorkspaceDot.qml
+ * Plasma Gnome Pager — WorkspaceDot.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -44,21 +44,21 @@ Item {
     // Inputs supplied by WorkspaceIndicator's Repeater delegate (with sane defaults).
     property bool active: false
     property real dotSize: Kirigami.Units.iconSizes.small / 2   // inactive circle diameter
-    property real pillWidthFactor: 3.5                          // active capsule length, as a multiple of a dot
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor   // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dot.dotSize * dot.pillWidthFactor
-    property real inactiveOpacity: 0.45
-    property real hoverOpacity: 0.8                             // dimensionless ratio
+    property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
+    property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // dimensionless ratio
     property string desktopName: ""                            // shown in the tooltip
-    property bool showTooltips: true
+    property bool showTooltips: Logic.DEFAULTS.showTooltips
     // Colours. When followThemeColors is true (default) the element follows the colour scheme
     // (active = highlight, inactive = text); when false it uses activeColor/inactiveColor. The
     // defaults are the theme colours so a standalone/headless dot is unchanged. (Logic.dotColor.)
-    property bool followThemeColors: true
+    property bool followThemeColors: Logic.DEFAULTS.followThemeColors
     property color activeColor: Kirigami.Theme.highlightColor
     property color inactiveColor: Kirigami.Theme.textColor
     // Configured morph duration in ms (0 = follow the theme). Resolved with the reduce-animations
     // guard into effectiveDuration below.
-    property int animationDuration: 0
+    property int animationDuration: Logic.DEFAULTS.animationDuration
     // Major-axis orientation, supplied by the indicator (one source of truth). false =
     // horizontal panel (the capsule widens); true = vertical panel (the capsule grows tall).
     property bool vertical: false

@@ -1,9 +1,13 @@
-# GNOME Workspace Switcher — developer helpers
+# Plasma Gnome Pager — developer helpers
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 PLASMOID_ID := com.github.kenansalar.plasma-gnome-pager
 PKG_DIR     := package
 PLASMOID_DIR := $(HOME)/.local/share/plasma/plasmoids/$(PLASMOID_ID)
+TESTS_DIR   := $(CURDIR)/tests
+# Headless QML test runner: offscreen QPA lets Kirigami initialise without a display; -input
+# scans the given dir for every tst_*.qml. Shared by the per-tier check targets below.
+QMLTEST     := QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input
 
 .PHONY: help install update uninstall dev dev-undev test restart check check-unit check-integration lint _no-dev-symlink
 
@@ -69,20 +73,20 @@ restart:
 		setsid -f plasmashell >/dev/null 2>&1; \
 	fi
 
-# Headless QML tests. offscreen QPA lets Kirigami initialise without a display;
-# -input scans the given dir for every tst_*.qml. The suite is split by tier
-# (tests/unit, tests/integration); main.qml/PlasmoidItem is not tested here
-# (needs plasmashell + KWin + DBus) — see tests/README.md for the taxonomy.
+# Headless QML tests, split by tier (see $(QMLTEST) above). main.qml/PlasmoidItem is not tested
+# here (needs plasmashell + KWin + DBus) — see tests/README.md for the taxonomy.
 check: check-unit check-integration
 
 check-unit:
-	QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input $(CURDIR)/tests/unit
+	$(QMLTEST) $(TESTS_DIR)/unit
 
 check-integration:
-	QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input $(CURDIR)/tests/integration
+	$(QMLTEST) $(TESTS_DIR)/integration
 
-# Lints the UI components, the settings pages (contents/ui/config/) and the config model
-# (contents/config/config.qml). Expected non-defects: i18n/i18np flagged unqualified (a plasmoid
-# global) and any DBus.* ctor flagged unresolved-type — see CLAUDE.md "Verifying a change".
+# Lints the UI components, the settings pages (contents/ui/config/), the config model
+# (contents/config/config.qml), and the test QML (tests/{unit,integration}/*.qml). Expected
+# non-defects: i18n/i18np flagged unqualified (a plasmoid global) and any DBus.* ctor flagged
+# unresolved-type — see CLAUDE.md "Verifying a change".
 lint:
-	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml
+	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml \
+		$(TESTS_DIR)/unit/*.qml $(TESTS_DIR)/integration/*.qml
