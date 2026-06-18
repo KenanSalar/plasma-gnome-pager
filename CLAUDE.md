@@ -430,11 +430,12 @@ make test       # plasmawindowed <id> — run standalone; QML errors print to th
 make restart    # reload the real panel (systemd user service if active, else kquitapp6 + setsid -f plasmashell)
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
-make lint       # qmllint-qt6 package/contents/ui/*.qml + ui/config/*.qml + config/config.qml
+make lint       # qmllint-qt6 the widget UI + ui/config/*.qml + config/config.qml + tests/{unit,integration,shared}/*.qml
 make messages   # extract translatable strings -> po/<domain>.pot, then msgmerge each po/*.po
 make i18n       # compile po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo (install/update/dev depend on it)
 make dev-undev  # remove the dev symlink
 make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove (install/update compile catalogs first)
+make package    # build dist/<id>-<version>.plasmoid (zip of package/ with metadata.json at the archive root; depends on i18n)
 ```
 
 **Lint/format before installing** (the rules say `qmllint`/`qmlformat`, but on this Fedora KDE

@@ -308,15 +308,20 @@ VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes 
 
 
 -------------------------------------------------------------------------------
- MILESTONE 7 — Packaging & release                                      [ ]
+ MILESTONE 7 — Packaging & release                                      [~]
 -------------------------------------------------------------------------------
-Goal: shippable to GitHub + KDE Store.
-  [ ] Replace LICENSE stub with full GPL-3.0 text
-  [ ] Finalize README (features, screenshots/GIF, install, config)
-  [ ] Bump Version in metadata.json; tag a release
-  [ ] kpackagetool6 package check + clean install/upgrade/remove test
+Goal: shippable to GitHub + KDE Store. All M7 work lives on the feat/m7-release branch and
+merges (feat -> dev -> main) only once the whole milestone — including CI + Publish — is done.
+  [x] Replace LICENSE stub with full GPL-3.0 text (verbatim GPL-3.0; per-file SPDX headers carry
+      the copyright — the license text itself is unmodified, which is the correct practice)
+  [x] Finalize README (features, screenshots/GIF, install, config)
+  [x] Bump Version in metadata.json to 1.0.0 (the release/tag is NOT created manually — it is cut
+      by the publish workflow on merge to main; see Publish below)
+  [x] kpackagetool6 package check + clean install/upgrade/remove test (+ `make package` builds a
+      .plasmoid into dist/)
   [ ] CI: run qmllint on push (GitHub Actions) / Implement a ci test run on pr to the "dev" branch that should run the full test suite
-  [ ] Publish: GitHub repo (KenanSalar/plasma-gnome-pager) + KDE Store upload
+  [ ] Publish: a workflow that, on merge to main, tags the release (v<Version> from metadata.json),
+      cuts the GitHub Release (+ the .plasmoid from `make package`), and uploads to the KDE Store
 VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
         appears in Add Widgets with correct name/icon/description.
 

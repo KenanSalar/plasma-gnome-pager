@@ -1,7 +1,9 @@
 # Plasma Gnome Pager — developer helpers
+# SPDX-FileCopyrightText: 2026 Kenan Salar
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 PLASMOID_ID := com.github.kenansalar.plasma-gnome-pager
+VERSION     := 1.0.0
 PKG_DIR     := package
 PLASMOID_DIR := $(HOME)/.local/share/plasma/plasmoids/$(PLASMOID_ID)
 TESTS_DIR   := $(CURDIR)/tests
@@ -23,12 +25,15 @@ LOCALE_DIR  := $(PKG_DIR)/contents/locale
 # ki18n keyword set so i18nc/i18np/i18ncp contexts + plural forms extract correctly.
 XGETTEXT    := xgettext --from-code=UTF-8 -C --kde \
 	-ci18n -ki18n:1 -ki18nc:1c,2 -ki18np:1,2 -ki18ncp:1c,2,3 \
-	--package-name="Plasma Gnome Pager" --package-version="0.1.0" \
+	--package-name="Plasma Gnome Pager" --package-version="$(VERSION)" \
 	--copyright-holder="Kenan Salar" \
 	--msgid-bugs-address="https://github.com/KenanSalar/plasma-gnome-pager/issues" \
 	--width=200
 
-.PHONY: help install update uninstall dev dev-undev test restart check check-unit check-integration lint messages i18n _no-dev-symlink
+DIST_DIR      := dist
+PLASMOID_FILE := $(DIST_DIR)/$(PLASMOID_ID)-$(VERSION).plasmoid
+
+.PHONY: help install update uninstall package dev dev-undev test restart check check-unit check-integration lint messages i18n _no-dev-symlink
 
 help:
 	@echo "Targets:"
@@ -45,6 +50,7 @@ help:
 	@echo "  make install    Install the package with kpackagetool6"
 	@echo "  make update     Upgrade the installed package"
 	@echo "  make uninstall  Remove the installed package"
+	@echo "  make package    Build a distributable .plasmoid into dist/"
 
 # Guard: kpackagetool6 install/upgrade targets $(PLASMOID_DIR). If `make dev` has symlinked that
 # path to ./package, kpackagetool6's remove-then-install step deletes THROUGH the symlink and wipes
@@ -66,6 +72,19 @@ update: _no-dev-symlink i18n
 
 uninstall:
 	kpackagetool6 --type Plasma/Applet --remove $(PLASMOID_ID)
+
+# Build a distributable .plasmoid (a zip of the package tree with metadata.json at the ARCHIVE
+# ROOT — what kpackagetool6 and the KDE Store expect). Depends on i18n so the compiled .mo
+# catalogs are inside the archive (kpackagetool6 ships the tree verbatim — it does no compilation).
+# -X drops extra file attributes for a reproducible-ish archive; the -x globs keep QML/JS bytecode
+# caches and KDE folder-metadata out. Install/remove the artifact itself to smoke-test it:
+#   kpackagetool6 --type Plasma/Applet --install $(PLASMOID_FILE)
+package: i18n
+	mkdir -p $(DIST_DIR)
+	rm -f $(PLASMOID_FILE)
+	cd $(PKG_DIR) && zip -r -X "$(CURDIR)/$(PLASMOID_FILE)" metadata.json contents \
+		-x '*.qmlc' -x '*.jsc' -x '.directory'
+	@echo "Built $(PLASMOID_FILE)"
 
 # Live-development symlink: edit files in ./package and just `make restart`. Depends on i18n so the
 # symlinked package carries compiled catalogs (otherwise the live widget shows only source strings).
@@ -106,14 +125,14 @@ check-integration:
 	$(QMLTEST) $(TESTS_DIR)/integration
 
 # Lints the UI components, the settings pages (contents/ui/config/), the config model
-# (contents/config/config.qml), and the test QML (tests/{unit,integration}/*.qml). Clean: the
-# i18n*/Plasmoid globals (KLocalizedContext context properties qmllint can't statically resolve)
-# are declared in ./.contextProperties.ini, so they no longer warn while real unqualified accesses
-# still do. (A DBus.* ctor may print an unresolved-type info on some qmllint versions — benign,
-# runtime JS types the plugin provides.) See CLAUDE.md "Verifying a change".
+# (contents/config/config.qml), and the test QML (tests/{unit,integration,shared}/*.qml — incl. the
+# shared VdiMock). Clean: the i18n*/Plasmoid globals (KLocalizedContext context properties qmllint
+# can't statically resolve) are declared in ./.contextProperties.ini, so they no longer warn while
+# real unqualified accesses still do. (A DBus.* ctor may print an unresolved-type info on some
+# qmllint versions — benign, runtime JS types the plugin provides.) See CLAUDE.md "Verifying a change".
 lint:
 	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml \
-		$(TESTS_DIR)/unit/*.qml $(TESTS_DIR)/integration/*.qml
+		$(TESTS_DIR)/unit/*.qml $(TESTS_DIR)/integration/*.qml $(TESTS_DIR)/shared/*.qml
 
 # Extract translatable strings from the QML into the .pot template, then merge them into every
 # existing po/<lang>.po (so translators pick up new/changed strings without losing their work).
