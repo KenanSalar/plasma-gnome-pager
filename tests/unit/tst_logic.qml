@@ -298,6 +298,33 @@ TestCase {
         compare(Logic.sanitizeHtml(data.input), data.exp, data.tag);
     }
 
+    // --- sanitizeDesktopName: normalise a user-entered name before the setDesktopName write -----
+    // Trims, keeps internal spaces, rejects empty/whitespace-only as "" (the no-op sentinel), coerces
+    // non-strings, and caps an absurd length. (Distinct from sanitizeHtml, which escapes markup.)
+    function test_sanitizeDesktopName_data() {
+        return [
+            { tag: "plain", input: "Web", exp: "Web" },
+            { tag: "internal-spaces-kept", input: "My Code", exp: "My Code" },
+            { tag: "trims-leading-trailing", input: "  Web  ", exp: "Web" },
+            { tag: "tab-newline-trimmed", input: "\tWeb\n", exp: "Web" },
+            { tag: "empty-rejected", input: "", exp: "" },
+            { tag: "whitespace-only-rejected", input: "   ", exp: "" },
+            { tag: "null-coerced", input: null, exp: "" },
+            { tag: "undefined-coerced", input: undefined, exp: "" },
+            { tag: "number-coerced", input: 42, exp: "42" }
+        ];
+    }
+    function test_sanitizeDesktopName(data) {
+        compare(Logic.sanitizeDesktopName(data.input), data.exp, data.tag);
+    }
+
+    // A 150-char name is capped at the 100-char maximum (checked by length so the test doesn't hardcode
+    // the cap string). Kept separate from the table above because it asserts length, not equality.
+    function test_sanitizeDesktopNameCapsLength() {
+        var long = "x".repeat(150);
+        compare(Logic.sanitizeDesktopName(long).length, 100, "over-max-truncated-to-100");
+    }
+
     // --- groupWindowsByDesktop: per-desktop visible/minimized title lists --------------
     // Index-aligned with desktopIds. A window belongs to a desktop when it is a real window AND
     // (it is on all desktops OR its `desktops` list holds that id); minimized windows bucket apart;
@@ -356,6 +383,7 @@ TestCase {
             { tag: "showTooltips", key: "showTooltips", exp: true },
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
+            { tag: "enableRename", key: "enableRename", exp: true },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },

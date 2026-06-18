@@ -44,6 +44,10 @@
         <entry name="enableAddRemove" type="Bool">
             <default>true</default>
         </entry>
+        <!-- Offer a "Rename Current Desktop…" entry in the right-click menu. -->
+        <entry name="enableRename" type="Bool">
+            <default>true</default>
+        </entry>
         <!-- Morph animation length in ms; 0 = follow the theme (Kirigami.Units.longDuration). -->
         <entry name="animationDuration" type="Int">
             <default>0</default>

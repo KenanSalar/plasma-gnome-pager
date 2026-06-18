@@ -214,14 +214,29 @@ how GNOME and the KDE `compact_pager` actually work.
 > inline (never a popup, never the default compact icon). Confirmed against
 > develop.kde.org/docs/plasma/widget ("display widget directly in panel").
 
-**Interactions — scroll, hover, tooltips, add/remove.** The branching logic (clamp/wrap, hi-res
-wheel accumulation, never-remove-last, dot/capsule opacity) lives in `package/contents/ui/logic.js`
-(pure `.pragma library`, unit-tested by `tests/unit/tst_logic.qml` with no Plasma deps); the QML is
-a thin caller. Config flags flow one way: `main.qml` reads `plasmoid.configuration.*` → passes
-plain booleans to `WorkspaceIndicator` → each `WorkspaceDot`, so the tested sub-components never
-touch `plasmoid.configuration`. `main.qml` owns add/remove (KWin DBus `createDesktop`/
-`removeDesktop` + `Plasmoid.contextualActions`, gated by `enableAddRemove`, never removing the last
-desktop via `logic.js::canRemoveDesktop`).
+**Interactions — scroll, hover, tooltips, add/remove/rename.** The branching logic (clamp/wrap, hi-res
+wheel accumulation, never-remove-last, dot/capsule opacity, name validation) lives in
+`package/contents/ui/logic.js` (pure `.pragma library`, unit-tested by `tests/unit/tst_logic.qml`
+with no Plasma deps); the QML is a thin caller. Config flags flow one way: `main.qml` reads
+`plasmoid.configuration.*` → passes plain booleans to `WorkspaceIndicator` → each `WorkspaceDot`, so
+the tested sub-components never touch `plasmoid.configuration`. `main.qml` owns add/remove/rename (KWin
+DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActions`, gated by
+`enableAddRemove` / `enableRename`, never removing the last desktop via `logic.js::canRemoveDesktop`).
+
+> **Rename — a public `setDesktopName(id, name)` DBus write + a `PlasmaCore.Dialog`, NOT
+> `Kirigami.PromptDialog`.** "Rename Current Desktop…" is a `Plasmoid.contextualAction` (gated by the
+> `enableRename` key) that renames `vdi.currentDesktop` via `kwinCall(... "setDesktopName", [DBus.string(uuid),
+> DBus.string(name)])` (the verified `ss` signature on `org.kde.KWin.VirtualDesktopManager`). It is
+> menu-only / current-desktop (no per-dot trigger), so `WorkspaceIndicator`/`WorkspaceDot` are untouched.
+> The new name comes back through the live `desktopNames` binding — **no cache** (the read/write split).
+> The name is validated by pure `logic.js::sanitizeDesktopName` (trim, reject empty/whitespace → `""`
+> no-op sentinel, cap length); unit-tested. Text entry is a **`PlasmaCore.Dialog`** (TextField +
+> Cancel/Rename, positioned by `visualParent: root.fullRepresentationItem` + `location: Plasmoid.location`
+> + `hideOnWindowDeactivate`, the stock `AppletAlternatives` idiom) **declared directly** with
+> `visible:false` — *not* wrapped in a `Loader` (a `Loader` is for `Item`s; a `Dialog` is a top-level
+> `Window`, kept cheap by not realising a surface until shown) and *not* `Kirigami.PromptDialog`, whose
+> base `Kirigami.Dialog` parents to `applicationWindow().overlay` — **undefined in a plasmoid**, so it
+> would clip to the thin panel (robustness.md). The dialog + action + DBus live in `main.qml` (e2e-only).
 
 > **Gotcha (learned the hard way) — scroll: a `MouseArea { acceptedButtons: Qt.NoButton; onWheel }`
 > *behind* the dots, NOT a `WheelHandler`.** A `WheelHandler` did **not** deliver wheel reliably in
@@ -299,7 +314,7 @@ the `Kirigami.Theme.*` colours — are NOT in `DEFAULTS`; they live in the compo
 gotcha below.) The keys:
 behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
-`enableAddRemove`, `animationDuration`;
+`enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `animationDuration`;
 appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
 `followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
 with the schema:
@@ -346,7 +361,9 @@ with the schema:
 > — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize` and
 > `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
 > components** (the indicator's `dotSize`, and `Logic.effectiveDuration` for the morph) — NOT in
-> `main.qml`, which has no Kirigami import and is not headless-testable. `effectiveDuration` also
+> `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
+> Kirigami, but only for the rename dialog's spacing, and is not itself headless-testable).
+> `effectiveDuration` also
 > folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),
 > so `animationDuration` overrides the duration but can never re-enable motion the user turned off.
 > The dimensionless ratios (`spacingFactor`/`pillWidthFactor`/`inactiveOpacity`/`hoverOpacity`) are

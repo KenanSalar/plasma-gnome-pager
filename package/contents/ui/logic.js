@@ -35,6 +35,7 @@ var DEFAULTS = Object.freeze({
     showTooltips: true,
     showWindowList: true,        // list the windows open on a desktop in its tooltip
     enableAddRemove: true,
+    enableRename: true,          // offer "Rename Current Desktop…" in the right-click menu
     animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
     // Appearance group
     dotSize: 0,                  // px; 0 = auto (HiDPI themed size, resolved in the indicator)
@@ -239,6 +240,23 @@ function sanitizeHtml(input) {
     return String(input === undefined || input === null ? "" : input).replace(/[<>&'"\u00a0]/g, function (c) {
         return table[c];
     });
+}
+
+/**
+ * Normalise a user-entered desktop name before the KWin `setDesktopName` DBus write (distinct from
+ * sanitizeHtml above, which escapes markup): coerce a null/undefined/non-string to "", trim
+ * surrounding whitespace, reject an empty/whitespace-only name by returning "" (the same no-op
+ * sentinel convention as lastDesktopId), and cap an absurd length so the name stays sane in the
+ * tooltip/markup. The QML caller does `if (!clean) return;` before issuing the call.
+ */
+function sanitizeDesktopName(input) {
+    if (input === undefined || input === null)
+        return "";
+    var s = String(input).trim();
+    if (s.length === 0)
+        return "";
+    var MAX = 100;
+    return s.length > MAX ? s.slice(0, MAX) : s;
 }
 
 /**

@@ -11,13 +11,16 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQml                                      // Instantiator (materialise TasksModel rows)
+import QtQuick.Layouts                            // Column/RowLayout (rename dialog content)
 
 import org.kde.plasma.plasmoid
 
 // Public, stable imports only (intentionally no org.kde.plasma.private.*):
-import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action (contextual menu)
+import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action (menu) + PlasmaCore.Dialog (rename)
+import org.kde.plasma.components as PlasmaComponents3  // TextField/Button/Label (rename dialog)
+import org.kde.kirigami as Kirigami              // Units (rename dialog spacing)
 import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksModel/ActivityInfo (read)
-import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove)
+import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
 
 import "logic.js" as Logic
 
@@ -53,11 +56,13 @@ PlasmoidItem {
     readonly property bool showTooltips: Plasmoid.configuration.showTooltips ?? Logic.DEFAULTS.showTooltips
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
+    readonly property bool enableRename: Plasmoid.configuration.enableRename ?? Logic.DEFAULTS.enableRename
 
     // Appearance + animation settings, read the same way and passed down to the indicator as plain
     // values (it forwards them per-dot). dotSize/animationDuration use a `0 = auto` sentinel: the
-    // indicator/dot turn 0 into the HiDPI/themed default (so main.qml stays free of Kirigami and
-    // these stay headless-testable — see WorkspaceIndicator/WorkspaceDot). Each `?? <default>`
+    // indicator/dot turn 0 into the HiDPI/themed default — resolved there because the components are
+    // the headless-tested rendering layer (main.qml imports Kirigami only for the rename dialog's
+    // spacing, not for these; see WorkspaceIndicator/WorkspaceDot). Each `?? <default>`
     // mirrors the schema default for the transient-undefined frame, exactly like the booleans above.
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
@@ -295,6 +300,29 @@ PlasmoidItem {
         root.removeDesktop(Logic.lastDesktopId(vdi.desktopIds));
     }
 
+    // Rename a desktop by UUID via KWin's setDesktopName(id, name). Logic.sanitizeDesktopName trims and
+    // rejects an empty/whitespace-only name (returns ""), so a blank rename is a no-op; uuid can be
+    // transiently empty during reconfigure (robustness.md). `vdi` reports the new name back via the
+    // desktopNames binding — no cache (the read/write split).
+    function renameDesktop(uuid, name) {
+        const clean = Logic.sanitizeDesktopName(name);
+        if (!uuid || !clean) {
+            return;
+        }
+        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "setDesktopName", [new DBus.string(uuid), new DBus.string(clean)]);
+    }
+
+    // Open the rename prompt for a desktop, prefilled with its current name. Resolves the name from the
+    // live vdi arrays (index-aligned; guarded for the transient-empty frame).
+    function openRenameDialog(uuid) {
+        if (!uuid) {
+            return;
+        }
+        const ids = vdi.desktopIds ?? [];
+        const names = vdi.desktopNames ?? [];
+        renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
+    }
+
     // Right-click menu. Gated by enableAddRemove; Remove also disables at the last desktop.
     // (The "Configure…" entry is added automatically by Plasma once a config schema exists.)
     Plasmoid.contextualActions: [
@@ -313,6 +341,83 @@ PlasmoidItem {
             visible: root.enableAddRemove
             enabled: root.enableAddRemove && Logic.canRemoveDesktop(vdi.numberOfDesktops)
             onTriggered: root.removeLastDesktop()
+        },
+        PlasmaCore.Action {
+            text: i18n("Rename Current Desktop…")
+            icon.name: "edit-rename"
+            priority: Plasmoid.LowPriorityAction
+            visible: root.enableRename
+            enabled: root.enableRename
+            onTriggered: root.openRenameDialog(vdi.currentDesktop)
         }
     ]
+
+    // Rename prompt — a panel-native PlasmaCore.Dialog (a top-level Window), declared directly (not in a
+    // Loader: a Loader is for Items, and there is no precedent for loading a Window through one; visible:
+    // false keeps it cheap — no native surface until first shown, and its content is just a field + two
+    // buttons). Chosen over Kirigami.PromptDialog, whose base parents to applicationWindow().overlay —
+    // undefined in a plasmoid, so it would be clipped to the thin panel (robustness.md). It pops next to
+    // the widget via visualParent + location (the AppletAlternatives idiom) and lives here in main.qml
+    // (the e2e boundary) so the headless-tested sub-components never touch a dialog or Plasma window type.
+    PlasmaCore.Dialog {
+        id: renameDialog
+
+        property string targetUuid: ""
+
+        visible: false
+        visualParent: root.fullRepresentationItem
+        location: Plasmoid.location
+        hideOnWindowDeactivate: true            // click-away cancels
+
+        // Show prefilled with the desktop's current name, text selected and focused for immediate typing.
+        function openFor(uuid, currentName) {
+            renameDialog.targetUuid = uuid;
+            renameField.text = currentName;
+            renameDialog.visible = true;
+            renameField.selectAll();
+            renameField.forceActiveFocus();
+        }
+
+        // Commit the rename, then close. An empty/whitespace name (sanitize → "") keeps the prompt open
+        // rather than silently doing nothing; renameDesktop re-sanitizes, so the write stays guarded.
+        function commit() {
+            const clean = Logic.sanitizeDesktopName(renameField.text);
+            if (clean === "") {
+                return;
+            }
+            root.renameDesktop(renameDialog.targetUuid, clean);
+            renameDialog.visible = false;
+        }
+
+        mainItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            PlasmaComponents3.Label {
+                text: i18n("Rename desktop:")
+            }
+            PlasmaComponents3.TextField {
+                id: renameField
+                Layout.fillWidth: true
+                Layout.minimumWidth: Kirigami.Units.gridUnit * 12
+                onAccepted: renameDialog.commit()                  // Enter commits
+                Keys.onEscapePressed: renameDialog.visible = false // Esc cancels
+            }
+            RowLayout {
+                Layout.alignment: Qt.AlignRight
+                spacing: Kirigami.Units.smallSpacing
+
+                PlasmaComponents3.Button {
+                    text: i18n("Cancel")
+                    icon.name: "dialog-cancel"
+                    onClicked: renameDialog.visible = false
+                }
+                PlasmaComponents3.Button {
+                    text: i18n("Rename")
+                    icon.name: "edit-rename"
+                    enabled: renameField.text.trim().length > 0
+                    onClicked: renameDialog.commit()
+                }
+            }
+        }
+    }
 }
