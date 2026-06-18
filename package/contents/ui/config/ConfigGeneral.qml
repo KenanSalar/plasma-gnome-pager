@@ -24,6 +24,7 @@ ConfigPageBase {
     property alias cfg_enableScroll: enableScroll.checked
     property alias cfg_scrollWrap: scrollWrap.checked
     property alias cfg_showTooltips: showTooltips.checked
+    property alias cfg_showWindowList: showWindowList.checked
     property alias cfg_enableAddRemove: enableAddRemove.checked
     property alias cfg_animationDuration: animationDuration.value
 
@@ -31,6 +32,7 @@ ConfigPageBase {
     property bool cfg_enableScrollDefault
     property bool cfg_scrollWrapDefault
     property bool cfg_showTooltipsDefault
+    property bool cfg_showWindowListDefault
     property bool cfg_enableAddRemoveDefault
     property int cfg_animationDurationDefault
 
@@ -38,6 +40,7 @@ ConfigPageBase {
     isModified: cfg_enableScroll !== cfg_enableScrollDefault
         || cfg_scrollWrap !== cfg_scrollWrapDefault
         || cfg_showTooltips !== cfg_showTooltipsDefault
+        || cfg_showWindowList !== cfg_showWindowListDefault
         || cfg_enableAddRemove !== cfg_enableAddRemoveDefault
         || cfg_animationDuration !== cfg_animationDurationDefault
 
@@ -45,6 +48,7 @@ ConfigPageBase {
         cfg_enableScroll = cfg_enableScrollDefault;
         cfg_scrollWrap = cfg_scrollWrapDefault;
         cfg_showTooltips = cfg_showTooltipsDefault;
+        cfg_showWindowList = cfg_showWindowListDefault;
         cfg_enableAddRemove = cfg_enableAddRemoveDefault;
         cfg_animationDuration = cfg_animationDurationDefault;
     }
@@ -64,6 +68,11 @@ ConfigPageBase {
             id: showTooltips
             Kirigami.FormData.label: i18n("Tooltips:")
             text: i18n("Show the desktop name on hover")
+        }
+        QQC2.CheckBox {
+            id: showWindowList
+            text: i18n("List the open windows in the tooltip")
+            enabled: showTooltips.checked   // the window list only shows when tooltips are on
         }
         QQC2.CheckBox {
             id: enableAddRemove

@@ -828,6 +828,33 @@ TestCase {
         verify(dotByUuid(indicator, ids[0]).showTooltips, "toggling showTooltips updates the dots reactively");
     }
 
+    // --- window-list tooltip: per-dot subText, index-aligned with desktopIds -----------
+    // main.qml builds the window-list subText per desktop and hands the indicator an array parallel
+    // to desktopNames; the indicator feeds each dot its entry by globalIndex (exactly like the name).
+
+    function test_dotsReceiveTooltipText() {
+        const tips = ["win-a", "win-b", "win-c"];
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { desktopTooltips: tips });
+        for (let i = 0; i < ids.length; i++) {
+            const dot = dotByUuid(indicator, ids[i]);
+            compare(dot.tooltipText, tips[i], "dot " + i + " gets its index-aligned window-list subText");
+        }
+    }
+
+    // robustness.md: the tooltip array can lag ids during an add/remove — the dot gets "" (no OOB).
+    function test_dotTooltipTextGuardsShortArray() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { desktopTooltips: ["win-a"] });
+        compare(dotByUuid(indicator, ids[2]).tooltipText, "", "missing tooltip resolves to empty string");
+    }
+
+    // Index-aligned across the whole flat list, not reset per line (mirrors test_gridNamesMapAcrossLines).
+    function test_tooltipTextMapsAcrossLines() {
+        const tips = ["w0", "w1", "w2", "w3"];
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { desktopTooltips: tips });
+        for (let i = 0; i < fourIds.length; i++)
+            compare(dotByUuid(indicator, fourIds[i]).tooltipText, tips[i], "dot " + i + " keeps its global window-list subText");
+    }
+
     // --- Milestone 5: appearance / colour / animation config flow through ----------
     // main.qml feeds the indicator the Appearance keys; the indicator forwards them per-dot. These
     // assert the wiring (the values reach the derived metrics + the dots); the look itself is

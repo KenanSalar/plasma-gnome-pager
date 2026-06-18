@@ -76,6 +76,12 @@ Item {
     // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
     readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
 
+    // Per-desktop tooltip subText (the rich-text window list), index-aligned with desktopIds,
+    // supplied by main.qml (which owns the TasksModel). Default [] keeps the standalone/headless
+    // behaviour unchanged — each dot then falls back to "" (a name-only tooltip). Passed down to
+    // each dot by global index, exactly like desktopNames.
+    property var desktopTooltips: []
+
     // This panel's physical output (KWin connector name, e.g. "DP-1"), read live from the QtQuick
     // Screen attached property of the placed representation, so it reflects THIS monitor. Plasma 6.7
     // lets each output show a different current desktop; we resolve the current FOR this screen below.
@@ -354,9 +360,11 @@ Item {
                         active: indicator.currentDesktop === workspaceDot.modelData
                         animate: indicator.animate
 
-                        // Feed each dot its tooltip name (|| "" guards the transient state where
-                        // names lag ids during an add/remove — robustness.md) and the showTooltips flag.
+                        // Feed each dot its tooltip name + window-list subText (|| "" guards the
+                        // transient state where names/tooltips lag ids during an add/remove —
+                        // robustness.md) and the showTooltips flag.
                         desktopName: indicator.desktopNames[workspaceDot.globalIndex] || ""
+                        tooltipText: indicator.desktopTooltips[workspaceDot.globalIndex] || ""
                         showTooltips: indicator.showTooltips
 
                         onActivated: indicator.switchRequested(workspaceDot.modelData)

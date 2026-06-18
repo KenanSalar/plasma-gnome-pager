@@ -263,6 +263,88 @@ TestCase {
         verify(!isFinite(Logic.fitDotSize(data.avail, data.perLine, data.pill, data.spacing)), data.tag);
     }
 
+    // --- windowListMaximum: stock pager rule — show 4, but all 5 when exactly 5 --------
+    function test_windowListMaximum_data() {
+        return [
+            { tag: "zero", count: 0, exp: 4 },
+            { tag: "one", count: 1, exp: 4 },
+            { tag: "four", count: 4, exp: 4 },
+            { tag: "exactly-five-shows-all", count: 5, exp: 5 },
+            { tag: "six", count: 6, exp: 4 },
+            { tag: "many", count: 12, exp: 4 }
+        ];
+    }
+    function test_windowListMaximum(data) {
+        compare(Logic.windowListMaximum(data.count), data.exp, data.tag);
+    }
+
+    // --- sanitizeHtml: entity-escape titles for the rich-text tooltip ------------------
+    // Escapes the markup-sensitive chars and the no-break space ( ) — but NOT the ordinary
+    // space (it must still wrap). Non-strings coerce to "" so the caller never throws.
+    function test_sanitizeHtml_data() {
+        return [
+            { tag: "plain", input: "Firefox", exp: "Firefox" },
+            { tag: "ordinary-space-kept", input: "New Tab", exp: "New Tab" },
+            { tag: "angles", input: "a<b>c", exp: "a&lt;b&gt;c" },
+            { tag: "ampersand", input: "Tom & Jerry", exp: "Tom &amp; Jerry" },
+            { tag: "double-quote", input: "say \"hi\"", exp: "say &quot;hi&quot;" },
+            { tag: "apostrophe", input: "it's", exp: "it&apos;s" },
+            { tag: "nbsp-escaped", input: "a b", exp: "a&nbsp;b" },
+            { tag: "null-coerced", input: null, exp: "" },
+            { tag: "undefined-coerced", input: undefined, exp: "" }
+        ];
+    }
+    function test_sanitizeHtml(data) {
+        compare(Logic.sanitizeHtml(data.input), data.exp, data.tag);
+    }
+
+    // --- groupWindowsByDesktop: per-desktop visible/minimized title lists --------------
+    // Index-aligned with desktopIds. A window belongs to a desktop when it is a real window AND
+    // (it is on all desktops OR its `desktops` list holds that id); minimized windows bucket apart;
+    // model order is preserved; transient null/empty inputs degrade safely.
+    function test_groupWindowsByDesktop_data() {
+        const w = function (title, desktops, opts) {
+            opts = opts || {};
+            return { title: title, desktops: desktops, isWindow: opts.isWindow !== false, minimized: opts.minimized === true, onAll: opts.onAll === true };
+        };
+        return [
+            { tag: "empty-ids", windows: [w("A", ["a"])], ids: [], exp: [] },
+            { tag: "null-ids", windows: [w("A", ["a"])], ids: null, exp: [] },
+            {
+                tag: "null-windows-empty-entries", windows: null, ids: ["a", "b"],
+                exp: [{ visible: [], minimized: [] }, { visible: [], minimized: [] }]
+            },
+            {
+                tag: "membership-and-alignment", windows: [w("A", ["a"]), w("B", ["b"])], ids: ["a", "b"],
+                exp: [{ visible: ["A"], minimized: [] }, { visible: ["B"], minimized: [] }]
+            },
+            {
+                tag: "on-all-appears-everywhere", windows: [w("All", [], { onAll: true })], ids: ["a", "b"],
+                exp: [{ visible: ["All"], minimized: [] }, { visible: ["All"], minimized: [] }]
+            },
+            {
+                tag: "minimized-bucket", windows: [w("M", ["a"], { minimized: true })], ids: ["a"],
+                exp: [{ visible: [], minimized: ["M"] }]
+            },
+            {
+                tag: "non-window-excluded", windows: [w("Launcher", ["a"], { isWindow: false })], ids: ["a"],
+                exp: [{ visible: [], minimized: [] }]
+            },
+            {
+                tag: "not-on-this-desktop", windows: [w("X", ["b"])], ids: ["a"],
+                exp: [{ visible: [], minimized: [] }]
+            },
+            {
+                tag: "order-preserved", windows: [w("A", ["a"]), w("B", ["a"]), w("C", ["a"], { minimized: true })], ids: ["a"],
+                exp: [{ visible: ["A", "B"], minimized: ["C"] }]
+            }
+        ];
+    }
+    function test_groupWindowsByDesktop(data) {
+        // JSON-compare so the nested {visible, minimized} arrays are checked by value, not identity.
+        compare(JSON.stringify(Logic.groupWindowsByDesktop(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
+    }
+
     // --- DEFAULTS: the single source of truth for the QML-side config defaults --------
     // A change-detector + contract doc: every value mirrors a contents/config/main.xml <default>
     // and is referenced by main.qml's `?? Logic.DEFAULTS.X` and the component property defaults,
@@ -272,6 +354,7 @@ TestCase {
             { tag: "enableScroll", key: "enableScroll", exp: true },
             { tag: "scrollWrap", key: "scrollWrap", exp: false },
             { tag: "showTooltips", key: "showTooltips", exp: true },
+            { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },

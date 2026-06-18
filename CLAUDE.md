@@ -13,9 +13,10 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
-below). Scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, the settings
-UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state guards)
-are built; the remaining work is packaging/release. The
+below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
+the windows open on that desktop), add/remove desktops, form-factor (vertical-panel) handling, the
+settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
+guards) are built; the remaining work is packaging/release. The
 ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
 `.claude/rules/*` describe how the code is built, not the schedule.
 
@@ -243,6 +244,49 @@ desktop via `logic.js::canRemoveDesktop`).
 > — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
 > importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
 
+**Window-list tooltip — windows-per-desktop from the PUBLIC `TasksModel`, NOT the private
+`PagerModel`.** The tooltip's `subText` is the stock KDE pager's window list ("N Windows:" + a
+rich-text `<ul>` of titles + "…and N other windows", a separate "N Minimized Windows:" section),
+gated by the `showWindowList` key. The stock pager builds this from a **private** `PagerModel`/
+`WindowModel` (`org.kde.plasma.private.pager`) — forbidden (robustness.md, the #1 break cause). We
+reproduce the exact *presentation* from the public `org.kde.taskmanager` `TasksModel` + `ActivityInfo`
+instead. The split, following the project's data-source-vs-pure-logic rule:
+> - **`main.qml` (e2e boundary, not headless-testable)** owns the live model. A `Loader` gated by
+>   `showTooltips && showWindowList` (so the always-on model cost is **zero** when the list is off —
+>   qml-performance.md) loads a `TooltipAggregator` Item holding ONE unfiltered
+>   `TasksModel { groupMode: GroupDisabled; filterByActivity: true }` (one row per window; current
+>   activity only). An `Instantiator` materialises the rows so role values can be read **by name**
+>   (a C++ `QAbstractItemModel` has no `model.get(i)`); a debounced `Qt.callLater(rebuild)` (driven by
+>   the model's `dataChanged`/`onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
+>   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
+>   `subText`. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
+>   with `desktopIds` (exactly parallel to `desktopNames`): `main.qml` → `WorkspaceIndicator`
+>   (`desktopTooltips`) → each `WorkspaceDot.tooltipText` by `globalIndex` → `ToolTipArea.subText`
+>   (with `textFormat: Text.RichText`). The sub-components never touch `TasksModel`, so they stay
+>   headless-testable.
+> - **`logic.js` (pure, unit-tested)** does the grouping/truncation with NO Plasma/i18n deps:
+>   `groupWindowsByDesktop(windows, desktopIds)` → per-desktop `{ visible:[title…], minimized:[title…] }`
+>   (a window belongs to a desktop when `isWindow && (onAll || desktops.indexOf(uuid) !== -1)`);
+>   `windowListMaximum(count)` (the stock rule: 4, but all 5 when exactly 5); `sanitizeHtml` (escapes
+>   `<>&'"` and the no-break space ` ` — **not** the ordinary space, which must still wrap). i18n
+>   formatting stays in `main.qml` because `i18n*` is a plasmoid global, absent under `qmltestrunner`.
+>
+> **Gotcha — `as`-cast dynamic `Loader.item`/`Instantiator.objectAt()` to a NAMED inline component, or
+> qmllint flags `missing-property`.** `Loader.item` and `Instantiator.objectAt(i)` are typed `QObject`,
+> so reading a dynamic property off them (`tooltipLoader.item.desktopTooltips`, `o.display`) warns. Fix
+> exactly like the stock pager's `itemAt(i) as WindowDelegate`: declare the loaded item and the row as
+> named inline components (`component TooltipAggregator: Item {…}`, `component WindowRow: QtObject {…}`)
+> and cast — `(tooltipLoader.item as TooltipAggregator).desktopTooltips`,
+> `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
+> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`) aren't valid lowercase identifiers, so they can't
+> be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
+> `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
+> before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings).
+> Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop}` +
+> `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
+> `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
+> itself is e2e-only (verify in-shell).
+
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
 (`Plasmoid.configuration.<key> ?? Logic.DEFAULTS.<key>`) → `WorkspaceIndicator` → `WorkspaceDot`.
@@ -253,7 +297,9 @@ defaults, so the same literal is no longer written three times and cannot drift.
 the SCHEMA source; `Logic.DEFAULTS` mirrors it. (Theme/HiDPI render fallbacks — the auto `dotSize`,
 the `Kirigami.Theme.*` colours — are NOT in `DEFAULTS`; they live in the components, see the sentinel
 gotcha below.) The keys:
-behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `enableAddRemove`, `animationDuration`;
+behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `showWindowList` (the window list in the
+tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
+`enableAddRemove`, `animationDuration`;
 appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
 `followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
 with the schema:
@@ -378,3 +424,8 @@ bus), so it still relies on the manual in-shell loop below. New logic should com
   if a stale compile is suspected.
 - To tell "applet didn't load" from "representation didn't render," log from the root
   `Component.onCompleted` (always runs if `main.qml` loads) vs the representation's `onCompleted`.
+
+  
+  ## User Conventions
+
+- Always call big files/objects/functions **'monolithic'** — no synonyms.

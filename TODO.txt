@@ -257,13 +257,8 @@ VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
 -------------------------------------------------------------------------------
  BACKLOG / NICE-TO-HAVE (post-1.0, optional)
 -------------------------------------------------------------------------------
-  [ ] Click current desktop -> open KWin Overview/Desktop Grid effect
-  [ ] Optional occupied-desktop hint (subtle fill when windows present, via TasksModel)
-  [ ] Drag a window onto a dot to move it to that desktop (DnD)
   [ ] Per-desktop rename from the widget
   [ ] Configurable click action on current desktop (none / show desktop / overview)
-  [ ] Optional numbers/labels inside dots
-  [ ] Activities mode (switch Activities instead of Virtual Desktops)
   [ ] Translations (i18n catalogs) for shipped strings
   [ ] Cross-axis scale-to-fit: M6 scale-to-fit shrinks dots only along the MAJOR axis; a multi-row
       KWin grid (Rows > 1) with many desktops on a THIN panel can still exceed the cross thickness

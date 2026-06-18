@@ -36,6 +36,10 @@
         <entry name="showTooltips" type="Bool">
             <default>true</default>
         </entry>
+        <!-- Also list the windows open on a desktop in its tooltip (needs showTooltips). -->
+        <entry name="showWindowList" type="Bool">
+            <default>true</default>
+        </entry>
         <!-- Offer Add/Remove desktop entries in the right-click menu. -->
         <entry name="enableAddRemove" type="Bool">
             <default>true</default>

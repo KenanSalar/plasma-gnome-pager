@@ -33,6 +33,7 @@ var DEFAULTS = Object.freeze({
     enableScroll: true,
     scrollWrap: false,
     showTooltips: true,
+    showWindowList: true,        // list the windows open on a desktop in its tooltip
     enableAddRemove: true,
     animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
     // Appearance group
@@ -209,4 +210,71 @@ function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
     if (denom <= 0)
         return Number.POSITIVE_INFINITY;             // degenerate factors -> no upper bound
     return available / denom;
+}
+
+/**
+ * How many window titles a tooltip lists before collapsing the rest into an "…and N other windows"
+ * line — the stock KDE pager's rule (applets/pager/qml/main.qml::generateWindowList): show 4, but
+ * show all 5 when there are exactly 5, since "…and 1 other window" would waste a line for no gain.
+ */
+function windowListMaximum(count) {
+    return count === 5 ? 5 : 4;
+}
+
+/**
+ * HTML-escape a window title for the rich-text tooltip (ported verbatim from the stock pager's
+ * sanitize()). Titles are arbitrary user/app strings, so `<`, `>`, `&`, quotes and the no-break
+ * space must be entity-encoded or they would corrupt the <ul><li> markup the formatter builds.
+ * Coerces non-strings (a transient null/undefined title) to "" so the caller never throws.
+ */
+function sanitizeHtml(input) {
+    var table = {
+        ">": "&gt;",
+        "<": "&lt;",
+        "&": "&amp;",
+        "'": "&apos;",
+        "\"": "&quot;",
+        "\u00a0": "&nbsp;"
+    };
+    return String(input === undefined || input === null ? "" : input).replace(/[<>&'"\u00a0]/g, function (c) {
+        return table[c];
+    });
+}
+
+/**
+ * Group a flat window list into per-desktop title lists, index-aligned with `desktopIds` (parallel
+ * to desktopNames). `windows` is the snapshot the QML aggregator materialises from TasksModel — each
+ * element { title, minimized, onAll, isWindow, desktops:[uuid…] }. For each desktop id it returns
+ * { visible: [title…], minimized: [title…] } in model order: a window belongs to a desktop when it
+ * is a real window AND (it is on all desktops OR its `desktops` list contains that id); minimized
+ * windows go in their own bucket (the stock pager lists them under a separate header). Titles are
+ * kept RAW — the i18n "Untitled" substitution and HTML escaping happen in main.qml's formatter (this
+ * stays pure/headless-testable). Guards the transient states: a null/empty `windows` still yields one
+ * empty entry per desktop, and a null/empty `desktopIds` (desktopIds can be [] for a frame —
+ * robustness.md) yields [].
+ */
+function groupWindowsByDesktop(windows, desktopIds) {
+    if (!desktopIds || desktopIds.length === 0)
+        return [];
+    var wins = windows || [];
+    var out = [];
+    for (var d = 0; d < desktopIds.length; d++) {
+        var uuid = desktopIds[d];
+        var visible = [];
+        var minimized = [];
+        for (var i = 0; i < wins.length; i++) {
+            var w = wins[i];
+            if (!w || !w.isWindow)
+                continue;
+            var here = w.onAll || (w.desktops && w.desktops.indexOf(uuid) !== -1);
+            if (!here)
+                continue;
+            if (w.minimized)
+                minimized.push(w.title);
+            else
+                visible.push(w.title);
+        }
+        out.push({ visible: visible, minimized: minimized });
+    }
+    return out;
 }
