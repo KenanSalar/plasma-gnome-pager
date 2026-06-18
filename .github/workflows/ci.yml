@@ -36,7 +36,7 @@ jobs:
           plasma-workspace
 
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # qmllint-qt6 over UI + config pages + tests; warnings are errors (project rule).
       - name: qmllint
