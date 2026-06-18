@@ -88,7 +88,7 @@ Kirigami.ScrollablePage {
             snapMode: QQC2.Slider.SnapAlways   // whole-pixel steps
             // 0 = auto: the widget falls back to the HiDPI-aware themed size.
             valueText: dotSize.value === 0 ? i18n("Default") : i18np("%1 px", "%1 px", Math.round(dotSize.value))
-            widestText: i18np("%1 px", "%1 px", 64)   // widest numeric read-out (to == 64)
+            widestText: i18np("%1 px", "%1 px", Math.round(dotSize.to))   // widest numeric read-out (tracks `to`)
             widestTextAlt: i18n("Default")            // 0 shows "Default"; reserve for whichever wins
         }
 
@@ -100,7 +100,7 @@ Kirigami.ScrollablePage {
             stepSize: 0.1
             snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 0.1 grid
             valueText: i18n("%1× dot", spacingFactor.value.toFixed(1))
-            widestText: i18n("%1× dot", "2.0")
+            widestText: i18n("%1× dot", spacingFactor.to.toFixed(1))   // widest read-out (tracks `to`)
         }
 
         ConfigSlider {
@@ -111,7 +111,7 @@ Kirigami.ScrollablePage {
             stepSize: 0.1
             snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 0.1 grid
             valueText: i18n("%1× dot", pillWidthFactor.value.toFixed(1))
-            widestText: i18n("%1× dot", "6.0")
+            widestText: i18n("%1× dot", pillWidthFactor.to.toFixed(1))   // widest read-out (tracks `to`)
         }
 
         ConfigSlider {
@@ -122,7 +122,7 @@ Kirigami.ScrollablePage {
             stepSize: 0.05
             snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 5% grid
             valueText: Math.round(inactiveOpacity.value * 100) + "%"
-            widestText: "100%"
+            widestText: Math.round(inactiveOpacity.to * 100) + "%"   // widest read-out (tracks `to`)
         }
 
         ConfigSlider {
@@ -133,7 +133,7 @@ Kirigami.ScrollablePage {
             stepSize: 0.05
             snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 5% grid
             valueText: Math.round(hoverOpacity.value * 100) + "%"
-            widestText: "100%"
+            widestText: Math.round(hoverOpacity.to * 100) + "%"   // widest read-out (tracks `to`)
         }
 
         Item {
