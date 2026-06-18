@@ -63,7 +63,7 @@ accurate REFLOW + morph model (each element morphs dot⇄capsule; uniform spacin
       Kirigami.Units (guard 0 when animations disabled). `animate` latch (Qt.callLater) →
       instant first placement (active is already a capsule on reload), morph later switches.
   [x] Active colour = Kirigami.Theme.highlightColor @ full opacity (theme-following by default)
-  [x] Size everything via Kirigami.Units (HiDPI); no hardcoded px (pillWidthFactor 2.5,
+  [x] Size everything via Kirigami.Units (HiDPI); no hardcoded px (pillWidthFactor 3.5,
       spacingFactor 0.5, inactiveOpacity 0.45, hoverOpacity 0.8 are dimensionless, M5-configurable);
       implicitWidth advertised via a stable formula (one capsule + dots) so the panel cell doesn't jitter.
 VERIFY: matches GNOME feel; capsule morphs smoothly on switch; uniform tight spacing; follows
