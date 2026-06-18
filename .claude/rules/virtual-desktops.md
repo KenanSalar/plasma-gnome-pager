@@ -31,6 +31,35 @@ Exposes (all reactive — bind to them, never cache):
 - It is part of `org.kde.taskmanager` (a public, compiled QML plugin shipped with
   plasma-workspace) — stable, this is what the stock pager reads too.
 
+### Per-screen current desktop (Plasma 6.7 "switch desktops independently for each screen")
+
+Plasma 6.7 (kwinrc `[Windows] PerOutputVirtualDesktops=true`) lets each **output** show a different
+current desktop. The desktop *set* (`desktopIds`/`desktopNames`/`numberOfDesktops`/`desktopLayoutRows`)
+is still global — only *which is current* can differ per screen. `VirtualDesktopInfo` exposes this
+(public, verified in `taskmanager.qmltypes`):
+
+| Member                                            | Kind            | Meaning                                        |
+|---------------------------------------------------|-----------------|------------------------------------------------|
+| `currentDesktopByScreenName(screenName) → QVariant` | method        | current-desktop UUID for that output           |
+| `currentDesktopByScreenGeometry(rect) → QVariant`   | method        | same, keyed by geometry                        |
+| `currentDesktopForScreenChanged(screenName)`        | signal        | one output's current changed                   |
+
+- **Get this widget's output name from the QtQuick `Screen` attached property** (`import QtQuick`;
+  `Screen.name`) — on Plasma Wayland it is the KWin connector name (e.g. `DP-1`), the same string the
+  per-screen API and `org.kde.KWin.activeOutputName` use. Read it from the on-screen item (the
+  representation), not a non-visual root.
+- **It is a METHOD + SIGNAL, not a notifying property** — a plain binding evaluates once and never
+  refreshes. Recompute imperatively on `currentDesktopForScreenChanged` (filtered to your screen) and
+  the global `currentDesktopChanged`/`desktopIdsChanged`; see the gotcha in CLAUDE.md.
+- **Degrade gracefully:** prefer the per-screen value, fall back to `currentDesktop` (global) when the
+  screen is unknown, the feature is off, or the API is missing (older Plasma — guard
+  `typeof vdi.currentDesktopByScreenName === "function"`). This auto-mirrors KWin, so add **no** widget
+  setting. The pure decision is `logic.js::resolveCurrentDesktop(perScreen, global)`.
+- **Writing is global-only.** There is **no** public DBus member that takes an output/screen argument
+  (introspect `org.kde.KWin /VirtualDesktopManager` — `current` is one global string). The switch
+  below sets that global `current`; with per-output on, KWin routes it to the **active** output, and
+  interacting with a pager makes its output active, so click/scroll switch the monitor you used.
+
 ## Window occupancy (optional) — TasksModel
 
 ```qml

@@ -190,6 +190,13 @@ VERIFY: every setting changes the widget immediately; settings persist across a
  MILESTONE 6 — Robustness hardening & edge cases                        [ ]
 -------------------------------------------------------------------------------
 Goal: never break — the whole reason for this project. (ref: robustness.md)
+  [x] Plasma 6.7 "switch desktops independently for each screen" (PerOutputVirtualDesktops):
+      each pager shows ITS monitor's current desktop, not the global one. WorkspaceIndicator reads
+      Screen.name (QtQuick) and vdi.currentDesktopByScreenName(name) (public, org.kde.taskmanager),
+      recomputed on currentDesktopForScreenChanged via Logic.resolveCurrentDesktop (per-screen else
+      global; typeof-guarded for older Plasma). No new setting (auto-mirrors KWin). Write stays the
+      global switch (no public per-output write; KWin routes it to the active output). Covered by
+      tst_logic + tst_workspaceindicator; read API verified live (DP-6 != DP-5). (ref: virtual-desktops.md)
   [ ] Audit imports: public only, versionless, zero org.kde.plasma.private.*
   [ ] Guard all desktopIds/currentDesktop access against transient empty/null
   [ ] Edge cases: exactly 1 desktop (hide add/remove of last), many desktops
