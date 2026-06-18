@@ -1,4 +1,4 @@
-name: CI
+name: PR Validation
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
 
 # One in-flight run per PR branch; a new push supersedes the old run.
 concurrency:
-  group: ci-${{ github.head_ref || github.ref }}
+  group: pr-validation-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 # Minimal posture — this job only reads the tree (no PR comments, no release writes).
