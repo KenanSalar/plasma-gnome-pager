@@ -18,7 +18,6 @@
  */
 import QtQuick
 import QtQuick.Controls as QQC2
-import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
 
@@ -75,71 +74,56 @@ Kirigami.ScrollablePage {
     ]
 
     Kirigami.FormLayout {
-        QQC2.SpinBox {
+        ConfigSlider {
             id: dotSize
-            Kirigami.FormData.label: i18n("Dot size:")
+            label: i18n("Dot size:")
             from: 0
             to: 64
             stepSize: 1
+            snapMode: QQC2.Slider.SnapAlways   // whole-pixel steps
             // 0 = auto: the widget falls back to the HiDPI-aware themed size.
-            textFromValue: (value) => value === 0 ? i18n("Default") : i18np("%1 px", "%1 px", value)
-            valueFromText: (text) => text === i18n("Default") ? 0 : parseInt(text)
+            valueText: dotSize.value === 0 ? i18n("Default") : i18np("%1 px", "%1 px", Math.round(dotSize.value))
+            widestText: i18n("Default")   // wider than any "NN px" value
         }
 
-        RowLayout {
-            Kirigami.FormData.label: i18n("Spacing:")
-            QQC2.Slider {
-                id: spacingFactor
-                Layout.fillWidth: true
-                from: 0.0
-                to: 2.0
-                stepSize: 0.1
-            }
-            QQC2.Label {
-                text: i18n("%1× dot", spacingFactor.value.toFixed(1))
-            }
+        ConfigSlider {
+            id: spacingFactor
+            label: i18n("Spacing:")
+            from: 0.0
+            to: 2.0
+            stepSize: 0.1
+            valueText: i18n("%1× dot", spacingFactor.value.toFixed(1))
+            widestText: i18n("%1× dot", "2.0")
         }
 
-        RowLayout {
-            Kirigami.FormData.label: i18n("Pill length:")
-            QQC2.Slider {
-                id: pillWidthFactor
-                Layout.fillWidth: true
-                from: 1.0
-                to: 4.0
-                stepSize: 0.1
-            }
-            QQC2.Label {
-                text: i18n("%1× dot", pillWidthFactor.value.toFixed(1))
-            }
+        ConfigSlider {
+            id: pillWidthFactor
+            label: i18n("Pill length:")
+            from: 1.0
+            to: 6.0
+            stepSize: 0.1
+            valueText: i18n("%1× dot", pillWidthFactor.value.toFixed(1))
+            widestText: i18n("%1× dot", "6.0")
         }
 
-        RowLayout {
-            Kirigami.FormData.label: i18n("Inactive opacity:")
-            QQC2.Slider {
-                id: inactiveOpacity
-                Layout.fillWidth: true
-                from: 0.0
-                to: 1.0
-                stepSize: 0.05
-            }
-            QQC2.Label {
-                text: Math.round(inactiveOpacity.value * 100) + "%"
-            }
+        ConfigSlider {
+            id: inactiveOpacity
+            label: i18n("Inactive opacity:")
+            from: 0.0
+            to: 1.0
+            stepSize: 0.05
+            valueText: Math.round(inactiveOpacity.value * 100) + "%"
+            widestText: "100%"
         }
 
-        RowLayout {
-            Kirigami.FormData.label: i18n("Hover opacity:")
-            QQC2.Slider {
-                id: hoverOpacity
-                Layout.fillWidth: true
-                from: 0.0
-                to: 1.0
-                stepSize: 0.05
-            }
-            QQC2.Label {
-                text: Math.round(hoverOpacity.value * 100) + "%"
-            }
+        ConfigSlider {
+            id: hoverOpacity
+            label: i18n("Hover opacity:")
+            from: 0.0
+            to: 1.0
+            stepSize: 0.05
+            valueText: Math.round(hoverOpacity.value * 100) + "%"
+            widestText: "100%"
         }
 
         Item {

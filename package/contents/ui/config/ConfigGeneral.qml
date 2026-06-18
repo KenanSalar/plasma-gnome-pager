@@ -82,15 +82,16 @@ Kirigami.ScrollablePage {
             text: i18n("Add and remove desktops from the right-click menu")
         }
 
-        QQC2.SpinBox {
+        ConfigSlider {
             id: animationDuration
-            Kirigami.FormData.label: i18n("Animation duration:")
+            label: i18n("Animation duration:")
             from: 0
             to: 2000
             stepSize: 50
+            snapMode: QQC2.Slider.SnapAlways   // clean 50 ms increments even when dragged
             // 0 = follow the theme's default (and the global "reduce animations" setting).
-            textFromValue: (value) => value === 0 ? i18n("Default") : i18np("%1 ms", "%1 ms", value)
-            valueFromText: (text) => text === i18n("Default") ? 0 : parseInt(text)
+            valueText: animationDuration.value === 0 ? i18n("Default") : i18np("%1 ms", "%1 ms", Math.round(animationDuration.value))
+            widestText: i18np("%1 ms", "%1 ms", 2000)
         }
     }
 }
