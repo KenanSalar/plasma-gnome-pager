@@ -241,6 +241,23 @@ VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes 
 
 
 -------------------------------------------------------------------------------
+ POST-M6 — Window-list tooltips (GNOME / stock-pager style)             [x] DONE
+-------------------------------------------------------------------------------
+  [x] Per-dot tooltip optionally lists the windows open on that desktop (subText), sourced from the
+      PUBLIC TaskManager.TasksModel (not the private PagerModel — robustness.md): main.qml runs one
+      unfiltered TasksModel + ActivityInfo behind a Loader (gated showTooltips && showWindowList),
+      groups windows per desktop in pure logic.js (groupWindowsByDesktop) and formats the rich-text
+      <ul> (windowListMaximum / sanitizeHtml) — a verbatim port of the stock pager's
+      generateWindowList / sanitize / updateSubTextIfNeeded. New config key showWindowList (default
+      on; greys out when tooltips off). Covered by tst_logic (windowListMaximum / sanitizeHtml /
+      groupWindowsByDesktop) + tst_workspacedot (subText / RichText / name-gate) +
+      tst_workspaceindicator (per-dot index alignment, short-array guard, across-lines).
+VERIFY: in-shell — hover dots with 1 / several / >5 / minimized / on-all-desktops windows; toggle
+        showWindowList off and confirm name-only tooltips. (main.qml's TasksModel wiring is not
+        headless-testable.)
+
+
+-------------------------------------------------------------------------------
  MILESTONE 7 — Packaging & release                                      [ ]
 -------------------------------------------------------------------------------
 Goal: shippable to GitHub + KDE Store.
@@ -257,8 +274,13 @@ VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
 -------------------------------------------------------------------------------
  BACKLOG / NICE-TO-HAVE (post-1.0, optional)
 -------------------------------------------------------------------------------
+  [ ] Click current desktop -> open KWin Overview/Desktop Grid effect
+  [ ] Optional occupied-desktop hint (subtle fill when windows present, via TasksModel)
+  [ ] Drag a window onto a dot to move it to that desktop (DnD)
   [ ] Per-desktop rename from the widget
   [ ] Configurable click action on current desktop (none / show desktop / overview)
+  [ ] Optional numbers/labels inside dots
+  [ ] Activities mode (switch Activities instead of Virtual Desktops)
   [ ] Translations (i18n catalogs) for shipped strings
   [ ] Cross-axis scale-to-fit: M6 scale-to-fit shrinks dots only along the MAJOR axis; a multi-row
       KWin grid (Rows > 1) with many desktops on a THIN panel can still exceed the cross thickness

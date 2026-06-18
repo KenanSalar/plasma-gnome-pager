@@ -425,7 +425,6 @@ bus), so it still relies on the manual in-shell loop below. New logic should com
 - To tell "applet didn't load" from "representation didn't render," log from the root
   `Component.onCompleted` (always runs if `main.qml` loads) vs the representation's `onCompleted`.
 
-  
-  ## User Conventions
+## User Conventions
 
 - Always call big files/objects/functions **'monolithic'** — no synonyms.
