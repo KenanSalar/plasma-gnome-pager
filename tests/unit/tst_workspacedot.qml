@@ -262,4 +262,37 @@ TestCase {
         const overridden = makeDot({ animationDuration: 250 });
         compare(overridden.effectiveDuration, 250, "a positive value overrides the themed default");
     }
+
+    // --- morph gating: the FIRST placement is instant, later switches animate -------
+    // morphEnabled (= animate && effectiveDuration > 0) is the single gate on the four morph
+    // Behaviors. Every other dot test runs with animate:false (the instant first-placement
+    // path, also the gate-off path), so these are the only cases that assert the gate value
+    // and the only ones that actually fire a Behavior.
+
+    // The gate combines the animate latch with the resolved duration: off until BOTH hold.
+    function test_morphGateReflectsAnimateAndDuration() {
+        const notLatched = makeDot({ animate: false, animationDuration: 200 });
+        compare(notLatched.morphEnabled, false, "gate is off before the animate latch (instant first placement)");
+
+        const latched = makeDot({ animate: true, animationDuration: 200 });
+        compare(latched.morphEnabled, true, "gate is on once latched with a positive duration");
+    }
+
+    // With the latch on, toggling `active` MORPHS the width over effectiveDuration rather than
+    // jumping — i.e. a Behavior fires. Contrast test_activeChangesAppearance (animate:false),
+    // where the same toggle changes width instantly. Guarded against a reduce-animations headless
+    // theme (longDuration == 0 → effectiveDuration 0 → morphEnabled false → no Behavior to observe).
+    function test_morphAnimatesWhenLatched() {
+        const dot = makeDot({ active: false, animate: true, animationDuration: 200 });
+        if (!dot.morphEnabled)
+            skip("animations disabled in this environment (reduce-animations / longDuration == 0)");
+
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.width, dot.dotSize, 0.5, "starts as a dot");
+
+        dot.active = true;   // morph dot → capsule
+        // Mid-morph on this tick: the Behavior eases from dotSize, so width has NOT jumped to pillWidth.
+        verify(circle.width < dot.pillWidth - 0.5, "width animates toward the capsule (no instant jump)");
+        tryCompare(circle, "width", dot.pillWidth, 2000, "the morph settles at the capsule width");
+    }
 }
