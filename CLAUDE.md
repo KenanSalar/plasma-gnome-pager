@@ -13,8 +13,9 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
-below). Scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, and the
-settings UI are built; remaining work is robustness hardening and packaging/release. The
+below). Scroll/hover, add/remove desktops, form-factor (vertical-panel) handling, the settings
+UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state guards)
+are built; the remaining work is packaging/release. The
 ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
 `.claude/rules/*` describe how the code is built, not the schedule.
 

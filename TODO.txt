@@ -226,8 +226,8 @@ Goal: never break — the whole reason for this project. (ref: robustness.md)
       object literals) that qmlformat's default would expand everywhere; the new code matches the
       surrounding style, so applying `qmlformat -i` would only add noise and was intentionally not run
       (qmllint is the safety net per robustness.md).
-  [ ] Re-test after a real plasmashell restart and (if possible) a Plasma point update — USER's manual
-      step (see DONE note); cannot be automated headless.
+  [x] Re-test after a real plasmashell restart and (if possible) a Plasma point update — USER's manual
+      step (see DONE note); cannot be automated headless. CONFIRMED working in-shell by the user.
 VERIFY: no QML errors/warnings in journalctl; survives shell reload; no crashes on
         desktop add/remove storms.
         DONE: make check (210 tests: +Logic fitDotSize fit/unbounded, +WorkspaceIndicator scale-to-fit
@@ -248,7 +248,7 @@ Goal: shippable to GitHub + KDE Store.
   [ ] Finalize README (features, screenshots/GIF, install, config)
   [ ] Bump Version in metadata.json; tag a release
   [ ] kpackagetool6 package check + clean install/upgrade/remove test
-  [ ] (optional) CI: run qmllint on push (GitHub Actions)
+  [ ] CI: run qmllint on push (GitHub Actions) / Implement a ci test run on pr to the "dev" branch that should run the full test suite
   [ ] Publish: GitHub repo (KenanSalar/plasma-gnome-pager) + KDE Store upload
 VERIFY: fresh `kpackagetool6 --install package` works on a clean profile; widget
         appears in Add Widgets with correct name/icon/description.
