@@ -50,8 +50,10 @@ Kirigami.ScrollablePage {
         || cfg_inactiveOpacity !== cfg_inactiveOpacityDefault
         || cfg_hoverOpacity !== cfg_hoverOpacityDefault
         || cfg_followThemeColors !== cfg_followThemeColorsDefault
-        || cfg_activeColor !== cfg_activeColorDefault
-        || cfg_inactiveColor !== cfg_inactiveColorDefault
+        // Colours are QColor-backed value types: strict !== compares wrapper identity, not the
+        // colour value (equal colours still read "different"), so use Qt.colorEqual (Qt docs).
+        || !Qt.colorEqual(cfg_activeColor, cfg_activeColorDefault)
+        || !Qt.colorEqual(cfg_inactiveColor, cfg_inactiveColorDefault)
 
     function resetDefaults() {
         cfg_dotSize = cfg_dotSizeDefault;
@@ -92,6 +94,7 @@ Kirigami.ScrollablePage {
             from: 0.0
             to: 2.0
             stepSize: 0.1
+            snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 0.1 grid
             valueText: i18n("%1× dot", spacingFactor.value.toFixed(1))
             widestText: i18n("%1× dot", "2.0")
         }
@@ -102,6 +105,7 @@ Kirigami.ScrollablePage {
             from: 1.0
             to: 6.0
             stepSize: 0.1
+            snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 0.1 grid
             valueText: i18n("%1× dot", pillWidthFactor.value.toFixed(1))
             widestText: i18n("%1× dot", "6.0")
         }
@@ -112,6 +116,7 @@ Kirigami.ScrollablePage {
             from: 0.0
             to: 1.0
             stepSize: 0.05
+            snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 5% grid
             valueText: Math.round(inactiveOpacity.value * 100) + "%"
             widestText: "100%"
         }
@@ -122,6 +127,7 @@ Kirigami.ScrollablePage {
             from: 0.0
             to: 1.0
             stepSize: 0.05
+            snapMode: QQC2.Slider.SnapAlways   // keep stored value on the displayed 5% grid
             valueText: Math.round(hoverOpacity.value * 100) + "%"
             widestText: "100%"
         }

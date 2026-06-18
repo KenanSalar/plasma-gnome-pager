@@ -30,6 +30,9 @@ RowLayout {
     property string label: ""        // the row's Kirigami.FormData label
     property string valueText: ""    // formatted read-out for the current value
     property string widestText: ""   // longest text valueText can be (reserves a stable width)
+    property string widestTextAlt: "" // a second widest candidate (e.g. a "Default" sentinel the
+                                       // read-out can also show); the reservation takes the wider
+                                       // of the two so the row never reflows whichever string wins
 
     Kirigami.FormData.label: root.label
 
@@ -43,13 +46,19 @@ RowLayout {
         text: root.valueText
         horizontalAlignment: Text.AlignRight
         // Pin to the widest text (+ a buffer) so the cell never resizes as the value changes.
-        Layout.minimumWidth: valueMetrics.advanceWidth + Kirigami.Units.smallSpacing
+        // widestTextAlt is "" unless set, so its metric is 0 and Math.max is a no-op by default.
+        Layout.minimumWidth: Math.max(valueMetrics.advanceWidth, valueMetricsAlt.advanceWidth) + Kirigami.Units.smallSpacing
         Layout.preferredWidth: Layout.minimumWidth
 
         TextMetrics {
             id: valueMetrics
             font: valueLabel.font
             text: root.widestText
+        }
+        TextMetrics {
+            id: valueMetricsAlt
+            font: valueLabel.font
+            text: root.widestTextAlt
         }
     }
 }
