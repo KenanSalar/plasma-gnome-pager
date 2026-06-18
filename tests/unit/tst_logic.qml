@@ -253,10 +253,12 @@ TestCase {
     }
 
     // DEFAULTS is shared (.pragma library) and must stay immutable — a stray write would corrupt
-    // every importer for the session. Object.freeze makes the assignment a silent no-op.
+    // every importer for the session. Object.freeze makes the assignment a no-op (silent in
+    // non-strict JS, a TypeError under "use strict"); tolerate either so the test asserts the
+    // value stays put, not which JS mode the engine happens to run.
     function test_defaultsAreFrozen() {
         verify(Object.isFrozen(Logic.DEFAULTS), "Logic.DEFAULTS must be frozen");
-        Logic.DEFAULTS.dotSize = 999;
+        try { Logic.DEFAULTS.dotSize = 999; } catch (e) { /* strict-mode TypeError is expected */ }
         compare(Logic.DEFAULTS.dotSize, 0, "a frozen DEFAULTS ignores writes");
     }
 }
