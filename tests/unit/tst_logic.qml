@@ -283,6 +283,25 @@ TestCase {
         compare(Logic.windowListMaximum(data.count), data.exp, data.tag);
     }
 
+    // --- toStringOrEmpty: null/undefined -> "", everything else through String() -------
+    // Shared by the sanitize* functions: only null/undefined map to "" — 0/false stringify
+    // ("0"/"false"), they are NOT collapsed to the empty string.
+    function test_toStringOrEmpty_data() {
+        return [
+            { tag: "string", input: "hi", exp: "hi" },
+            { tag: "empty-string-kept", input: "", exp: "" },
+            { tag: "null", input: null, exp: "" },
+            { tag: "undefined", input: undefined, exp: "" },
+            { tag: "zero", input: 0, exp: "0" },
+            { tag: "number", input: 42, exp: "42" },
+            { tag: "false", input: false, exp: "false" },
+            { tag: "true", input: true, exp: "true" }
+        ];
+    }
+    function test_toStringOrEmpty(data) {
+        compare(Logic.toStringOrEmpty(data.input), data.exp, data.tag);
+    }
+
     // --- sanitizeHtml: entity-escape titles for the rich-text tooltip ------------------
     // Escapes the markup-sensitive chars and the no-break space ( ) — but NOT the ordinary
     // space (it must still wrap). Non-strings coerce to "" so the caller never throws.
@@ -328,6 +347,28 @@ TestCase {
     function test_sanitizeDesktopNameCapsLength() {
         var long = "x".repeat(150);
         compare(Logic.sanitizeDesktopName(long).length, 100, "over-max-truncated-to-100");
+    }
+
+    // --- windowIsOnDesktop: per-window membership predicate (used by groupWindowsByDesktop) ----
+    // True for a real window that is onAll or whose `desktops` list holds the uuid; false for a
+    // non-window, a miss, a missing `desktops`, or a null window. Returns a strict boolean.
+    function test_windowIsOnDesktop_data() {
+        const win = function (opts) {
+            opts = opts || {};
+            return { isWindow: opts.isWindow !== false, onAll: opts.onAll === true, desktops: opts.desktops };
+        };
+        return [
+            { tag: "on-all", window: win({ onAll: true }), uuid: "a", exp: true },
+            { tag: "on-all-ignores-desktops", window: win({ onAll: true, desktops: ["b"] }), uuid: "a", exp: true },
+            { tag: "desktops-match", window: win({ desktops: ["a", "b"] }), uuid: "a", exp: true },
+            { tag: "desktops-miss", window: win({ desktops: ["b"] }), uuid: "a", exp: false },
+            { tag: "desktops-undefined", window: win({}), uuid: "a", exp: false },
+            { tag: "non-window-excluded", window: win({ isWindow: false, desktops: ["a"] }), uuid: "a", exp: false },
+            { tag: "null-window", window: null, uuid: "a", exp: false }
+        ];
+    }
+    function test_windowIsOnDesktop(data) {
+        compare(Logic.windowIsOnDesktop(data.window, data.uuid), data.exp, data.tag);
     }
 
     // --- groupWindowsByDesktop: per-desktop visible/minimized title lists --------------

@@ -23,6 +23,7 @@ import QtQuick.Layouts
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
+import "../../package/contents/ui/logic.js" as Logic   // lineExtent — the one strip-length formula
 import "../shared"                          // VdiMock.qml (the shared VirtualDesktopInfo double)
 import "../shared/treewalk.js" as TreeWalk
 import "../shared/elements.js" as Elements
@@ -111,6 +112,18 @@ TestCase {
     // Used by the colour flow-through test.
     function circleOf(dot) {
         return Elements.circleOf(dot);
+    }
+
+    // The trailing edge of the last (highest-globalIndex) dot, mapped into the indicator, must land
+    // within the allocation on the named axis — the scale-to-fit invariant (never overflow). `axis`
+    // is explicit ("x" or "y"), NOT derived from `vertical`: the cross-fit tests constrain the axis
+    // OPPOSITE the strip orientation, so the caller names the constrained axis directly.
+    function lastElementFits(indicator, axis) {
+        const dots = dotsByIndex(indicator);
+        const last = dots[dots.length - 1];
+        return axis === "y"
+            ? last.mapToItem(indicator, 0, last.height).y <= indicator.height + 0.5
+            : last.mapToItem(indicator, last.width, 0).x <= indicator.width + 0.5;
     }
 
     // One dot per desktop UUID in the source.
@@ -211,7 +224,7 @@ TestCase {
         const dots = collectDots(indicator);
         for (let i = 0; i < dots.length; i++)
             fuzzyCompare(dots[i].width, indicator.dotSize, 0.5, "no capsule while stale: " + dots[i].modelData);
-        const steady = indicator.pillWidth + (ids.length - 1) * (indicator.dotSize + indicator.dotSpacing);
+        const steady = Logic.lineExtent(ids.length, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
         fuzzyCompare(indicator.implicitWidth, steady, 0.5, "cell stays at the steady-state width");
     }
 
@@ -670,7 +683,7 @@ TestCase {
     function test_verticalImplicitCrossAxis() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "vertical strip is one dot wide");
-        const steady = indicator.pillWidth + (ids.length - 1) * (indicator.dotSize + indicator.dotSpacing);
+        const steady = Logic.lineExtent(ids.length, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
         fuzzyCompare(indicator.implicitHeight, steady, 0.5, "vertical strip length is the steady-state formula");
     }
 
@@ -767,8 +780,9 @@ TestCase {
     // left free to fill the panel thickness.
     function test_gridSizingTwoRows() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
-        const major = indicator.pillWidth + (indicator.perLine - 1) * (indicator.dotSize + indicator.dotSpacing);
-        const cross = indicator.lineCount * indicator.dotSize + (indicator.lineCount - 1) * indicator.dotSpacing;
+        const major = Logic.lineExtent(indicator.perLine, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
+        // Cross thickness has no capsule (every line is one dot thick) → activeExtent == dotSize.
+        const cross = Logic.lineExtent(indicator.lineCount, indicator.dotSize, indicator.dotSpacing, indicator.dotSize);
         fuzzyCompare(indicator.implicitWidth, major, 0.5, "width is one line long");
         fuzzyCompare(indicator.implicitHeight, cross, 0.5, "height carries both lines");
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "major (width) axis is pinned");
@@ -1076,11 +1090,7 @@ TestCase {
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
         fuzzyCompare(dotByUuid(indicator, sixIds[1]).dotSize, indicator.dotSize, 0.5, "each dot uses the effective size");
         // tryVerify: the rendered dot widths morph (Behavior on width), so wait for the reflow to settle.
-        tryVerify(() => {
-            const dots = dotsByIndex(indicator);
-            const last = dots[dots.length - 1];
-            return last.mapToItem(indicator, last.width, 0).x <= indicator.width + 0.5;
-        }, 2000, "the shrunken line fits the allocated width");
+        tryVerify(() => lastElementFits(indicator, "x"), 2000, "the shrunken line fits the allocated width");
     }
 
     // With ample room the size is unchanged: effective == natural, the look is byte-for-byte as today.
@@ -1097,11 +1107,7 @@ TestCase {
         indicator.height = indicator.naturalStripLength * 0.6;
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "vertical effective dot shrank");
         // tryVerify: the rendered dot heights morph (Behavior on height), so wait for the reflow to settle.
-        tryVerify(() => {
-            const dots = dotsByIndex(indicator);
-            const last = dots[dots.length - 1];
-            return last.mapToItem(indicator, 0, last.height).y <= indicator.height + 0.5;
-        }, 2000, "the shrunken column fits the allocated height");
+        tryVerify(() => lastElementFits(indicator, "y"), 2000, "the shrunken column fits the allocated height");
     }
 
     // CROSS-axis scale-to-fit: a multi-row KWin grid (4 rows) on a THIN horizontal panel. The major
@@ -1117,11 +1123,7 @@ TestCase {
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
         // tryVerify: the rendered dot sizes morph, so wait for the reflow to settle; the last line (highest
         // globalIndex) sits in the bottom row, so its bottom must land within the allocated thickness.
-        tryVerify(() => {
-            const dots = dotsByIndex(indicator);
-            const last = dots[dots.length - 1];
-            return last.mapToItem(indicator, 0, last.height).y <= indicator.height + 0.5;
-        }, 2000, "the shrunken grid fits the allocated cross thickness");
+        tryVerify(() => lastElementFits(indicator, "y"), 2000, "the shrunken grid fits the allocated cross thickness");
     }
 
     // With ample thickness the multi-row grid is unchanged: the cross fit exceeds natural, so the caller
@@ -1141,11 +1143,7 @@ TestCase {
         indicator.width = indicator.naturalCrossThickness * 0.6;         // side panel thinner than the stacked lines need
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "cross-fit shrank the dot below natural (vertical)");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
-        tryVerify(() => {
-            const dots = dotsByIndex(indicator);
-            const last = dots[dots.length - 1];
-            return last.mapToItem(indicator, last.width, 0).x <= indicator.width + 0.5;
-        }, 2000, "the shrunken grid fits the allocated cross thickness (width)");
+        tryVerify(() => lastElementFits(indicator, "x"), 2000, "the shrunken grid fits the allocated cross thickness (width)");
     }
 
     // robustness.md: an empty desktopIds ARRAY (distinct from a null source) during a transient
@@ -1166,7 +1164,7 @@ TestCase {
         compare(collectDots(indicator).length, 20, "all 20 dots render");
         compare(indicator.activeIndex, 0, "the first desktop is active");
         const nd = indicator.naturalDotSize;
-        const expected = nd * indicator.pillWidthFactor + (20 - 1) * (nd + nd * indicator.spacingFactor);
+        const expected = Logic.lineExtent(20, nd, nd * indicator.spacingFactor, nd * indicator.pillWidthFactor);
         fuzzyCompare(indicator.naturalStripLength, expected, 0.5, "natural strip length matches the formula for 20 desktops");
     }
 
