@@ -199,16 +199,31 @@ with the schema:
   (Behavior, Appearance).
 - `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),
   two-way bound via `property alias cfg_<key>: control.value` where `<key>` matches the `main.xml`
-  entry exactly. Built with `Kirigami.FormLayout` + `QtQuick.Controls as QQC2` (real-valued ratios
-  use `QQC2.Slider`, not the integer-only `SpinBox`); the colour pickers are
-  `org.kde.kquickcontrols` `ColorButton` — a public module that is NOT on robustness.md's allowlist
-  but is acceptable here **only because a config page is lazy-loaded** (instantiated by the settings
-  dialog, never by the always-on widget), so a break there cannot kill the running pager. The config
-  pages + `config.qml` are **e2e-only** (the dialog needs `org.kde.plasma.configuration`), so they
-  are not in the headless test harness — `make lint` covers them, but verify behaviour in-shell.
+  entry exactly. Each page's root is a `Kirigami.ScrollablePage` (on robustness.md's allowlist; the
+  stock `KCM.SimpleKCM` is just a subclass) so the dialog renders the standard KDE title header +
+  spacing + scrolling. Every numeric metric (sizes, ratios, opacities, duration — including the
+  integer keys) uses the shared `ConfigSlider.qml`; only the colours use `org.kde.kquickcontrols`
+  `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
+  **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
+  always-on widget), so a break there cannot kill the running pager. The config pages + `config.qml`
+  are **e2e-only** (the dialog needs `org.kde.plasma.configuration`), so they are not in the headless
+  test harness — `make lint` covers them, but verify behaviour in-shell.
+- **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
+  **no** Defaults button. Each page adds one as a header `Kirigami.Action` that resets every
+  `cfg_<key>` to its `cfg_<key>Default` (a property the dialog injects from the schema default —
+  declared on the page with no initializer so `main.xml` stays the single source of truth), gated by
+  an `isModified` check.
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
+
+> **Gotcha — reserve a config slider's value-label width or the slider jitters.** A slider in a
+> `RowLayout` with a `Layout.fillWidth` track plus a value read-out `Label` makes the track/handle
+> appear to jump while dragging, because the label's implicit width changes with the value
+> (`"45%" → "100%"`, and even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font),
+> reflowing the row. `ConfigSlider.qml` fixes this by pinning the label's width (via `TextMetrics`)
+> to its widest possible text (`widestText`) + a small buffer — every labelled slider must go through
+> it and set `widestText` to the longest string the read-out can show.
 
 > **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
 > fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`

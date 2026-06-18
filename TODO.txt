@@ -161,11 +161,15 @@ headless-testable. Config flow unchanged: main.xml -> main.qml (?? default) -> i
       pillWidthFactor, inactiveOpacity, hoverOpacity, followThemeColors, activeColor, inactiveColor)
       + added contents/config/config.qml (Behavior + Appearance categories)
   [x] ConfigGeneral.qml (Behavior): enableScroll, scrollWrap, enableAddRemove,
-      showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases (SpinBox shows 0 = "Default")
-  [x] ConfigAppearance.qml (Appearance): dotSize (SpinBox, 0 = "Default"), spacingFactor /
-      pillWidthFactor / inactiveOpacity / hoverOpacity (QQC2.Slider — real value — + read-out Label),
-      followThemeColors, activeColor, inactiveColor (org.kde.kquickcontrols ColorButton; config page
-      is lazy-loaded so the import can't affect the always-on widget — robustness.md)
+      showTooltips, animationDuration — QQC2 controls + cfg_<key> aliases (animationDuration is a
+      Slider snapped to 50 ms, with a "Default"/"N ms" read-out Label; 0 = "Default")
+  [x] ConfigAppearance.qml (Appearance): dotSize / spacingFactor / pillWidthFactor /
+      inactiveOpacity / hoverOpacity, followThemeColors, activeColor, inactiveColor
+      (org.kde.kquickcontrols ColorButton; config page is lazy-loaded so the import can't affect the
+      always-on widget — robustness.md). All numeric metrics use a shared ConfigSlider.qml (Slider +
+      a fixed-width read-out Label: the label width is reserved for its widest text so the value
+      changing width can't reflow the row and make the slider track/handle jump while dragging).
+      dotSize 0 = "Default" (auto/HiDPI); ratios show "N.N× dot" / "NN%".
   [x] Widget reads every key live from plasmoid.configuration.* (each ?? <default>), passed down
       as plain values; the new appearance/colour/duration props forward indicator -> dot
   [x] followThemeColors=false -> Logic.dotColor uses activeColor/inactiveColor; true -> Kirigami.Theme
