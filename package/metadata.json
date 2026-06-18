@@ -17,6 +17,8 @@
         "Description[pt]": "Um comutador de áreas de trabalho virtuais ao estilo do GNOME: pontos com uma pílula no espaço de trabalho atual.",
         "Description[pt_BR]": "Um alternador de áreas de trabalho virtuais no estilo do GNOME: pontos com uma pílula no espaço de trabalho atual.",
         "Description[ar]": "مبدّل أسطح المكتب الافتراضية بنمط GNOME: نقاط مع كبسولة على مساحة العمل الحالية.",
+        "Description[zh_CN]": "GNOME 风格的虚拟桌面切换器：用圆点表示桌面，当前工作区显示为胶囊。",
+        "Description[ru]": "Переключатель виртуальных рабочих столов в стиле GNOME: точки с капсулой на текущем рабочем пространстве.",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
         "Version": "0.1.0",
