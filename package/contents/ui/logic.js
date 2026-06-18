@@ -16,12 +16,14 @@
 .pragma library
 
 /**
- * Single source of truth for the QML-side config defaults. Each value mirrors the matching
+ * Single source of truth for the QML-side config defaults. Each config key mirrors the matching
  * contents/config/main.xml <default> and is the fallback the QML uses when a key reads back
  * `undefined` (a freshly-added schema, a removed/re-added widget). Referenced by main.qml's
  * `?? Logic.DEFAULTS.<key>` guards and by the WorkspaceIndicator/WorkspaceDot property defaults,
  * so the same literal is no longer written three times and cannot drift between them. main.xml
- * stays the SCHEMA source; this is the QML mirror. The theme/HiDPI-derived render fallbacks
+ * stays the SCHEMA source; this is the QML mirror. (`wheelNotchDelta` is the one exception — a
+ * shared non-config constant with NO main.xml entry, kept here alongside the other shared values;
+ * WorkspaceIndicator reads it via Logic.DEFAULTS.) The theme/HiDPI-derived render fallbacks
  * (dotSize → Kirigami.Units, the theme colours) are NOT here — they are intentionally different
  * from the hex schema defaults and live in the components. `Object.freeze` keeps this one shared
  * (.pragma library) instance immutable. `dotSize`/`animationDuration` 0 are the "auto" sentinels.
@@ -42,7 +44,7 @@ var DEFAULTS = Object.freeze({
     followThemeColors: true,
     activeColor: "#3daee9",      // Breeze highlight; used only when followThemeColors is false
     inactiveColor: "#eff0f1",    // Breeze text; used only when followThemeColors is false
-    // Interaction
+    // Interaction (non-config shared constant; no main.xml entry)
     wheelNotchDelta: 120         // QWheelEvent angleDelta units per mouse notch
 });
 
