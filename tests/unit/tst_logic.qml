@@ -112,7 +112,14 @@ TestCase {
             { tag: "touchpad-sub-notch", acc: 0, d: 40, t: 120, steps: 0, rem: 40 },
             { tag: "overshoot-carries-remainder", acc: 0, d: 200, t: 120, steps: 1, rem: 80 },
             { tag: "double-notch", acc: 0, d: 240, t: 120, steps: 2, rem: 0 },
-            { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 }
+            { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 },
+
+            // negative deltas (wheel up / upward touchpad): (total / t) | 0 truncates TOWARD
+            // zero, so the step and the carried remainder are both negative — the path the
+            // indicator relies on for upward scroll (only positive overshoot was covered before).
+            { tag: "negative-overshoot-carries", acc: 0, d: -200, t: 120, steps: -1, rem: -80 },
+            { tag: "negative-double-notch", acc: 0, d: -240, t: 120, steps: -2, rem: 0 },
+            { tag: "negative-remainder-feeds-back", acc: -80, d: -60, t: 120, steps: -1, rem: -20 }
         ];
     }
     function test_accumulateWheel(data) {

@@ -893,4 +893,138 @@ TestCase {
         compare(dot.animationDuration, 250, "dot gets the configured duration");
         compare(dot.effectiveDuration, 250, "dot resolves it to effectiveDuration");
     }
+
+    // --- Per-screen current: re-resolution paths beyond the initial placement ------
+    // The per-screen tests above set screenName at creation. These exercise the two Connections
+    // that re-resolve a LIVE indicator: onScreenNameChanged (the panel moved to another output)
+    // and onDesktopIdsChanged (a desktop the screen was on got removed and KWin reassigned it).
+
+    // The panel is dragged to another monitor: screenName changes on a live indicator, so the
+    // current must re-resolve to the new output's per-screen current (exercises onScreenNameChanged).
+    function test_perScreenReactiveToScreenNameChange() {
+        const vdi = makeMock(ids, ids[0]);
+        vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
+        const indicator = makeIndicator(vdi, { screenName: "DP-1" });
+        verify(dotByUuid(indicator, ids[0]).active, "starts on DP-1's current (uuid-a)");
+
+        indicator.screenName = "DP-2";   // the widget's panel moved to the other monitor
+
+        compare(indicator.currentDesktop, ids[2], "current re-resolves to the new screen's current");
+        verify(dotByUuid(indicator, ids[2]).active, "the active dot follows the new output");
+        verify(!dotByUuid(indicator, ids[0]).active, "the old output's dot deactivates");
+    }
+
+    // A desktop add/remove can change THIS screen's current; onDesktopIdsChanged must re-resolve
+    // the per-screen current (the existing add/remove tests use a global-current mock).
+    function test_perScreenReResolvesOnDesktopRemoval() {
+        const vdi = makeMock(ids, ids[0]);
+        vdi.perScreenCurrent = { "DP-2": ids[2] };
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+        verify(dotByUuid(indicator, ids[2]).active, "starts on this screen's current (uuid-c)");
+
+        // uuid-c is removed; KWin moves this screen to uuid-b. Update the per-screen map first, then
+        // shrink desktopIds — the ids change fires onDesktopIdsChanged, which re-resolves the current.
+        vdi.perScreenCurrent = { "DP-2": ids[1] };
+        vdi.desktopIds = [ids[0], ids[1]];
+
+        tryCompare(indicator, "currentDesktop", ids[1], 2000, "re-resolves this screen's current after the removal");
+        verify(dotByUuid(indicator, ids[1]).active, "the surviving per-screen current is the active dot");
+        verify(!dotByUuid(indicator, ids[2]), "the removed desktop's dot is gone");
+    }
+
+    // --- Scroll edge: no active element, and remainder sign across events -----------
+
+    // Scrolling while the current desktop is stale (activeIndex == -1, a transient add/remove
+    // state) is a no-op — stepIndex returns -1, so handleWheel emits nothing. Covers the
+    // next<0 guard via both the handler and a real wheel event.
+    function test_scrollWhileStaleIsNoOp() {
+        const indicator = makeIndicator(makeMock(ids, staleUuid), { enableScroll: true, width: 200, height: 50 });
+        compare(indicator.activeIndex, -1, "stale current → no active element");
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 0, "handler scroll is a no-op with no active element");
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);
+        compare(switchSpy.count, 0, "a real wheel event is a no-op too");
+    }
+
+    // Negative (wheel-up) remainder persists in wheelAccumulator across events with the right sign:
+    // a -200 delta steps once and carries -80, so a following -40 completes the next notch. If the
+    // remainder were dropped (reset to 0), the -40 would be sub-notch and never switch.
+    function test_wheelAccumulatorCarriesNegativeRemainder() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-200);
+        compare(switchSpy.count, 1, "one notch out of -200");
+        compare(switchSpy.signalArguments[0][0], ids[2], "first step moves to the next desktop");
+        fuzzyCompare(indicator.wheelAccumulator, -80, 0.001, "the -80 remainder is carried, not dropped");
+
+        indicator.handleWheel(-40);   // -80 + -40 = -120 → exactly one more notch
+        compare(switchSpy.count, 2, "the carried remainder completes a second notch");
+    }
+
+    // --- desktopRows clamp guard ---------------------------------------------------
+
+    // The indicator clamps a transient 0/undefined desktopLayoutRows to a single line (its own
+    // ternary, separate from Logic.gridColumns). makeMock's `|| 1` default hides a literal 0, so
+    // set it post-construction.
+    function test_gridRowsClampGuard() {
+        const vdi = makeMock(fourIds, fourIds[0]);   // defaults to 1 row
+        const indicator = makeIndicator(vdi);
+        vdi.desktopLayoutRows = 0;                   // transient/invalid value from KWin
+
+        compare(indicator.desktopRows, 1, "a 0 row count clamps to a single line");
+        compare(indicator.lineCount, 1, "everything stays on one line");
+        compare(indicator.perLine, fourIds.length, "the single line holds all desktops");
+    }
+
+    // --- Hover passes through the wheel layer (composed strip) ---------------------
+
+    // The behind-dots wheelArea (NoButton, no hover) must not swallow hover: hovering an inactive
+    // dot in the REAL composition brightens it to hoverOpacity. This is the hover analogue of
+    // test_wheelLayerDoesNotBlockClicks (hover is only otherwise tested on a standalone dot).
+    function test_hoverBrightensDotInComposedStrip() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        const dot = dotByUuid(indicator, ids[0]);   // inactive (current is uuid-b)
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.opacity, indicator.inactiveOpacity, 0.001, "inactive dot starts dim");
+
+        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        mouseMove(indicator, c.x, c.y);
+        tryCompare(circle, "opacity", indicator.hoverOpacity, 2000, "hover brightens through the wheel layer");
+
+        mouseMove(indicator, -5, -5);   // pointer leaves the strip
+        tryCompare(circle, "opacity", indicator.inactiveOpacity, 2000, "returns to dim when not hovered");
+    }
+
+    // --- The animate latch gates each dot's morph ----------------------------------
+
+    // The indicator's animate latch + the configured duration resolve into each dot's morphEnabled
+    // gate (animate && effectiveDuration > 0). Wiring check: with a valid start the latch is on,
+    // and every dot's gate matches the resolved relationship (true unless animations are disabled).
+    function test_morphGateFlowsThroughToDots() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { animationDuration: 200 });
+        compare(indicator.animate, true, "latch is on for a valid initial placement");
+        const dots = collectDots(indicator);
+        for (let i = 0; i < dots.length; i++)
+            compare(dots[i].morphEnabled, indicator.animate && dots[i].effectiveDuration > 0,
+                    "dot " + i + " morph gate matches latch && duration");
+    }
+
+    // The animate latch's immediate-placement check runs AFTER the per-screen current is resolved
+    // in Component.onCompleted: created already on this screen's per-screen current, that element is
+    // a capsule on the first frame (no grow-in) — the per-screen variant of test_firstPlacementIsImmediate.
+    function test_firstPlacementImmediatePerScreen() {
+        const vdi = makeMock(ids, ids[0]);              // global current is uuid-a
+        vdi.perScreenCurrent = { "DP-2": ids[2] };      // but THIS screen is on uuid-c
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+        compare(indicator.currentDesktop, ids[2], "onCompleted resolved the per-screen current");
+        compare(indicator.animate, true, "the latch is on after a valid per-screen placement");
+        fuzzyCompare(dotByUuid(indicator, ids[2]).width, indicator.pillWidth, 0.5,
+                     "this screen's current is already a capsule on the first frame");
+    }
 }
