@@ -33,8 +33,10 @@ the same widget, transposed:
   `Kirigami.Units` (HiDPI-correct on fractional scaling).
 - **Reflow / morph pill** — the active desktop's dot morphs in place into a wider highlighted
   capsule; the strip reflows around it (no overlay), so the pill-to-dot gap matches the
-  dot-to-dot gap for the signature GNOME look. The first placement is instant (no grow-in on
-  shell reload); later switches animate, and motion respects the "reduce animations" setting.
+  dot-to-dot gap for the signature GNOME look. The pill's thickness can be sized independently
+  of the dots (`pillSize`, `0` = match dots), so a thick pill can sit over thin dots or vice
+  versa. The first placement is instant (no grow-in on shell reload); later switches animate,
+  and motion respects the "reduce animations" setting.
 - **Reactive** — bound to `VirtualDesktopInfo`, so switches made from the keyboard, another
   pager, or KWin settings update the widget immediately (state is never cached).
 - **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
@@ -44,6 +46,8 @@ the same widget, transposed:
   (sourced from the public `TasksModel`).
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
+- **Accessible** — each dot is exposed as a named, pressable button (`Accessible.role` / `name` /
+  press action), so screen readers (Orca) announce each desktop and can activate it.
 - **Works everywhere a pager goes** — **a vertical side panel behaves identically to a
   horizontal one** (the row of dots becomes a column and the pill grows vertically), plus a
   multi-row grid that mirrors KWin's "Rows" setting live. On a thin or crowded panel the dots
