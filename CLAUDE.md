@@ -16,9 +16,9 @@ and switches on click; the active dot morphs into a wider highlight "pill" (the 
 below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
 the windows open on that desktop), add/remove desktops, form-factor (vertical-panel) handling, the
 settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
-guards) are built; the remaining work is packaging/release. The
-ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
-`.claude/rules/*` describe how the code is built, not the schedule.
+guards) are built; the remaining work is packaging/release. This file and
+`.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
+history lives in git history and the GitHub Releases).
 
 ## The rules are the law — read them first
 
@@ -460,8 +460,7 @@ by a `QtObject` mock standing in for `VirtualDesktopInfo`). Run a single tier wi
 `main.qml`/`PlasmoidItem` is **not** testable headless (it needs plasmashell + KWin + a session
 bus), so it still relies on the manual in-shell loop below. New logic should come with a test
 (see `tests/README.md`); when branching logic is added, extract it into a pure-JS tier
-(`logic.js` + `tests/unit/tst_logic.qml`) that needs no Plasma deps. The verification loop
-(also in `TODO.txt`) is:
+(`logic.js` + `tests/unit/tst_logic.qml`) that needs no Plasma deps. The verification loop is:
 
 1. `make check` — all tiers green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
 2. `make lint` (`qmllint-qt6 …`) clean — **zero warnings**. The `i18n*`/`Plasmoid`

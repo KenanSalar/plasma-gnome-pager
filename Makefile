@@ -3,8 +3,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 PLASMOID_ID := com.github.kenansalar.plasma-gnome-pager
-VERSION     := 1.0.0
 PKG_DIR     := package
+# Single source of truth for the version: read KPlugin.Version straight from metadata.json so the
+# tag the publish workflow cuts (v<Version>) and the .plasmoid filename can never drift apart. The
+# literal "Version" matches only the KPlugin.Version line (NOT "X-Plasma-API-Minimum-Version"); no
+# jq dependency needed. Override on the command line when required: `make package VERSION=1.2.3`.
+VERSION     := $(shell sed -n 's/.*"Version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' $(PKG_DIR)/metadata.json | head -n1)
 PLASMOID_DIR := $(HOME)/.local/share/plasma/plasmoids/$(PLASMOID_ID)
 TESTS_DIR   := $(CURDIR)/tests
 # Headless QML test runner: offscreen QPA lets Kirigami initialise without a display; -input
