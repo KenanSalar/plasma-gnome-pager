@@ -111,7 +111,7 @@ ConfigPageBase {
             id: pillWidthFactor
             label: i18n("Pill length:")
             from: 1.0
-            to: 6.0
+            to: 10.0
             stepSize: 0.1
             // Length as a multiple of the PILL thickness (its aspect ratio), not the dot size.
             format: v => i18n("%1× pill", v.toFixed(1))
@@ -122,7 +122,7 @@ ConfigPageBase {
             label: i18n("Inactive opacity:")
             from: 0.0
             to: 1.0
-            stepSize: 0.05
+            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
             format: v => Math.round(v * 100) + "%"
         }
 
@@ -131,7 +131,7 @@ ConfigPageBase {
             label: i18n("Hover opacity:")
             from: 0.0
             to: 1.0
-            stepSize: 0.05
+            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
             format: v => Math.round(v * 100) + "%"
         }
 

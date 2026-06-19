@@ -41,7 +41,14 @@ RowLayout {
 
     QQC2.Slider {
         id: slider
-        Layout.fillWidth: true
+        // Fixed track length (NOT fillWidth) so every slider is identical across BOTH config pages.
+        // The Behavior page's long checkbox labels stretch its FormLayout field column wider than the
+        // slider-only Appearance page; a fillWidth track would follow that and render longer there.
+        // Pinning the width keeps the two pages matched. A long track also makes precise dragging and
+        // arrow-key stepping (focus the slider, then ←/→ moves by stepSize) easy. min == preferred so
+        // it can't shrink below this; any extra column width is absorbed by the value label (below).
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 18
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 18
         snapMode: QQC2.Slider.SnapAlways   // clean increments even when dragged (override via alias)
     }
 
@@ -49,6 +56,10 @@ RowLayout {
         id: valueLabel
         text: root.format(slider.value)
         horizontalAlignment: Text.AlignRight
+        // fillWidth so a field column made wider by a sibling row (a long checkbox on the Behavior
+        // page) is absorbed here — the right-aligned read-out stays pinned to the column's right edge
+        // and the fixed-width slider keeps its length — rather than stretching the slider.
+        Layout.fillWidth: true
         // Reserve the widest the read-out can get (+ a buffer) so the cell never resizes mid-drag.
         Layout.minimumWidth: Math.max(valueMetricsFrom.advanceWidth, valueMetricsTo.advanceWidth) + Kirigami.Units.smallSpacing
         Layout.preferredWidth: Layout.minimumWidth
