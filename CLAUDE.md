@@ -422,18 +422,24 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
 
-> **Gotcha — reserve a config slider's value-label width or the slider jitters.** A slider in a
-> `RowLayout` with a `Layout.fillWidth` track plus a value read-out `Label` makes the track/handle
-> appear to jump while dragging, because the label's implicit width changes with the value
-> (`"45%" → "100%"`, and even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font),
-> reflowing the row. `ConfigSlider.qml` fixes this with a single `format` closure (value → display
-> string): each call site supplies `format` once, and the component uses it for BOTH the live
-> read-out AND the reserved width — pinning the label (via `TextMetrics`) to the wider of
-> `format(from)`/`format(to)` + a small buffer. Because every formatter here is monotonic in string
-> width with magnitude AND the sentinel sliders put their special text at `from` (`0 → "Default"`),
-> reserving over the two extremes bounds every value between them (no separate `widestText` to keep
-> in sync). `snapMode` defaults to `SnapAlways` in the component; callers just set `from/to/stepSize`
-> + `format`.
+> **Gotcha — reserve the value-label width AND fix the track width; the slider is NOT `fillWidth`.**
+> `ConfigSlider.qml` makes two coupled layout decisions. **(1) Reserve the read-out width** or the
+> slider jitters: the value `Label`'s implicit width changes with the value (`"45%" → "100%"`, and
+> even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font), reflowing the row so the
+> track/handle appear to jump while dragging. A single `format` closure (value → display string)
+> supplies BOTH the live read-out AND the reserved width — the component pins the label (via
+> `TextMetrics`) to the wider of `format(from)`/`format(to)` + a small buffer. Because every formatter
+> here is monotonic in string width with magnitude AND the sentinel sliders put their special text at
+> `from` (`0 → "Default"`), reserving over the two extremes bounds every value between them (no
+> separate `widestText` to keep in sync). **(2) Fix the track width**: the `Slider` is a FIXED
+> `Layout.preferredWidth == Layout.minimumWidth == gridUnit*18` — it is the value **`Label`** that is
+> `Layout.fillWidth` (and right-aligned), NOT the track. A `fillWidth` track stretches to its
+> `FormLayout` field column, which the Behavior page's long checkbox labels widen well beyond the
+> slider-only Appearance page — so the sliders rendered *different lengths* across the two pages.
+> Pinning the track and letting the right-aligned read-out absorb any extra column width keeps both
+> pages' sliders matched (the trade-off: on a wide page the read-out sits at the column's right edge,
+> gapped from the slider). `snapMode` defaults to `SnapAlways` in the component; callers just set
+> `from/to/stepSize` + `format`.
 
 > **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
 > fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`
