@@ -14,9 +14,9 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
 below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
-the windows open on that desktop), add/remove desktops, form-factor (vertical-panel) handling, the
-settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
-guards) are built; the remaining work is packaging/release. This file and
+the windows open on that desktop), add/remove/rename desktops, an independently-sized active pill,
+screen-reader accessibility, form-factor (vertical-panel) handling, the settings UI, and robustness
+hardening (per-screen current desktop, scale-to-fit, transient-state guards) are built. This file and
 `.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
 history lives in git history and the GitHub Releases).
 

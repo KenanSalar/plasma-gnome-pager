@@ -70,7 +70,7 @@
         <entry name="spacingFactor" type="Double">
             <default>0.5</default>
         </entry>
-        <!-- Active-capsule length, as a multiple of the dot size. -->
+        <!-- Active-capsule length, as a multiple of the pill thickness (its aspect ratio). -->
         <entry name="pillWidthFactor" type="Double">
             <default>3.5</default>
         </entry>
