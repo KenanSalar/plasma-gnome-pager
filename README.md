@@ -86,6 +86,19 @@ kpackagetool6's remove-then-install step would delete your source tree through t
 
 Widget id: `com.github.kenansalar.plasma-gnome-pager`
 
+### From a release (`.plasmoid`)
+
+Each tagged release attaches a ready-to-install `.plasmoid` — grab the latest from the
+[**Releases**](https://github.com/KenanSalar/plasma-gnome-pager/releases) page and install it
+with either:
+
+```bash
+kpackagetool6 --type Plasma/Applet --install com.github.kenansalar.plasma-gnome-pager-<version>.plasmoid
+```
+
+or the GUI: right-click the desktop/panel → **Add Widgets… → Get New Widgets… → Install Widget
+From Local File…**.
+
 ### KDE Store
 
 Coming soon — once published it will be installable from **Add Widgets → Get New Widgets…**
@@ -132,11 +145,10 @@ plasma-gnome-pager/
 ├── Makefile                 # dev / install / package / test helpers
 ├── README.md
 ├── CLAUDE.md                # architecture & conventions (authoritative)
-├── TODO.txt                 # ordered implementation roadmap (milestones)
 ├── LICENSE                  # GPL-3.0-or-later (full text)
 ├── .gitignore
 ├── .contextProperties.ini   # declares i18n/Plasmoid globals so qmllint stays clean
-├── .github/                 # PR-source guard workflow + CODEOWNERS
+├── .github/                 # CI workflows (PR validation, PR-source guard, publish) + CODEOWNERS
 ├── screenshots/             # README media (not shipped in the package)
 ├── po/                      # translation source: <domain>.pot + per-language *.po
 ├── tests/                   # headless QML tests (not shipped in the package)
