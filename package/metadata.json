@@ -22,7 +22,7 @@
         "Description[ja]": "GNOME 風の仮想デスクトップ切り替えツール：デスクトップをドットで表示し、現在のワークスペースをカプセルで示します。",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
-        "Version": "1.1.0",
+        "Version": "1.2.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/KenanSalar/plasma-gnome-pager",
         "BugReportUrl": "https://github.com/KenanSalar/plasma-gnome-pager/issues",
