@@ -227,6 +227,39 @@ TestCase {
         compare(tip.mainText, "Web", "tooltip text is the desktop name");
     }
 
+    // --- accessibility: the dot is exposed to assistive technology (screen readers) ------
+    // A screen reader (Orca) must announce each dot as a named button, and be able to activate it.
+    // The accessible name is the desktop name (the same string the tooltip shows) and tracks it.
+    function test_accessibleExposesButtonRole() {
+        const dot = makeDot({ desktopName: "Web" });
+        compare(dot.Accessible.role, Accessible.Button, "dot exposes a Button role to assistive tech");
+        compare(dot.Accessible.name, "Web", "accessible name is the desktop name");
+
+        dot.desktopName = "Mail";
+        compare(dot.Accessible.name, "Mail", "accessible name tracks the desktop name");
+    }
+
+    // checkable/checked convey WHICH dot is the current desktop, so a screen reader can distinguish
+    // the active one from the otherwise identically-named inactive buttons. `checked` tracks `active`.
+    function test_accessibleCheckedTracksActive() {
+        const dot = makeDot({ desktopName: "Web", active: false });
+        verify(dot.Accessible.checkable, "dot is checkable so AT can report a current state");
+        compare(dot.Accessible.checked, false, "an inactive dot is not checked");
+
+        dot.active = true;
+        compare(dot.Accessible.checked, true, "the active (current) dot reports checked");
+    }
+
+    // The accessibility press action routes through the SAME activated() signal as a click, so an
+    // AT-driven press switches desktops exactly like a pointer click would.
+    function test_accessiblePressEmitsActivated() {
+        const dot = makeDot({ desktopName: "Web" });
+        activatedSpy.target = dot;
+        activatedSpy.clear();
+        dot.Accessible.pressAction();
+        compare(activatedSpy.count, 1, "the accessibility press action emits activated");
+    }
+
     // showTooltips gates the tooltip; an empty name never shows one (transient names lag ids).
     function test_tooltipGatedByShowTooltips() {
         const dot = makeDot({ desktopName: "Web", showTooltips: true });

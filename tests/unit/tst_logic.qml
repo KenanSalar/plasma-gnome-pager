@@ -565,4 +565,89 @@ TestCase {
         compare(keys.length, 17, "DEFAULTS has exactly 17 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
+
+    // --- KWin DBus call SHAPES: pin the silently-failing strings/types -----------------
+    // Each *Spec builds the exact { service, path, iface, member, args:[{t,v}] } main.qml dispatches,
+    // or null when a guard trips. A wrong string or arg type is DROPPED by KWin with no QML error
+    // (CLAUDE.md DBus gotcha) and is the most upgrade-fragile part — so JSON-compare pins the whole
+    // shape by value. The literals mirror the verified working calls in virtual-desktops.md / CLAUDE.md.
+    function test_switchSpec_data() {
+        return [
+            // desktopIds/currentDesktop can be transiently empty (robustness.md) -> guarded to null.
+            { tag: "empty-uuid-null", uuid: "", exp: null },
+            { tag: "undefined-uuid-null", uuid: undefined, exp: null },
+            {
+                tag: "valid", uuid: "uuid-a",
+                exp: {
+                    service: "org.kde.KWin", path: "/VirtualDesktopManager",
+                    iface: "org.freedesktop.DBus.Properties", member: "Set",
+                    // the Set(ssv) shape: iface name + "current" + a VARIANT of the plain uuid.
+                    args: [{ t: "s", v: "org.kde.KWin.VirtualDesktopManager" }, { t: "s", v: "current" }, { t: "v", v: "uuid-a" }]
+                }
+            }
+        ];
+    }
+    function test_switchSpec(data) {
+        compare(JSON.stringify(Logic.switchSpec(data.uuid)), JSON.stringify(data.exp), data.tag);
+    }
+
+    function test_addSpec() {
+        var exp = {
+            service: "org.kde.KWin", path: "/VirtualDesktopManager",
+            iface: "org.kde.KWin.VirtualDesktopManager", member: "createDesktop",
+            args: [{ t: "u", v: 3 }, { t: "s", v: "New Desktop" }]
+        };
+        compare(JSON.stringify(Logic.addSpec(3, "New Desktop")), JSON.stringify(exp), "createDesktop(uint32 position, string name)");
+    }
+    function test_addSpecCoercesArgs() {
+        // a transient-undefined count must reach uint32 as a real integer (position|0); the name is stringified.
+        compare(Logic.addSpec(undefined, "X").args[0].v, 0, "undefined position coerces to 0");
+        compare(Logic.addSpec(2.9, "X").args[0].v, 2, "fractional position truncates via |0");
+        compare(Logic.addSpec(0, 42).args[1].v, "42", "name is stringified");
+    }
+
+    function test_removeSpec_data() {
+        return [
+            { tag: "empty-uuid-null", uuid: "", count: 3, exp: null },
+            // never-remove-last (reuses canRemoveDesktop): a single (or zero) desktop is guarded to null.
+            { tag: "last-desktop-null", uuid: "uuid-a", count: 1, exp: null },
+            { tag: "zero-count-null", uuid: "uuid-a", count: 0, exp: null },
+            {
+                tag: "valid", uuid: "uuid-a", count: 2,
+                exp: {
+                    service: "org.kde.KWin", path: "/VirtualDesktopManager",
+                    iface: "org.kde.KWin.VirtualDesktopManager", member: "removeDesktop",
+                    args: [{ t: "s", v: "uuid-a" }]
+                }
+            }
+        ];
+    }
+    function test_removeSpec(data) {
+        compare(JSON.stringify(Logic.removeSpec(data.uuid, data.count)), JSON.stringify(data.exp), data.tag);
+    }
+
+    function test_renameSpec_data() {
+        return [
+            { tag: "empty-uuid-null", uuid: "", name: "Web", exp: null },
+            // sanitizeDesktopName rejects empty/whitespace -> null (a blank rename is a tested no-op).
+            { tag: "empty-name-null", uuid: "uuid-a", name: "", exp: null },
+            { tag: "whitespace-name-null", uuid: "uuid-a", name: "   ", exp: null },
+            {
+                tag: "valid-trims", uuid: "uuid-a", name: "  Web  ",
+                exp: {
+                    service: "org.kde.KWin", path: "/VirtualDesktopManager",
+                    iface: "org.kde.KWin.VirtualDesktopManager", member: "setDesktopName",
+                    args: [{ t: "s", v: "uuid-a" }, { t: "s", v: "Web" }]
+                }
+            }
+        ];
+    }
+    function test_renameSpec(data) {
+        compare(JSON.stringify(Logic.renameSpec(data.uuid, data.name)), JSON.stringify(data.exp), data.tag);
+    }
+    function test_renameSpecCapsLength() {
+        // sanitizeDesktopName caps at 100 chars; the spec must carry the capped name.
+        var longName = new Array(150).join("a");   // 149 'a's
+        compare(Logic.renameSpec("uuid-a", longName).args[1].v.length, 100, "renameSpec caps the name at 100 chars");
+    }
 }
