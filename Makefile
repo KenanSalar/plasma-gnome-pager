@@ -9,7 +9,11 @@ PKG_DIR     := package
 # literal "Version" matches only the KPlugin.Version line (NOT "X-Plasma-API-Minimum-Version"); no
 # jq dependency needed. Override on the command line when required: `make package VERSION=1.2.3`.
 VERSION     := $(shell sed -n 's/.*"Version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' $(PKG_DIR)/metadata.json | head -n1)
-PLASMOID_DIR := $(HOME)/.local/share/plasma/plasmoids/$(PLASMOID_ID)
+# User plasmoids live under PLASMOIDS_DIR; PLASMOID_DIR is this widget's install path within it.
+PLASMOIDS_DIR := $(HOME)/.local/share/plasma/plasmoids
+PLASMOID_DIR := $(PLASMOIDS_DIR)/$(PLASMOID_ID)
+# kpackagetool6 invocation shared by the install/update/uninstall targets.
+KPACKAGE    := kpackagetool6 --type Plasma/Applet
 TESTS_DIR   := $(CURDIR)/tests
 # Headless QML test runner: offscreen QPA lets Kirigami initialise without a display; -input
 # scans the given dir for every tst_*.qml. QT_LOGGING_RULES silences the benign QWARN
@@ -20,8 +24,9 @@ QMLTEST     := QT_QPA_PLATFORM=offscreen QT_LOGGING_RULES="kf.plasma.quick.warni
 
 # --- Translations (i18n) -------------------------------------------------------------------------
 # The plasmoid runtime auto-binds the QML i18n() calls to the catalog domain plasma_applet_<Id>, so
-# catalogs install as compiled .mo under contents/locale/<lang>/LC_MESSAGES/. The .po/.pot are the
-# committed source of truth; the .mo are generated (gitignored) and compiled by `i18n`, which
+# catalogs install as compiled .mo under contents/locale/<lang>/LC_MESSAGES/. The .po are the
+# committed source of truth; the .pot template AND the .mo are generated (gitignored) — the .pot is
+# re-extracted from the QML each `messages` run — and the .mo are compiled by `i18n`, which
 # install/update/dev depend on (kpackagetool6 ships the tree verbatim — it does no compilation).
 # See CLAUDE.md "Internationalization (i18n)". logic.js is i18n-free by design, so only .qml is scanned.
 DOMAIN      := plasma_applet_$(PLASMOID_ID)
@@ -72,13 +77,13 @@ _no-dev-symlink:
 	fi
 
 install: _no-dev-symlink i18n
-	kpackagetool6 --type Plasma/Applet --install $(PKG_DIR)
+	$(KPACKAGE) --install $(PKG_DIR)
 
 update: _no-dev-symlink i18n
-	kpackagetool6 --type Plasma/Applet --upgrade $(PKG_DIR)
+	$(KPACKAGE) --upgrade $(PKG_DIR)
 
 uninstall:
-	kpackagetool6 --type Plasma/Applet --remove $(PLASMOID_ID)
+	$(KPACKAGE) --remove $(PLASMOID_ID)
 
 # Build a distributable .plasmoid (a zip of the package tree with metadata.json at the ARCHIVE
 # ROOT — what kpackagetool6 and the KDE Store expect). Depends on i18n so the compiled .mo
@@ -96,7 +101,7 @@ package: i18n
 # Live-development symlink: edit files in ./package and just `make restart`. Depends on i18n so the
 # symlinked package carries compiled catalogs (otherwise the live widget shows only source strings).
 dev: i18n
-	mkdir -p $(HOME)/.local/share/plasma/plasmoids
+	mkdir -p $(PLASMOIDS_DIR)
 	ln -sfn "$(CURDIR)/$(PKG_DIR)" "$(PLASMOID_DIR)"
 	@echo "Symlinked $(PLASMOID_DIR) -> $(CURDIR)/$(PKG_DIR)"
 
@@ -143,12 +148,12 @@ lint:
 
 # Extract translatable strings from the QML into the .pot template, then merge them into every
 # existing po/<lang>.po (so translators pick up new/changed strings without losing their work).
-# Run after adding or changing any i18n() string. Commit the updated .pot + .po.
+# Run after adding or changing any i18n() string. Commit only the updated .po (the .pot is ignored).
 messages:
 	$(XGETTEXT) -o $(POT) $$(find $(PKG_DIR)/contents -name '*.qml' | sort)
 	@for po in $(PO_FILES); do \
 		echo "  msgmerge $$po"; \
-		msgmerge --update --backup=none --width=200 "$$po" $(POT); \
+		msgmerge --update --backup=none --width=200 "$$po" $(POT) || exit 1; \
 	done
 	@echo "Extracted to $(POT) and merged $(words $(PO_FILES)) translation(s)."
 

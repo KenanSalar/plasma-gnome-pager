@@ -10,9 +10,10 @@
   key (with a matching `?? <default>` guard) and passes a plain value down to the indicator/dot,
   keeping those sub-components free of plasmoid.configuration (and so headless-testable).
 
-  Two keys use a `0 = auto` sentinel because their natural default is theme/HiDPI-derived and
+  Three keys use a `0 = auto` sentinel because their natural default is theme/HiDPI-derived and
   a KConfigXT default can only be a fixed literal (baking a px/ms value would lose HiDPI
-  scaling — see kirigami.md/robustness.md): dotSize 0 → Kirigami.Units.iconSizes.small/2, and
+  scaling — see kirigami.md/robustness.md): dotSize 0 → Kirigami.Units.iconSizes.small/2,
+  pillSize 0 → the (effective) dot size so the pill tracks the dots by default, and
   animationDuration 0 → Kirigami.Units.longDuration (which also inherits "reduce animations").
   The dimensionless ratios (spacingFactor/pillWidthFactor/inactiveOpacity/hoverOpacity) are
   plain literals. activeColor/inactiveColor apply only when followThemeColors is false.
@@ -59,11 +60,17 @@
         <entry name="dotSize" type="Int">
             <default>0</default>
         </entry>
+        <!-- Active-pill thickness in px; 0 = auto (match the dot size). Sized independently of the
+             dots so a thick pill can sit over tiny dots (and vice versa); the pill length is then
+             pillSize × pillWidthFactor. -->
+        <entry name="pillSize" type="Int">
+            <default>0</default>
+        </entry>
         <!-- Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). -->
         <entry name="spacingFactor" type="Double">
             <default>0.5</default>
         </entry>
-        <!-- Active-capsule length, as a multiple of the dot size. -->
+        <!-- Active-capsule length, as a multiple of the pill thickness (its aspect ratio). -->
         <entry name="pillWidthFactor" type="Double">
             <default>3.5</default>
         </entry>

@@ -24,6 +24,7 @@ ConfigPageBase {
     id: root
 
     property alias cfg_dotSize: dotSize.value
+    property alias cfg_pillSize: pillSize.value
     property alias cfg_spacingFactor: spacingFactor.value
     property alias cfg_pillWidthFactor: pillWidthFactor.value
     property alias cfg_inactiveOpacity: inactiveOpacity.value
@@ -34,6 +35,7 @@ ConfigPageBase {
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property int cfg_dotSizeDefault
+    property int cfg_pillSizeDefault
     property real cfg_spacingFactorDefault
     property real cfg_pillWidthFactorDefault
     property real cfg_inactiveOpacityDefault
@@ -52,6 +54,7 @@ ConfigPageBase {
     // QColor-backed value types: strict !== compares wrapper identity, not the colour value (equal
     // colours still read "different"), so use Qt.colorEqual (Qt docs).
     isModified: cfg_dotSize !== cfg_dotSizeDefault
+        || cfg_pillSize !== cfg_pillSizeDefault
         || Math.abs(cfg_spacingFactor - cfg_spacingFactorDefault) > epsilon
         || Math.abs(cfg_pillWidthFactor - cfg_pillWidthFactorDefault) > epsilon
         || Math.abs(cfg_inactiveOpacity - cfg_inactiveOpacityDefault) > epsilon
@@ -62,6 +65,7 @@ ConfigPageBase {
 
     onDefaultsRequested: {
         cfg_dotSize = cfg_dotSizeDefault;
+        cfg_pillSize = cfg_pillSizeDefault;
         cfg_spacingFactor = cfg_spacingFactorDefault;
         cfg_pillWidthFactor = cfg_pillWidthFactorDefault;
         cfg_inactiveOpacity = cfg_inactiveOpacityDefault;
@@ -83,6 +87,18 @@ ConfigPageBase {
         }
 
         ConfigSlider {
+            id: pillSize
+            // "Thickness" (not "size") to disambiguate from the "Pill length:" slider below — the two
+            // controls are the pill's two axes — and so msgmerge can't fuzzy-collide it with "Pill length:".
+            label: i18n("Pill thickness:")
+            from: 0
+            to: 64
+            stepSize: 1
+            // 0 = auto: the pill thickness matches the (effective) dot size, so the pill tracks the dots.
+            format: v => v === 0 ? i18n("Match dots") : i18np("%1 px", "%1 px", Math.round(v))
+        }
+
+        ConfigSlider {
             id: spacingFactor
             label: i18n("Spacing:")
             from: 0.0
@@ -97,7 +113,8 @@ ConfigPageBase {
             from: 1.0
             to: 6.0
             stepSize: 0.1
-            format: v => i18n("%1× dot", v.toFixed(1))
+            // Length as a multiple of the PILL thickness (its aspect ratio), not the dot size.
+            format: v => i18n("%1× pill", v.toFixed(1))
         }
 
         ConfigSlider {

@@ -45,8 +45,12 @@ Item {
     // Inputs supplied by WorkspaceIndicator's Repeater delegate (with sane defaults).
     property bool active: false
     property real dotSize: Kirigami.Units.iconSizes.small / 2   // inactive circle diameter
-    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor   // active capsule length, as a multiple of a dot
-    readonly property real pillWidth: dot.dotSize * dot.pillWidthFactor
+    // Active-pill thickness, sized independently of the dot (the indicator resolves "match dots" before
+    // passing it down). Defaults to the dotSize default so a standalone dot is unchanged. The capsule's
+    // cross axis is pillSize when active (dotSize when inactive); its length is pillSize * pillWidthFactor.
+    property real pillSize: Kirigami.Units.iconSizes.small / 2
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor   // active capsule length, as a multiple of the PILL thickness
+    readonly property real pillWidth: dot.pillSize * dot.pillWidthFactor
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // dimensionless ratio
     property string desktopName: ""                            // tooltip mainText (the desktop name)
@@ -71,9 +75,12 @@ Item {
     // element does not "grow in" from a dot on first render / shell reload.
     property bool animate: false
 
-    // The element's extent along the MAJOR (strip) axis: a capsule when active, a dot
-    // otherwise. The cross axis is always dotSize, so the rounded ends stay circular both ways.
+    // The element's extent along the MAJOR (strip) axis: the capsule LENGTH when active, a dot
+    // otherwise. The CROSS axis is the pill thickness when active (dotSize otherwise), so an
+    // independently-sized pill can be thicker (or thinner) than the dots; pillSize == dotSize by
+    // default, recovering the original constant-cross-axis behaviour.
     readonly property real longExtent: dot.active ? dot.pillWidth : dot.dotSize
+    readonly property real crossExtent: dot.active ? dot.pillSize : dot.dotSize
 
     // The morph duration actually used: the configured animationDuration, or the themed default
     // when unset (0), and 0 whenever "reduce animations" is on (Kirigami.Units.longDuration === 0
@@ -91,9 +98,24 @@ Item {
     // Emitted on click; the indicator turns this into a switch request.
     signal activated
 
+    // Expose the element to assistive technology (e.g. Orca): announced as a button named after the
+    // desktop, with an accessibility press action that switches to it through the SAME path as a click
+    // (the activated() signal the indicator turns into switchRequested). The name is the string the
+    // ToolTipArea already shows; KWin's desktopNames are normally non-empty (the brief transient-empty
+    // frame is acceptable — robustness.md). checkable/checked mirror `active`, so a screen reader can
+    // tell WHICH dot is the current desktop (every dot is otherwise an identically-named button). Kept
+    // here (not the indicator) so the per-dot a11y stays with the element and is headless-testable;
+    // Accessible is part of QtQuick, so no extra import.
+    Accessible.role: Accessible.Button
+    Accessible.name: dot.desktopName
+    Accessible.checkable: true
+    Accessible.checked: dot.active
+    Accessible.onPressAction: dot.activated()
+
     // Footprint advertised to the positioner tracks the (possibly animating) capsule on BOTH
-    // axes, so the strip reflows smoothly as the element morphs — horizontally the width grows,
-    // vertically the height grows; the cross axis stays a dot thick in either orientation.
+    // axes, so the strip reflows smoothly as the element morphs — the major axis grows to the
+    // capsule length and the cross axis to the pill thickness (a dot thick by default, when the
+    // pill is sized to match the dots).
     implicitWidth: capsule.width
     implicitHeight: capsule.height
 
@@ -112,16 +134,18 @@ Item {
         textFormat: Text.RichText
 
         // The dot/capsule. Inactive: a dim circle (width == height == dotSize). Active: a longer
-        // highlighted capsule along the major axis (pillWidth) while the cross axis stays dotSize.
-        // The size bindings are independent ternaries (no dependence on parent/own geometry), so
-        // there is no loop with implicitWidth/Height: capsule.width/height. radius is pinned to the
-        // constant cross-axis half-thickness (dotSize/2) so the ends stay stadium-round in BOTH
-        // orientations (height/2 would round a tall vertical capsule into a lozenge).
+        // highlighted capsule — longExtent along the major axis, the (independently-sized) pill
+        // thickness crossExtent across. The size bindings are independent ternaries (no dependence on
+        // parent/own geometry), so there is no loop with implicitWidth/Height: capsule.width/height.
+        // radius is HALF THE SHORTER SIDE (min(width, height) / 2): orientation-agnostic stadium ends
+        // that follow the animated cross dimension during the morph — == dotSize/2 when the pill is no
+        // thicker than a dot, == pillSize/2 for a thicker pill, and never rounds a long capsule into a
+        // lozenge (the long axis is always >= the cross axis since pillWidthFactor >= 1).
         Rectangle {
             id: capsule
-            width: dot.vertical ? dot.dotSize : dot.longExtent
-            height: dot.vertical ? dot.longExtent : dot.dotSize
-            radius: dot.dotSize / 2
+            width: dot.vertical ? dot.crossExtent : dot.longExtent
+            height: dot.vertical ? dot.longExtent : dot.crossExtent
+            radius: Math.min(capsule.width, capsule.height) / 2
             anchors.centerIn: parent
             color: Logic.dotColor(dot.active, dot.followThemeColors, Kirigami.Theme.highlightColor, Kirigami.Theme.textColor, dot.activeColor, dot.inactiveColor)
             opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.inactiveOpacity, dot.hoverOpacity)
