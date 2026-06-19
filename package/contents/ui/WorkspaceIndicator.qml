@@ -1,34 +1,62 @@
 /*
- * GNOME Workspace Switcher — WorkspaceIndicator.qml
+ * Plasma Gnome Pager — WorkspaceIndicator.qml
  *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The dot strip. Milestone 2: the signature GNOME look — a Row of dim WorkspaceDot
- * circles plus a single "pill" overlay (Kirigami.Theme.highlightColor) that sits over
- * the current desktop's dot and SLIDES between positions on switch.
+ * The dot strip — the signature GNOME look via a REFLOW model. Each WorkspaceDot renders as a dim
+ * dot when inactive and morphs into a longer highlighted "capsule" (the pill) along the major axis
+ * when active — there is no separate overlay. Switching morphs two elements (old capsule → dot, new
+ * dot → capsule) and the line reflows between them with a SINGLE UNIFORM spacing between every pair,
+ * so the capsule can NEVER overlap or clip a neighbour (no overhang/clearance math) and the
+ * pill-to-dot gap equals the dot-to-dot gap. No clip / layer is needed (see qml-performance.md).
  *
- * Pill length and dot spacing are DECOUPLED: the pill is wider than a dot, and the
- * inter-dot spacing is derived so the pill always keeps a small clearance to its
- * neighbours (never covering them) while the dots themselves stay tight. The indicator
- * reserves a half-pill "overhang" at each end so the pill never clips. No reflow on
- * switch; no clip / layer is needed (see qml-performance.md).
+ * Layout follows the panel and KWin's desktop grid. `vertical` (from Plasmoid.formFactor, via
+ * main.qml) picks the major axis: a horizontal panel lays each line out as a Row, a vertical one as
+ * a Column. KWin's row count (VirtualDesktopInfo.desktopLayoutRows) splits the desktops into that
+ * many LINES — we mirror KWin's grid rather than add a widget setting — and each line is an
+ * independent single-line reflow strip, so a multi-row grid is just `lineCount` of those stacked
+ * along the cross axis. The default (1 row) is a single line. Lines are centred independently
+ * (a shorter/last line is narrower than the line holding the pill); keeping each row's exact
+ * dots+pill look is preferred over forcing column-alignment (which would need a wider active cell).
  *
  * Data + DBus live in main.qml (see CLAUDE.md architecture); this component only
  * lays out and forwards intent — it never caches or switches desktops itself. It
- * binds live to VirtualDesktopInfo (read state) and reports clicks up to main.qml
+ * binds live to VirtualDesktopInfo (read state) and reports clicks/scroll up to main.qml
  * (which owns the KWin DBus write).
  *
- * TODO(M3):  MouseArea { onWheel: ... } scroll-to-switch (gated by config).
- * TODO(M4):  Row (horizontal) vs Column (vertical) on Plasmoid.formFactor; slide the
- *            pill along the correct axis (Behavior on y) and animate its size.
- * TODO(M5):  metrics (dotSize/dotSpacing/pillWidthFactor/inactiveOpacity) + colours
- *            from plasmoid.configuration.* instead of the Kirigami defaults below.
+ * Scroll uses a bottom MouseArea (behind the dots, acceptedButtons: NoButton, onWheel) —
+ * the canonical Plasma pattern: wheel events over a dot propagate down to it (the dots have
+ * no onWheel), while clicks, hover and right-clicks pass straight through to the dots / the
+ * applet. The index math (clamp/wrap, hi-res wheel accumulation) lives in logic.js so it is
+ * unit-tested without a Plasma session; this component stays a thin caller and keeps emitting
+ * switchRequested(uuid) (main.qml owns the DBus write). Each dot carries its own tooltip
+ * (showing desktopName); the indicator just feeds every dot its name + the showTooltips flag,
+ * so it stays free of org.kde.plasma.* and remains headless-testable.
+ *
+ * Sizing: a panel allocates an applet's space from the representation's Layout.* hints. On the major
+ * (line) axis the indicator pins preferred == maximum to one line's NATURAL length (a FORMULA: one
+ * capsule + the rest of a full line's dots) so it never grows past that and the cell stays put during
+ * a morph or when no element is active (a switch conserves total length: the shrinking and growing
+ * elements cancel); the major MINIMUM drops to a smaller floor so the panel can COMPRESS the strip on
+ * a crowded panel — and when it does, the dots scale down to fill the allocation exactly (fitDotSize)
+ * instead of overflowing onto the neighbours (robustness.md). The cross axis carries the lines with
+ * its maximum left FREE to fill the panel thickness (Layout.* hints, not implicitWidth alone — a panel
+ * otherwise gives the inline full-representation a default square cell and the dots overflow). Which
+ * axis is the major one swaps with `vertical` — width for a horizontal panel, height for a vertical one.
+ *
+ * The visual metrics + colours + animation duration are supplied by main.qml (read from
+ * plasmoid.configuration); this component holds the same Kirigami-derived defaults so it still
+ * renders sensibly standalone and under qmltestrunner. It forwards them per-dot unchanged — the
+ * indicator draws nothing itself.
  */
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+
+import "logic.js" as Logic
 
 Item {
     id: indicator
@@ -42,118 +70,324 @@ Item {
     // Null-safe live views of the reactive desktop state — one source of truth that
     // the bindings below read, so the guard isn't repeated (virtualDesktopInfo can be
     // transiently null during a desktop add/remove or shell reload; see robustness.md).
-    readonly property var desktopIds: virtualDesktopInfo ? virtualDesktopInfo.desktopIds : []
-    readonly property string currentDesktop: virtualDesktopInfo ? virtualDesktopInfo.currentDesktop : ""
+    // The desktop SET (ids/names/count/rows) is global — only "which is current" is per-screen.
+    readonly property var desktopIds: virtualDesktopInfo?.desktopIds ?? []
+    // Display names, index-aligned with desktopIds. Null-safe like the views above
+    // (VirtualDesktopInfo, or its desktopNames, can be transiently absent).
+    readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
 
-    // Index of the active slot, or -1 when there is none to highlight. indexOf returns
+    // Per-desktop tooltip subText (the rich-text window list), index-aligned with desktopIds,
+    // supplied by main.qml (which owns the TasksModel). Default [] keeps the standalone/headless
+    // behaviour unchanged — each dot then falls back to "" (a name-only tooltip). Passed down to
+    // each dot by global index, exactly like desktopNames.
+    property var desktopTooltips: []
+
+    // This panel's physical output (KWin connector name, e.g. "DP-1"), read live from the QtQuick
+    // Screen attached property of the placed representation, so it reflects THIS monitor. Plasma 6.7
+    // lets each output show a different current desktop; we resolve the current FOR this screen below.
+    // Tests override it to drive per-screen scenarios; "" falls back to the global current.
+    property string screenName: Screen.name
+
+    // The current desktop FOR THIS SCREEN (a UUID), the one element that morphs into the capsule.
+    // VirtualDesktopInfo.currentDesktopByScreenName is a METHOD with a per-screen change SIGNAL (not a
+    // notifying property), so a plain binding would never re-evaluate — instead this is a mutable
+    // source-of-truth property recomputed in updateCurrentDesktop() (driven by the Connections below).
+    // activeIndex and each dot's `active` bind off it, so they stay declarative and per-screen-correct.
+    property string currentDesktop: ""
+
+    // Resolve currentDesktop for screenName, preferring the per-screen value (Plasma 6.7) and falling
+    // back to the global current when there is no per-screen info — an unknown screen, the feature off,
+    // or an older Plasma without currentDesktopByScreenName (the typeof guard; see robustness.md). The
+    // perScreen-vs-global decision is the pure Logic.resolveCurrentDesktop (unit-tested).
+    function updateCurrentDesktop() {
+        const vdi = indicator.virtualDesktopInfo;
+        const globalCurrent = vdi?.currentDesktop ?? "";
+        let perScreen;   // stays undefined unless we have a screen AND the 6.7 API
+        if (vdi && indicator.screenName && typeof vdi.currentDesktopByScreenName === "function")
+            perScreen = vdi.currentDesktopByScreenName(indicator.screenName);
+        indicator.currentDesktop = Logic.resolveCurrentDesktop(perScreen, globalCurrent);
+    }
+
+    // Recompute when the source's current changes (globally, or for THIS screen), when desktops are
+    // added/removed (a screen's current may have been removed), when the source itself swaps in, and
+    // when this panel moves to another output. "Bind, don't cache": every external change re-resolves.
+    Connections {
+        target: indicator.virtualDesktopInfo
+        function onCurrentDesktopChanged() {
+            indicator.updateCurrentDesktop();
+        }
+        function onCurrentDesktopForScreenChanged(screenName) {
+            if (screenName === indicator.screenName)
+                indicator.updateCurrentDesktop();
+        }
+        function onDesktopIdsChanged() {
+            indicator.updateCurrentDesktop();
+        }
+    }
+    onScreenNameChanged: indicator.updateCurrentDesktop()
+    onVirtualDesktopInfoChanged: indicator.updateCurrentDesktop()
+
+    // Behaviour flags, supplied by main.qml from plasmoid.configuration. Defaults match the
+    // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
+    property bool enableScroll: Logic.DEFAULTS.enableScroll
+    property bool scrollWrap: Logic.DEFAULTS.scrollWrap
+    property bool showTooltips: Logic.DEFAULTS.showTooltips   // passed down to each dot's tooltip
+
+    // Panel orientation, supplied by main.qml from Plasmoid.formFactor. false = horizontal row
+    // (also the Planar/desktop/floating default); true = vertical column. Default false keeps the
+    // standalone/headless behaviour — and every existing horizontal test — unchanged.
+    property bool vertical: false
+
+    // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder
+    // carries so sub-notch touchpad motion is not lost). See Logic.accumulateWheel.
+    property real wheelAccumulator: 0
+
+    // Standard Qt angleDelta units per wheel notch (QWheelEvent reports ±120 for one mouse
+    // notch; touchpads send fractions of this that accumulate). Passed to Logic.accumulateWheel.
+    readonly property int wheelNotchDelta: Logic.DEFAULTS.wheelNotchDelta
+
+    // Number of desktops (drives the stable size formula below).
+    readonly property int desktopCount: desktopIds.length
+
+    // KWin's desktop-grid row count (System Settings → Virtual Desktops → "Rows"), read live
+    // from VirtualDesktopInfo — null-guarded, and clamped to ≥1 so a transient 0/undefined reads
+    // as a single line. We MIRROR KWin's grid rather than add our own setting: change "Rows" there
+    // and the strip re-lays out reactively. The default (1) is a single line — today's behaviour.
+    readonly property int desktopRows: virtualDesktopInfo?.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1
+
+    // Desktops per line (KWin columns = ceil(count / rows)) and the row-major split of desktopIds
+    // into lines. Each line is rendered as an independent single-line reflow strip below, so the
+    // grid is just `lineCount` of those stacked — every row keeps the exact dots+pill look.
+    readonly property int perLine: Logic.gridColumns(desktopCount, desktopRows)
+    readonly property var lines: Logic.chunk(desktopIds, perLine)
+    readonly property int lineCount: lines.length
+
+    // Index of the active element, or -1 when there is none to highlight. indexOf returns
     // -1 for every transient state — empty desktopIds, empty currentDesktop, or a
-    // currentDesktop not yet present during an add/remove — which hides the pill
-    // (robustness.md: guard/clamp the index before acting on it).
+    // currentDesktop not yet present during an add/remove — which means no element is a
+    // capsule (robustness.md: guard the index before acting on it).
     readonly property int activeIndex: desktopIds.indexOf(currentDesktop)
 
-    // Visual metrics. Named to forward-match the M5 ConfigAppearance keys; M5 swaps
-    // these defaults for `plasmoid.configuration.*` reads. Sizes go through
-    // Kirigami.Units (HiDPI); pillWidthFactor/inactiveOpacity are dimensionless ratios.
+    // Visual metrics, supplied by main.qml from plasmoid.configuration (Appearance keys), with the
+    // Kirigami/dimensionless defaults below so the indicator renders sensibly standalone and under
+    // qmltestrunner. Sizes go through Kirigami.Units (HiDPI); pillWidthFactor / inactiveOpacity /
+    // hoverOpacity / spacingFactor are dimensionless ratios.
     //
-    // Pill length and dot spacing are DECOUPLED: pillWidthFactor sets how long the pill
-    // is relative to a dot, while dotSpacing is DERIVED from it so the (wider) pill keeps
-    // a small constant clearance to its neighbours and never covers them — which lets the
-    // dots sit tight even with a long pill (a single coupled factor could not do both).
-    readonly property real dotSize: Kirigami.Units.iconSizes.small / 2
-    readonly property real inactiveOpacity: 0.45
-    readonly property real pillWidthFactor: 2.5            // pill length as a multiple of a dot
+    // dotSize is a `0 = auto` request: a positive value is the user's px override, 0 falls back to
+    // the HiDPI-aware themed default (a fixed schema literal would bake a px value — see kirigami.md).
+    // Resolving the sentinel here (not in main.qml) keeps it headless-testable and main.qml Kirigami-free.
+    //
+    // ONE uniform spacing (spacingFactor × dotSize) sits between every adjacent element —
+    // dot-to-dot AND capsule-to-dot are the same gap (the GNOME look). The active element is
+    // simply wider in place; its neighbours are pushed out by the Row, never covered.
+    //
+    // NATURAL vs EFFECTIVE size: naturalDotSize is the upper bound (the config/themed request); the
+    // rendered `dotSize` SHRINKS below it to fit a crowded panel on EITHER axis — the major line length
+    // OR the cross thickness (scale-to-fit, robustness.md) — floored at minDotSize so the dots stay
+    // legible. naturalDotSize (NOT the effective size) drives the Layout
+    // hints below, so the panel allocation never feeds back into the hints — no binding loop. In the
+    // common case (room available) the effective size == naturalDotSize, so the look is unchanged.
+    // Everything downstream (pillWidth, dotSpacing, each WorkspaceDot, the Grid spacing) reads the
+    // effective `dotSize`, so the whole strip scales in lockstep.
+    property int dotSizeRequest: Logic.DEFAULTS.dotSize  // px override from config; 0 = auto
+    readonly property real naturalDotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
+    // Smallest legible dot we will shrink to: half the default dot, clamped to <= natural so a tiny
+    // configured dot never scales UP (keeps the room-available common case byte-for-byte identical).
+    readonly property real minDotSize: Math.min(naturalDotSize, Kirigami.Units.iconSizes.small / 4)
+    // Dot size that makes one full line exactly fill the panel-allocated MAJOR length (width when
+    // horizontal, height when vertical): one capsule + the rest of that line's dots + uniform gaps.
+    // Pure math (logic.js); +Infinity before layout / with no line, so it does not bind there.
+    readonly property real majorFitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillWidthFactor, spacingFactor)
+    // Dot size that makes the stacked lines exactly fill the panel-allocated CROSS thickness (height
+    // when horizontal, width when vertical). The cross axis carries no capsule — every line is one dot
+    // thick — so the "pill factor" is 1, which makes this the exact inverse of naturalCrossThickness.
+    // +Infinity on a single thick panel (room to spare) or before layout, so it does not bind in the
+    // common case; it only bites for a multi-row grid on a thin panel.
+    readonly property real crossFitDotSize: Logic.fitDotSize(vertical ? width : height, lineCount, 1, spacingFactor)
+    // A dot must fit BOTH axes, so the binding constraint is the smaller fit (the unconstrained axis
+    // returns +Infinity, so min keeps the other). This generalises the M6 major-axis fit to the
+    // multi-row + thin-panel case without ever overflowing the panel thickness (robustness.md).
+    readonly property real fitDotSize: Math.min(majorFitDotSize, crossFitDotSize)
+    // EFFECTIVE (rendered) dot size: shrink-to-fit, capped at natural, floored at minDotSize. Common
+    // case (room available on both axes): fitDotSize >= naturalDotSize, so this == naturalDotSize exactly.
+    readonly property real dotSize: Math.max(minDotSize, Math.min(naturalDotSize, fitDotSize))
+    property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
+    property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, as a multiple of a dot
     readonly property real pillWidth: dotSize * pillWidthFactor
-    // Half-pill that sticks out past the dot it covers, on each side.
-    readonly property real pillOverhang: (pillWidth - dotSize) / 2
-    // Clear space kept between the pill's end and the adjacent dot (tune for breathing room).
-    readonly property real pillEndGap: dotSize / 4
-    // Inter-dot gap: overhang (so the pill reaches but does not cover a neighbour) plus
-    // the clearance. With slots == dotSize, this is exactly the circle-to-circle gap.
-    readonly property real dotSpacing: pillOverhang + pillEndGap
+    property real spacingFactor: Logic.DEFAULTS.spacingFactor      // uniform gap as a multiple of a dot (GNOME-tight)
+    readonly property real dotSpacing: dotSize * spacingFactor
 
-    // X of the pill's left edge: step to the active dot's left edge (row.x accounts for the
-    // centred Row when the panel grants extra width), then back off by the overhang so the
-    // wider pill is centred on the dot. A -1 activeIndex parks it left of the strip, where
-    // it is never seen because the pill is hidden whenever activeIndex < 0.
-    readonly property real pillX: row.x + activeIndex * (dotSize + row.spacing) - pillOverhang
+    // Colour + animation config, passed straight through to each dot (the indicator draws nothing
+    // itself). Defaults are the theme colours / auto duration so a standalone dot is unchanged.
+    property bool followThemeColors: Logic.DEFAULTS.followThemeColors
+    property color activeColor: Kirigami.Theme.highlightColor
+    property color inactiveColor: Kirigami.Theme.textColor
+    property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme (longDuration)
 
-    // Typed handle so the headless tests can assert the pill's geometry/visibility/colour
-    // without a fragile recursive tree walk (qml.md: expose internals via alias).
-    readonly property alias pill: pill
+    // Axis-neutral size primitives the orientation-aware sizing binds to — all NATURAL/floor-based
+    // (never the effective dotSize), so the Layout hints they feed do not depend on the panel
+    // allocation and there is no binding loop (see the Layout block below). naturalStripLength is the
+    // content extent along the MAJOR (line) axis at the natural dot size — the longest a line can be:
+    // one capsule + the rest of that line's dots + uniform gaps (perLine dots, since full lines are the
+    // widest). A FORMULA, not the live positioner length, so the panel cell never jitters during a
+    // morph or while activeIndex is transiently -1 (a switch conserves total length). floorStripLength
+    // is the same line at minDotSize — the major-axis MINIMUM, so the panel may compress the strip into
+    // the scale-to-fit path but no further than still-legible dots. naturalCrossThickness is the
+    // perpendicular extent at the natural dot size: lineCount lines of one dot each + the gaps between
+    // them (one dot when single-line). floorCrossThickness is that same stack at minDotSize — the
+    // cross-axis MINIMUM, so a thin panel may compress the thickness into the cross scale-to-fit path
+    // (a multi-row grid on a thin panel) but no further than still-legible dots, exactly mirroring
+    // floorStripLength on the major axis. All reduce to the M3 single-line formula when desktopRows == 1.
+    readonly property real naturalStripLength: Logic.lineExtent(perLine, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize * pillWidthFactor)
+    readonly property real floorStripLength: Logic.lineExtent(perLine, minDotSize, minDotSize * spacingFactor, minDotSize * pillWidthFactor)
+    // No capsule on the cross axis: pass activeExtent == the dot size (the all-dots degenerate case).
+    readonly property real naturalCrossThickness: Logic.lineExtent(lineCount, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize)
+    readonly property real floorCrossThickness: Logic.lineExtent(lineCount, minDotSize, minDotSize * spacingFactor, minDotSize)
 
-    // Raised when a dot is clicked; main.qml turns the UUID into a KWin switch.
+    // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
+    // a KWin switch.
     signal switchRequested(string uuid)
 
-    // Advertise size so the panel allocates space. The pill overhangs the end dots by
-    // pillOverhang on each side, so reserve that extra width beyond the Row's footprint.
-    implicitWidth: row.implicitWidth + 2 * pillOverhang
-    implicitHeight: row.implicitHeight
+    // Translate a wheel event into a desktop switch. Thin wrapper: the branching (notch
+    // accumulation, clamp/wrap, the -1 ignore states) is in logic.js and unit-tested.
+    function handleWheel(angleDeltaY: real) {
+        if (!indicator.enableScroll)
+            return;
+        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY, indicator.wheelNotchDelta);
+        indicator.wheelAccumulator = acc.remainder;
+        if (acc.steps === 0)
+            return;   // sub-notch motion accumulated; nothing to do yet
+        // Wheel up (+angleDelta) → previous desktop; wheel down (−) → next. Negate to map.
+        const next = Logic.stepIndex(indicator.activeIndex, indicator.desktopIds.length, -acc.steps, indicator.scrollWrap);
+        if (next < 0 || next === indicator.activeIndex)
+            return;   // empty/unknown source, or a clamped no-op at an end
+        const uuid = indicator.desktopIds[next];
+        if (!uuid)
+            return;   // transient empty id (robustness.md: guard before use)
+        indicator.switchRequested(uuid);
+    }
 
-    // Gate the slide animation so the FIRST valid placement is an instant jump (no
-    // slide-in from x=0 on shell reload) while later switches animate. Qt.callLater
-    // defers enabling until after the first valid x has been placed, which also holds
-    // when VirtualDesktopInfo populates a frame after this component completes.
-    property bool slideEnabled: false
+    // Advertise size so the panel allocates space. On the MAJOR (line) axis, preferred == maximum ==
+    // naturalStripLength (one line at the natural dot size) so the applet never grows past its natural
+    // length, while the MINIMUM drops to floorStripLength so the panel CAN compress us — when it does,
+    // the dots scale down to fill the allocation exactly (majorFitDotSize above) instead of overflowing
+    // onto the neighbours (robustness.md). The CROSS axis carries the lineCount lines (preferred ==
+    // naturalCrossThickness) with its maximum reset to -1 (Qt maps that to the unconstrained
+    // Number.POSITIVE_INFINITY default), so the panel can stretch it to the panel thickness with the
+    // centred grid in the middle; its MINIMUM likewise drops to floorCrossThickness so a thin panel can
+    // compress the thickness and the dots shrink to fit it too (cross scale-to-fit — a multi-row grid on
+    // a thin panel no longer exceeds the thickness, crossFitDotSize above). A panel honours these Layout
+    // hints, not implicitWidth alone — without them the inline full-representation gets a default square
+    // cell and the dots overflow onto the neighbours. All hints are NATURAL/floor-based (never the
+    // effective dotSize), so the allocation never feeds back into them — no binding loop. Which axis is
+    // the major one swaps with `vertical`: a horizontal panel pins width (M3 behaviour when
+    // single-line); a vertical panel pins height.
+    implicitWidth: vertical ? naturalCrossThickness : naturalStripLength
+    implicitHeight: vertical ? naturalStripLength : naturalCrossThickness
+    Layout.minimumWidth: vertical ? floorCrossThickness : floorStripLength
+    Layout.preferredWidth: implicitWidth
+    Layout.maximumWidth: vertical ? -1 : naturalStripLength
+    Layout.minimumHeight: vertical ? floorStripLength : floorCrossThickness
+    Layout.preferredHeight: implicitHeight
+    Layout.maximumHeight: vertical ? naturalStripLength : -1
+
+    // Gate the morph so the FIRST valid placement is instant (the active element is already a
+    // capsule on frame 0 — no grow-in from a dot on shell reload) while later switches animate.
+    // Qt.callLater defers enabling until after the first valid placement, which also holds when
+    // VirtualDesktopInfo populates (or currentDesktop resolves) a frame after this completes.
+    property bool animate: false
     onActiveIndexChanged: {
-        if (activeIndex >= 0 && !slideEnabled) {
-            Qt.callLater(() => indicator.slideEnabled = true);
+        if (activeIndex >= 0 && !animate) {
+            Qt.callLater(() => indicator.animate = true);
         }
     }
     Component.onCompleted: {
+        indicator.updateCurrentDesktop();   // resolve the per-screen current before the latch check
         if (activeIndex >= 0) {
-            slideEnabled = true;
+            animate = true;
         }
     }
 
-    Row {
-        id: row
+    // Scroll-to-switch over the whole strip. This MouseArea sits BEHIND the dots (declared
+    // first), accepts no buttons and does not enable hover, so clicks, right-clicks and hover
+    // all pass through to the dots / the applet untouched. A dot has no onWheel, so a wheel
+    // event over it propagates down to this handler; a wheel over a gap lands here directly.
+    // (Verified against the KWin keyboard-layout switcher's onWheel pattern and headless
+    // mouseWheel tests.)
+    MouseArea {
+        id: wheelArea
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        onWheel: wheel => indicator.handleWheel(wheel.angleDelta.y)
+    }
+
+    // Two nested positioners mirror KWin's desktop grid: the OUTER stacks the lines along the cross
+    // axis (the KWin rows), the INNER lays each line's dots along the major axis. Each inner line is
+    // exactly the single-line reflow strip (tight dots + in-place pill), so a multi-row grid is just
+    // `lineCount` of those stacked — every row keeps the current look, no column-alignment math.
+    // Grid (a plain positioner, no Layout solver — qml-performance.md) does both: only the line
+    // dimension is fixed to 1, the other is -1 (auto) so it tracks the live child count and never
+    // warns ("more items than rows×columns") during an add/remove. The 1/-1 pair flips with
+    // `vertical`: horizontal → lines stacked in a column, dots in rows; vertical → the transpose,
+    // so the longer (per-line) extent always runs along the panel's long axis.
+    Grid {
+        id: strip
         anchors.centerIn: parent
         spacing: indicator.dotSpacing
+        rows: indicator.vertical ? 1 : -1
+        columns: indicator.vertical ? -1 : 1
 
         Repeater {
-            // desktopIds is [] while the source is transiently null/empty (add/remove
-            // or shell reload), so the Repeater is empty and the delegate bindings below
-            // never see a missing source (robustness.md).
-            model: indicator.desktopIds
+            // `lines` is [] while the source is transiently null/empty (add/remove or shell
+            // reload), so the outer Repeater is empty and nothing below sees a missing source.
+            model: indicator.lines
 
-            delegate: WorkspaceDot {
-                id: workspaceDot
+            delegate: Grid {
+                id: lineStrip
 
-                required property string modelData
+                required property var modelData    // this line's UUIDs (a row-major chunk)
+                required property int index        // line index (KWin row)
 
-                dotSize: indicator.dotSize
-                slotWidth: indicator.dotSize
-                inactiveOpacity: indicator.inactiveOpacity
-                active: indicator.currentDesktop === workspaceDot.modelData
+                spacing: indicator.dotSpacing
+                rows: indicator.vertical ? -1 : 1
+                columns: indicator.vertical ? 1 : -1
 
-                onActivated: indicator.switchRequested(workspaceDot.modelData)
-            }
-        }
-    }
+                Repeater {
+                    model: lineStrip.modelData
 
-    // The single sliding pill, drawn AFTER (on top of) the Row so it fully covers the
-    // active slot's dim circle. It has no MouseArea, so clicks fall through to the dot
-    // beneath (a bare Rectangle does not intercept pointer events in Qt Quick).
-    Rectangle {
-        id: pill
+                    delegate: WorkspaceDot {
+                        id: workspaceDot
 
-        visible: indicator.activeIndex >= 0
-        width: indicator.pillWidth
-        height: indicator.dotSize
-        radius: height / 2
-        color: Kirigami.Theme.highlightColor
+                        required property string modelData
+                        required property int index
 
-        anchors.verticalCenter: row.verticalCenter
-        // Centred over the active dot; see indicator.pillX for the geometry.
-        x: indicator.pillX
+                        // Position in the flat desktopIds/desktopNames: earlier lines are full at
+                        // perLine, so global = line * perLine + position-within-line.
+                        readonly property int globalIndex: lineStrip.index * indicator.perLine + workspaceDot.index
 
-        // Smooth GNOME-style slide. Disabled until the first placement (slideEnabled)
-        // and when the user has turned animations off (longDuration === 0 → instant).
-        Behavior on x {
-            enabled: indicator.slideEnabled && Kirigami.Units.longDuration > 0
-            NumberAnimation {
-                duration: Kirigami.Units.longDuration
-                easing.type: Easing.OutCubic
+                        vertical: indicator.vertical
+                        dotSize: indicator.dotSize
+                        pillWidthFactor: indicator.pillWidthFactor
+                        inactiveOpacity: indicator.inactiveOpacity
+                        hoverOpacity: indicator.hoverOpacity
+                        followThemeColors: indicator.followThemeColors
+                        activeColor: indicator.activeColor
+                        inactiveColor: indicator.inactiveColor
+                        animationDuration: indicator.animationDuration
+                        active: indicator.currentDesktop === workspaceDot.modelData
+                        animate: indicator.animate
+
+                        // Feed each dot its tooltip name + window-list subText (|| "" guards the
+                        // transient state where names/tooltips lag ids during an add/remove —
+                        // robustness.md) and the showTooltips flag.
+                        desktopName: indicator.desktopNames[workspaceDot.globalIndex] || ""
+                        tooltipText: indicator.desktopTooltips[workspaceDot.globalIndex] || ""
+                        showTooltips: indicator.showTooltips
+
+                        onActivated: indicator.switchRequested(workspaceDot.modelData)
+                    }
+                }
             }
         }
     }

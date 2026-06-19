@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Plasma Gnome Pager — configuration schema (KConfigXT)
+
+  SPDX-FileCopyrightText: 2026 Kenan Salar
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Each <entry name="X"> becomes plasmoid.configuration.X, read live and reactive in the
+  widget. These defaults apply whether or not the settings UI is open: main.qml reads each
+  key (with a matching `?? <default>` guard) and passes a plain value down to the indicator/dot,
+  keeping those sub-components free of plasmoid.configuration (and so headless-testable).
+
+  Two keys use a `0 = auto` sentinel because their natural default is theme/HiDPI-derived and
+  a KConfigXT default can only be a fixed literal (baking a px/ms value would lose HiDPI
+  scaling — see kirigami.md/robustness.md): dotSize 0 → Kirigami.Units.iconSizes.small/2, and
+  animationDuration 0 → Kirigami.Units.longDuration (which also inherits "reduce animations").
+  The dimensionless ratios (spacingFactor/pillWidthFactor/inactiveOpacity/hoverOpacity) are
+  plain literals. activeColor/inactiveColor apply only when followThemeColors is false.
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <!-- Scroll over the strip to switch desktops. -->
+        <entry name="enableScroll" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- When scrolling past the first/last desktop, wrap around (else clamp). -->
+        <entry name="scrollWrap" type="Bool">
+            <default>false</default>
+        </entry>
+        <!-- Show the desktop name in a tooltip on hover. -->
+        <entry name="showTooltips" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Also list the windows open on a desktop in its tooltip (needs showTooltips). -->
+        <entry name="showWindowList" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Offer Add/Remove desktop entries in the right-click menu. -->
+        <entry name="enableAddRemove" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Offer a "Rename Current Desktop…" entry in the right-click menu. -->
+        <entry name="enableRename" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Morph animation length in ms; 0 = follow the theme (Kirigami.Units.longDuration). -->
+        <entry name="animationDuration" type="Int">
+            <default>0</default>
+        </entry>
+    </group>
+
+    <group name="Appearance">
+        <!-- Inactive-dot diameter in px; 0 = auto (Kirigami.Units.iconSizes.small / 2, HiDPI-aware). -->
+        <entry name="dotSize" type="Int">
+            <default>0</default>
+        </entry>
+        <!-- Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). -->
+        <entry name="spacingFactor" type="Double">
+            <default>0.5</default>
+        </entry>
+        <!-- Active-capsule length, as a multiple of the dot size. -->
+        <entry name="pillWidthFactor" type="Double">
+            <default>3.5</default>
+        </entry>
+        <!-- Opacity of an inactive (dim) dot. -->
+        <entry name="inactiveOpacity" type="Double">
+            <default>0.45</default>
+        </entry>
+        <!-- Opacity an inactive dot brightens to on hover. -->
+        <entry name="hoverOpacity" type="Double">
+            <default>0.8</default>
+        </entry>
+        <!-- Follow the color scheme (active = highlight, inactive = text colour). When false,
+             use the activeColor / inactiveColor below instead. -->
+        <entry name="followThemeColors" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Custom active-capsule colour (used only when followThemeColors is false). -->
+        <entry name="activeColor" type="Color">
+            <default>#3daee9</default>
+        </entry>
+        <!-- Custom inactive-dot colour (used only when followThemeColors is false). -->
+        <entry name="inactiveColor" type="Color">
+            <default>#eff0f1</default>
+        </entry>
+    </group>
+</kcfg>

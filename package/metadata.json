@@ -6,18 +6,29 @@
     ],
     "KPlugin": {
         "Id": "com.github.kenansalar.plasma-gnome-pager",
-        "Name": "GNOME Workspace Switcher",
+        "Name": "Plasma Gnome Pager",
         "Description": "A GNOME-style virtual desktop switcher: dots with a pill on the current workspace.",
+        "Description[de]": "Ein Arbeitsflächen-Umschalter im GNOME-Stil: Punkte mit einer Pille auf der aktuellen Arbeitsfläche.",
+        "Description[fr]": "Un sélecteur de bureaux virtuels façon GNOME : des points avec une pilule sur l'espace de travail actuel.",
+        "Description[es]": "Un cambiador de escritorios virtuales al estilo de GNOME: puntos con una píldora en el espacio de trabajo actual.",
+        "Description[el]": "Εναλλάκτης εικονικών επιφανειών εργασίας σε στυλ GNOME: κουκκίδες με ένα χάπι στον τρέχοντα χώρο εργασίας.",
+        "Description[it]": "Un selettore di desktop virtuali in stile GNOME: punti con una pillola sullo spazio di lavoro attuale.",
+        "Description[tr]": "GNOME tarzı bir sanal masaüstü değiştirici: geçerli çalışma alanında bir hap ile noktalar.",
+        "Description[pt]": "Um comutador de áreas de trabalho virtuais ao estilo do GNOME: pontos com uma pílula no espaço de trabalho atual.",
+        "Description[pt_BR]": "Um alternador de áreas de trabalho virtuais no estilo do GNOME: pontos com uma pílula no espaço de trabalho atual.",
+        "Description[ar]": "مبدّل أسطح المكتب الافتراضية بنمط GNOME: نقاط مع كبسولة على مساحة العمل الحالية.",
+        "Description[zh_CN]": "GNOME 风格的虚拟桌面切换器：用圆点表示桌面，当前工作区显示为胶囊。",
+        "Description[ru]": "Переключатель виртуальных рабочих столов в стиле GNOME: точки с капсулой на текущем рабочем пространстве.",
+        "Description[ja]": "GNOME 風の仮想デスクトップ切り替えツール：デスクトップをドットで表示し、現在のワークスペースをカプセルで示します。",
         "Category": "Windows and Tasks",
         "Icon": "user-desktop",
-        "Version": "0.1.0",
+        "Version": "1.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/KenanSalar/plasma-gnome-pager",
         "BugReportUrl": "https://github.com/KenanSalar/plasma-gnome-pager/issues",
         "Authors": [
             {
-                "Name": "Kenan Salar",
-                "Email": ""
+                "Name": "Kenan Salar"
             }
         ]
     }
