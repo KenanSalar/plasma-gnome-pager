@@ -55,6 +55,22 @@ TestCase {
         VdiMock {}
     }
 
+    // A pre-6.7 VirtualDesktopInfo: the desktop set + global current, but NO currentDesktopByScreenName
+    // method, so the indicator's `typeof … === "function"` guard must fall back to the global current
+    // (the graceful-degradation path for an older Plasma — robustness.md). It DOES carry the per-screen
+    // signal so the indicator's Connections stays warning-free; only the METHOD is absent, which is what
+    // the typeof guard tests. Kept inline (not in tests/shared/) since only one test needs it.
+    Component {
+        id: legacyVdiComponent
+        QtObject {
+            property var desktopIds: []
+            property string currentDesktop: ""
+            property var desktopNames: []
+            property int desktopLayoutRows: 1
+            signal currentDesktopForScreenChanged(string screenName)
+        }
+    }
+
     SignalSpy {
         id: switchSpy
         signalName: "switchRequested"
@@ -1198,5 +1214,161 @@ TestCase {
         }, 2000, "exactly one capsule after the burst");
         tryVerify(() => Math.abs(dotByUuid(indicator, fiveIds[3]).width - indicator.pillWidth) < 0.5,
                   2000, "the final desktop morphs to the capsule width");
+    }
+
+    // --- M6 scale-to-fit: the floor clamp and the no-scale-up guarantee --------------
+    // The existing scale tests use 0.6× (the dot shrinks but stays above the floor). These pin the two
+    // ends of the clamp `dotSize = max(minDotSize, min(naturalDotSize, fitDotSize))`.
+
+    // An EXTREME narrow allocation (0.3× the natural strip, below the floor's strip length) clamps the
+    // effective dot exactly at minDotSize — it shrinks no further (overflow is accepted over illegible dots).
+    function test_scaleClampsAtFloorOnExtremeNarrow() {
+        const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
+        indicator.width = indicator.naturalStripLength * 0.3;   // far below the legible floor
+        tryVerify(() => Math.abs(indicator.dotSize - indicator.minDotSize) < 0.001, 2000,
+                  "the effective dot clamps exactly at the legible floor");
+        verify(indicator.dotSize >= indicator.minDotSize - 0.001, "never shrinks past the floor");
+    }
+
+    // The clamp NEVER scales UP: a configured dot smaller than the floor makes minDotSize == naturalDotSize
+    // (minDotSize clamps DOWN to natural), so even an enormous allocation keeps the tiny natural size —
+    // scale-to-fit only ever shrinks. Guards the Math.min(naturalDotSize, …) on minDotSize.
+    function test_scaleNeverEnlargesTinyConfiguredDot() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 2 });
+        fuzzyCompare(indicator.naturalDotSize, 2, 0.001, "a tiny request is the natural size");
+        fuzzyCompare(indicator.minDotSize, 2, 0.001, "minDotSize clamps to natural (never above it)");
+        indicator.width = indicator.naturalStripLength * 4;     // an enormous allocation
+        fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.001, "huge room never scales the dot UP past natural");
+    }
+
+    // --- multi-row: lines are sized independently (the documented trade-off) ---------
+    // 5 desktops / 2 rows → lines of [3, 2]. Each line is its own reflow strip, so the line holding the
+    // capsule (line 0) is WIDER than the short trailing line — they are not forced to a common column
+    // width. The strip's natural width is the wider (capsule) line. (test_gridUnevenLastLine checks counts.)
+    function test_gridLinesSizedIndependently() {
+        const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0], [], 2));
+        compare(indicator.perLine, 3, "3 per line");
+        compare(indicator.lineCount, 2, "two lines");
+        const dots = dotsByIndex(indicator);   // [0,1,2] line 0 (capsule at 0), [3,4] line 1
+        const line0Width = dots[2].mapToItem(indicator, dots[2].width, 0).x - dots[0].mapToItem(indicator, 0, 0).x;
+        const line1Width = dots[4].mapToItem(indicator, dots[4].width, 0).x - dots[3].mapToItem(indicator, 0, 0).x;
+        verify(line0Width > line1Width + 0.5, "the capsule-bearing line is wider than the short trailing line");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "the strip width is the wider (full) line");
+    }
+
+    // The advertised width is a position-independent FORMULA (a switch trades one growing element for one
+    // shrinking one), so it must NOT change across a switch — the panel cell never jitters. The existing
+    // test_transientStaleNoCapsuleWidthStable covers only the stale (no-capsule) state.
+    function test_implicitWidthConservedAcrossSwitch() {
+        const vdi = makeMock(ids, ids[0]);
+        const indicator = makeIndicator(vdi);
+        const before = indicator.implicitWidth;
+        verify(before > 0, "has a positive content width");
+
+        vdi.currentDesktop = ids[2];   // move the capsule to the far end
+        tryCompare(indicator, "activeIndex", 2, 2000, "the switch registered");
+        fuzzyCompare(indicator.implicitWidth, before, 0.5, "advertised width is conserved across the switch");
+    }
+
+    // robustness.md: a populated → empty ARRAY → populated round-trip (a transient frame during an
+    // add/remove, distinct from the at-creation empty case). No dots while empty, the size stays
+    // finite, the one-way animate latch survives, and exactly one capsule returns on repopulation.
+    function test_transientEmptyIdsThenRepopulate() {
+        const vdi = makeMock(ids, currentUuid);
+        const indicator = makeIndicator(vdi);
+        compare(collectDots(indicator).length, 3, "three dots at start");
+        compare(indicator.animate, true, "latched at a valid start");
+
+        vdi.desktopIds = [];   // transient empty frame
+        compare(collectDots(indicator).length, 0, "no dots while ids are empty");
+        verify(isFinite(indicator.dotSize) && indicator.dotSize > 0, "dot size stays finite/positive on the empty frame");
+        compare(indicator.animate, true, "the one-way latch survives the empty frame");
+
+        vdi.desktopIds = ids;   // ids come back
+        tryVerify(() => collectDots(indicator).length === 3, 2000, "dots return when ids repopulate");
+        tryVerify(() => {
+            const dots = collectDots(indicator);
+            let caps = 0;
+            for (let i = 0; i < dots.length; i++)
+                if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5) caps++;
+            return caps === 1;
+        }, 2000, "exactly one capsule after repopulation");
+    }
+
+    // --- per-screen degrade paths -------------------------------------------------
+    // An explicit EMPTY per-screen entry ("" — the API has no current for this output) is excluded by
+    // resolveCurrentDesktop, so the indicator falls back to the global current (logic-tier covers the
+    // pure rule; this drives it through the mock end-to-end).
+    function test_perScreenEmptyEntryFallsBackToGlobal() {
+        const vdi = makeMock(ids, ids[1]);
+        vdi.perScreenCurrent = { "DP-2": "" };
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+        compare(indicator.currentDesktop, ids[1], "empty per-screen entry falls back to the global current");
+        verify(dotByUuid(indicator, ids[1]).active, "the global current is the active dot");
+    }
+
+    // Older Plasma (pre-6.7): the source has no currentDesktopByScreenName method, so the typeof guard
+    // makes the indicator resolve the global current — it degrades to single-current behaviour.
+    function test_olderPlasmaDegradesToGlobal() {
+        const vdi = createTemporaryObject(legacyVdiComponent, testCase, { desktopIds: ids, currentDesktop: ids[2] });
+        const indicator = makeIndicator(vdi, { screenName: "DP-9" });
+        compare(indicator.currentDesktop, ids[2], "no per-screen API → resolves the global current");
+        verify(dotByUuid(indicator, ids[2]).active, "the global current is the active dot on older Plasma");
+    }
+
+    // --- bind-don't-cache for the names / tooltips arrays --------------------------
+    // The existing tooltip tests set the arrays at creation; these mutate them on a LIVE indicator and
+    // assert the dots update (a cached copy would not).
+    function test_reactiveDesktopNamesMutation() {
+        const vdi = makeMock(ids, currentUuid, ["One", "Two", "Three"]);
+        const indicator = makeIndicator(vdi);
+        compare(dotByUuid(indicator, ids[0]).desktopName, "One", "initial name");
+
+        vdi.desktopNames = ["Uno", "Dos", "Tres"];   // renamed by KWin / another pager
+
+        tryCompare(dotByUuid(indicator, ids[0]), "desktopName", "Uno", 2000, "the dot's name updates reactively");
+    }
+
+    function test_reactiveDesktopTooltipsMutation() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { desktopTooltips: ["w0", "w1", "w2"] });
+        compare(dotByUuid(indicator, ids[1]).tooltipText, "w1", "initial window-list subText");
+
+        indicator.desktopTooltips = ["x0", "x1", "x2"];   // main.qml rebuilt the window lists
+
+        tryCompare(dotByUuid(indicator, ids[1]), "tooltipText", "x1", 2000, "the dot's window-list subText updates reactively");
+    }
+
+    // --- scroll: positive (wheel-up) remainder carry ------------------------------
+    // Symmetric to test_wheelAccumulatorCarriesNegativeRemainder: +200 steps once and carries +80, so a
+    // following +40 completes the next notch. If the remainder were dropped, +40 would be sub-notch and
+    // never switch. (Like the negative case, the mock's current is unchanged by the signal, so both steps
+    // target the same neighbour — we assert the count and the carried remainder, not the second target.)
+    function test_wheelPositiveRemainderCarry() {
+        const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(200);
+        compare(switchSpy.count, 1, "one notch out of +200");
+        compare(switchSpy.signalArguments[0][0], ids[1], "wheel up steps to the previous desktop");
+        fuzzyCompare(indicator.wheelAccumulator, 80, 0.001, "the +80 remainder is carried, not dropped");
+
+        indicator.handleWheel(40);   // +80 + +40 = +120 → one more notch
+        compare(switchSpy.count, 2, "the carried remainder completes a second notch");
+    }
+
+    // The active capsule stays full strength on hover IN THE COMPOSED STRIP (the standalone-dot analogue is
+    // test_activeCapsuleFullStrengthHoverNoEffect) — hover affects inactive dots only, even through the
+    // behind-dots wheel layer.
+    function test_activeCapsuleNoHoverEffectInComposition() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        const capsule = dotByUuid(indicator, currentUuid);
+        const circle = circleOf(capsule);
+        fuzzyCompare(circle.opacity, 1.0, 0.001, "active capsule starts at full strength");
+
+        const c = capsule.mapToItem(indicator, capsule.width / 2, capsule.height / 2);
+        mouseMove(indicator, c.x, c.y);
+        wait(Math.max(50, Kirigami.Units.longDuration * 2));
+        fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule in the strip");
     }
 }
