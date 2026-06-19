@@ -122,7 +122,7 @@ function resolveCurrentDesktop(perScreen, global) {
  * feed `remainder` back in as `accumulated` on the next event so sub-notch motion is not lost.
  */
 function accumulateWheel(accumulated, deltaY, threshold) {
-    var t = (threshold && threshold > 0) ? threshold : 120;
+    var t = (threshold > 0) ? threshold : DEFAULTS.wheelNotchDelta;
     var total = accumulated + deltaY;
     var steps = (total / t) | 0;                      // truncate toward zero
     return { steps: steps, remainder: total - steps * t };
@@ -255,6 +255,9 @@ function sanitizeHtml(input) {
     });
 }
 
+// Cap (chars) on a user-entered desktop name, so an absurd name stays sane in the tooltip/markup.
+var MAX_DESKTOP_NAME_LENGTH = 100;
+
 /**
  * Normalise a user-entered desktop name before the KWin `setDesktopName` DBus write (distinct from
  * sanitizeHtml above, which escapes markup): coerce a null/undefined/non-string to "", trim
@@ -266,8 +269,7 @@ function sanitizeDesktopName(input) {
     var s = toStringOrEmpty(input).trim();
     if (s.length === 0)
         return "";
-    var MAX = 100;
-    return s.length > MAX ? s.slice(0, MAX) : s;
+    return s.length > MAX_DESKTOP_NAME_LENGTH ? s.slice(0, MAX_DESKTOP_NAME_LENGTH) : s;
 }
 
 /**
@@ -334,6 +336,25 @@ function groupWindowsByDesktop(windows, desktopIds) {
 var KWIN_SERVICE = "org.kde.KWin";
 var KWIN_VDM_PATH = "/VirtualDesktopManager";
 var KWIN_VDM_IFACE = "org.kde.KWin.VirtualDesktopManager";
+var DBUS_PROPERTIES_IFACE = "org.freedesktop.DBus.Properties";
+
+/**
+ * Build a VirtualDesktopManager DBus call spec — the shared { service, path, iface, member, args }
+ * envelope for the createDesktop/removeDesktop/setDesktopName writes (all on KWIN_VDM_IFACE), so the
+ * only per-call differences are `member` and `args`. switchSpec is intentionally NOT built through
+ * this — it targets a different iface/member (Properties.Set). The key order (service, path, iface,
+ * member, args) is load-bearing: tst_logic.qml compares specs via JSON.stringify, which is
+ * insertion-order sensitive.
+ */
+function vdmCall(member, args) {
+    return {
+        service: KWIN_SERVICE,
+        path: KWIN_VDM_PATH,
+        iface: KWIN_VDM_IFACE,
+        member: member,
+        args: args
+    };
+}
 
 /**
  * Switch the (global) current desktop to `uuid`, via the VirtualDesktopManager "current" property.
@@ -347,7 +368,7 @@ function switchSpec(uuid) {
     return {
         service: KWIN_SERVICE,
         path: KWIN_VDM_PATH,
-        iface: "org.freedesktop.DBus.Properties",
+        iface: DBUS_PROPERTIES_IFACE,
         member: "Set",
         args: [{ t: "s", v: KWIN_VDM_IFACE }, { t: "s", v: "current" }, { t: "v", v: uuid }]
     };
@@ -359,13 +380,7 @@ function switchSpec(uuid) {
  * undefined/NaN count to 0 so the uint32 arg is always a real integer.
  */
 function addSpec(position, name) {
-    return {
-        service: KWIN_SERVICE,
-        path: KWIN_VDM_PATH,
-        iface: KWIN_VDM_IFACE,
-        member: "createDesktop",
-        args: [{ t: "u", v: position | 0 }, { t: "s", v: String(name) }]
-    };
+    return vdmCall("createDesktop", [{ t: "u", v: position | 0 }, { t: "s", v: String(name) }]);
 }
 
 /**
@@ -376,13 +391,7 @@ function addSpec(position, name) {
 function removeSpec(uuid, count) {
     if (!uuid || !canRemoveDesktop(count))
         return null;
-    return {
-        service: KWIN_SERVICE,
-        path: KWIN_VDM_PATH,
-        iface: KWIN_VDM_IFACE,
-        member: "removeDesktop",
-        args: [{ t: "s", v: uuid }]
-    };
+    return vdmCall("removeDesktop", [{ t: "s", v: uuid }]);
 }
 
 /**
@@ -394,11 +403,5 @@ function renameSpec(uuid, name) {
     var clean = sanitizeDesktopName(name);
     if (!uuid || !clean)
         return null;
-    return {
-        service: KWIN_SERVICE,
-        path: KWIN_VDM_PATH,
-        iface: KWIN_VDM_IFACE,
-        member: "setDesktopName",
-        args: [{ t: "s", v: uuid }, { t: "s", v: clean }]
-    };
+    return vdmCall("setDesktopName", [{ t: "s", v: uuid }, { t: "s", v: clean }]);
 }
