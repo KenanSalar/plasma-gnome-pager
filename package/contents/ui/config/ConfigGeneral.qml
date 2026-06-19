@@ -93,7 +93,7 @@ ConfigPageBase {
             label: i18n("Animation duration:")
             from: 0
             to: 2000
-            stepSize: 50   // clean 50 ms increments (SnapAlways is the ConfigSlider default)
+            stepSize: 25   // clean 25 ms increments (SnapAlways is the ConfigSlider default)
             // 0 = follow the theme's default (and the global "reduce animations" setting).
             format: v => v === 0 ? i18n("Default") : i18np("%1 ms", "%1 ms", Math.round(v))
         }

@@ -319,13 +319,23 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 
 > **Accessibility — each `WorkspaceDot` is a named, pressable button for screen readers.** The dot's
 > root sets `Accessible.role: Accessible.Button`, `Accessible.name: desktopName` (the same string the
-> tooltip shows; tracks it live), and `Accessible.onPressAction: dot.activated()` — so Orca announces
-> each dot as a button named after its desktop and an AT-driven press switches through the **same**
+> tooltip shows; tracks it live), `Accessible.checkable: true` + `Accessible.checked: dot.active` (so an
+> AT can tell WHICH dot is the current desktop — otherwise every dot is an identically-roled button), and
+> `Accessible.onPressAction: dot.activated()` — so Orca announces each dot as a button named after its
+> desktop, reports the current one as checked, and an AT-driven press switches through the **same**
 > `activated()` → `switchRequested` path as a pointer click. `Accessible` is part of `QtQuick` (no
 > extra import) and the per-dot a11y lives on the element (not the indicator), staying headless-testable
-> (`tst_workspacedot.qml::{test_accessibleExposesButtonRole,test_accessiblePressEmitsActivated}`).
+> (`tst_workspacedot.qml::{test_accessibleExposesButtonRole,test_accessibleCheckedTracksActive,test_accessiblePressEmitsActivated}`).
 > Keyboard *switching* itself is KWin's global `Ctrl+F<n>` (reflected live via `VirtualDesktopInfo`),
 > so the dots add **no** Tab-focus/key handling of their own — deliberately out of scope.
+> **Verify the live exposure with an AT-SPI tree dump** (pyatspi — find the `plasmashell` app, recurse
+> for `*button*` nodes), **not** Orca hover: Orca's mouse-review is broken on **Wayland** (it can't track
+> the pointer) and the dots aren't Tab-focusable, so neither hover nor focus-tracking announces them — an
+> Orca-on-Wayland limitation, **not** the widget's (so user-facing copy should attribute it to Orca, not
+> undersell the widget). A correct dump shows `[button] name='Desktop 1'
+> states=checked,checkable,focusable,sensitive` (current) and `Desktop 2` without `checked`; an AT client
+> (Orca) must be running so Qt activates its a11y bridge. Full recipe in the project memory
+> (`verify-a11y-via-atspi-tree-dump`).
 
 **Window-list tooltip — windows-per-desktop from the PUBLIC `TasksModel`, NOT the private
 `PagerModel`.** The tooltip's `subText` is the stock KDE pager's window list ("N Windows:" + a
@@ -412,18 +422,24 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
 
-> **Gotcha — reserve a config slider's value-label width or the slider jitters.** A slider in a
-> `RowLayout` with a `Layout.fillWidth` track plus a value read-out `Label` makes the track/handle
-> appear to jump while dragging, because the label's implicit width changes with the value
-> (`"45%" → "100%"`, and even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font),
-> reflowing the row. `ConfigSlider.qml` fixes this with a single `format` closure (value → display
-> string): each call site supplies `format` once, and the component uses it for BOTH the live
-> read-out AND the reserved width — pinning the label (via `TextMetrics`) to the wider of
-> `format(from)`/`format(to)` + a small buffer. Because every formatter here is monotonic in string
-> width with magnitude AND the sentinel sliders put their special text at `from` (`0 → "Default"`),
-> reserving over the two extremes bounds every value between them (no separate `widestText` to keep
-> in sync). `snapMode` defaults to `SnapAlways` in the component; callers just set `from/to/stepSize`
-> + `format`.
+> **Gotcha — reserve the value-label width AND fix the track width; the slider is NOT `fillWidth`.**
+> `ConfigSlider.qml` makes two coupled layout decisions. **(1) Reserve the read-out width** or the
+> slider jitters: the value `Label`'s implicit width changes with the value (`"45%" → "100%"`, and
+> even `"1.0× dot" → "4.0× dot"` since digits differ in a proportional font), reflowing the row so the
+> track/handle appear to jump while dragging. A single `format` closure (value → display string)
+> supplies BOTH the live read-out AND the reserved width — the component pins the label (via
+> `TextMetrics`) to the wider of `format(from)`/`format(to)` + a small buffer. Because every formatter
+> here is monotonic in string width with magnitude AND the sentinel sliders put their special text at
+> `from` (`0 → "Default"`), reserving over the two extremes bounds every value between them (no
+> separate `widestText` to keep in sync). **(2) Fix the track width**: the `Slider` is a FIXED
+> `Layout.preferredWidth == Layout.minimumWidth == gridUnit*18` — it is the value **`Label`** that is
+> `Layout.fillWidth` (and right-aligned), NOT the track. A `fillWidth` track stretches to its
+> `FormLayout` field column, which the Behavior page's long checkbox labels widen well beyond the
+> slider-only Appearance page — so the sliders rendered *different lengths* across the two pages.
+> Pinning the track and letting the right-aligned read-out absorb any extra column width keeps both
+> pages' sliders matched (the trade-off: on a wide page the read-out sits at the column's right edge,
+> gapped from the slider). `snapMode` defaults to `SnapAlways` in the component; callers just set
+> `from/to/stepSize` + `format`.
 
 > **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
 > fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`
