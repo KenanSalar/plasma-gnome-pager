@@ -316,4 +316,72 @@ TestCase {
         verify(circle.width < dot.pillWidth - 0.5, "width animates toward the capsule (no instant jump)");
         tryCompare(circle, "width", dot.pillWidth, 2000, "the morph settles at the capsule width");
     }
+
+    // The COLOUR morph fires when latched too: toggling `active` eases the circle from the theme text
+    // colour to the highlight rather than snapping. Same gate as the width morph (skip under
+    // reduce-animations). Companion to test_morphAnimatesWhenLatched, which only observes width.
+    function test_colorMorphAnimatesWhenLatched() {
+        const dot = makeDot({ active: false, animate: true, animationDuration: 200 });
+        if (!dot.morphEnabled)
+            skip("animations disabled in this environment (reduce-animations / longDuration == 0)");
+
+        const circle = circleOf(dot);
+        compare(circle.color, Kirigami.Theme.textColor, "starts at the theme text colour");
+
+        dot.active = true;   // morph the colour toward the highlight
+        verify(!Qt.colorEqual(circle.color, Kirigami.Theme.highlightColor), "colour animates (has not snapped to highlight)");
+        tryVerify(() => Qt.colorEqual(circle.color, Kirigami.Theme.highlightColor), 2000, "the colour settles at the highlight");
+    }
+
+    // The OPACITY morph fires too: an inactive dot at inactiveOpacity eases up to full strength (1.0)
+    // when it becomes the active capsule, rather than snapping.
+    function test_opacityMorphAnimatesWhenLatched() {
+        const dot = makeDot({ active: false, inactiveOpacity: 0.45, animate: true, animationDuration: 200 });
+        if (!dot.morphEnabled)
+            skip("animations disabled in this environment (reduce-animations / longDuration == 0)");
+
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "starts dimmed");
+
+        dot.active = true;   // morph opacity toward 1.0
+        verify(circle.opacity < 1.0 - 0.001, "opacity animates upward (no instant jump to full strength)");
+        tryCompare(circle, "opacity", 1.0, 2000, "the opacity settles at full strength");
+    }
+
+    // Vertical morph: with the latch on, the capsule grows TALL over effectiveDuration (the major-axis
+    // Behavior is `height` when vertical). The existing morph test is horizontal (width-only).
+    function test_verticalHeightMorphAnimatesWhenLatched() {
+        const dot = makeDot({ vertical: true, active: false, animate: true, animationDuration: 200 });
+        if (!dot.morphEnabled)
+            skip("animations disabled in this environment (reduce-animations / longDuration == 0)");
+
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.height, dot.dotSize, 0.5, "starts a dot tall");
+
+        dot.active = true;   // morph dot → tall capsule
+        verify(circle.height < dot.pillWidth - 0.5, "height animates toward the capsule (no instant jump)");
+        tryCompare(circle, "height", dot.pillWidth, 2000, "the morph settles at the capsule height");
+    }
+
+    // First placement is instant EVEN with the latch already on: an element born active is a capsule on
+    // frame 0 (initial property values never animate), so there is no grow-in despite a positive
+    // duration. The indicator-level analogue is test_firstPlacementIsImmediate.
+    function test_bornActiveWithLatchIsInstant() {
+        const dot = makeDot({ active: true, animate: true, animationDuration: 200 });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.width, dot.pillWidth, 0.5, "born-active is already a capsule (no grow-in from a dot)");
+    }
+
+    // The `hovered` alias (mouseArea.containsMouse) flips true while the pointer is over the element and
+    // false when it leaves — the pointer state behind the hover-brighten (otherwise asserted via opacity).
+    function test_hoveredAliasFlipsTrue() {
+        const dot = makeDot({});
+        compare(dot.hovered, false, "not hovered at rest");
+
+        mouseMove(dot, dot.width / 2, dot.height / 2);
+        tryCompare(dot, "hovered", true, 2000, "hovered becomes true under the pointer");
+
+        mouseMove(dot, -5, -5);   // pointer leaves the element
+        tryCompare(dot, "hovered", false, 2000, "hovered returns to false when the pointer leaves");
+    }
 }

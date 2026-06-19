@@ -16,9 +16,9 @@ and switches on click; the active dot morphs into a wider highlight "pill" (the 
 below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
 the windows open on that desktop), add/remove desktops, form-factor (vertical-panel) handling, the
 settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
-guards) are built; the remaining work is packaging/release. The
-ordered roadmap — what is built, and what to build next — lives in `TODO.txt`; this file and
-`.claude/rules/*` describe how the code is built, not the schedule.
+guards) are built; the remaining work is packaging/release. This file and
+`.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
+history lives in git history and the GitHub Releases).
 
 ## The rules are the law — read them first
 
@@ -430,11 +430,12 @@ make test       # plasmawindowed <id> — run standalone; QML errors print to th
 make restart    # reload the real panel (systemd user service if active, else kquitapp6 + setsid -f plasmashell)
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
-make lint       # qmllint-qt6 package/contents/ui/*.qml + ui/config/*.qml + config/config.qml
+make lint       # qmllint-qt6 the widget UI + ui/config/*.qml + config/config.qml + tests/{unit,integration,shared}/*.qml
 make messages   # extract translatable strings -> po/<domain>.pot, then msgmerge each po/*.po
 make i18n       # compile po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo (install/update/dev depend on it)
 make dev-undev  # remove the dev symlink
 make install / make update / make uninstall   # kpackagetool6 install/upgrade/remove (install/update compile catalogs first)
+make package    # build dist/<id>-<version>.plasmoid (zip of package/ with metadata.json at the archive root; depends on i18n)
 ```
 
 **Lint/format before installing** (the rules say `qmllint`/`qmlformat`, but on this Fedora KDE
@@ -459,8 +460,7 @@ by a `QtObject` mock standing in for `VirtualDesktopInfo`). Run a single tier wi
 `main.qml`/`PlasmoidItem` is **not** testable headless (it needs plasmashell + KWin + a session
 bus), so it still relies on the manual in-shell loop below. New logic should come with a test
 (see `tests/README.md`); when branching logic is added, extract it into a pure-JS tier
-(`logic.js` + `tests/unit/tst_logic.qml`) that needs no Plasma deps. The verification loop
-(also in `TODO.txt`) is:
+(`logic.js` + `tests/unit/tst_logic.qml`) that needs no Plasma deps. The verification loop is:
 
 1. `make check` — all tiers green (offscreen `qmltestrunner-qt6`; non-zero exit on failure).
 2. `make lint` (`qmllint-qt6 …`) clean — **zero warnings**. The `i18n*`/`Plasmoid`
