@@ -924,6 +924,57 @@ TestCase {
         fuzzyCompare(indicator.dotSize, Kirigami.Units.iconSizes.small / 2, 0.5, "0 resolves to the themed default");
     }
 
+    // The pillSize sentinel: 0 (default) → "match dots", so the pill tracks the dot size (ratio 1)
+    // and the look is the original M6 default even when only the DOT size is customised.
+    function test_autoPillTracksDotSize() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 20, pillWidthFactor: 3 });
+        compare(indicator.pillSizeRequest, 0, "pill request defaults to the 0 (match-dots) sentinel");
+        fuzzyCompare(indicator.pillThicknessRatio, 1, 0.001, "auto pill thickness ratio is 1");
+        fuzzyCompare(indicator.pillSize, 20, 0.5, "auto pill thickness == the dot size");
+        fuzzyCompare(indicator.pillWidth, 60, 0.5, "pillWidth = dotSize * pillWidthFactor when the pill tracks the dots");
+    }
+
+    // Independent sizing: small dots under a thick pill. The dots keep their own size, the pill its
+    // own thickness, and the pill length is pillSize * pillWidthFactor (not dot-relative). Ample
+    // allocation on both axes so scale-to-fit does not interfere.
+    function test_independentThickerPill() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24, pillWidthFactor: 3 });
+        indicator.width = indicator.naturalStripLength * 2;
+        indicator.height = indicator.naturalCrossThickness * 2;
+        fuzzyCompare(indicator.dotSize, 8, 0.5, "dots keep their own size");
+        fuzzyCompare(indicator.pillSize, 24, 0.5, "pill thickness is independent of the dots");
+        fuzzyCompare(indicator.pillWidth, 72, 0.5, "pillWidth = pillSize * pillWidthFactor");
+
+        const activeDot = dotByUuid(indicator, currentUuid);
+        fuzzyCompare(activeDot.height, 24, 0.5, "active dot is pill-thick on the cross axis");
+        fuzzyCompare(activeDot.width, 72, 0.5, "active dot is pill-long on the major axis");
+
+        const inactiveDot = dotByUuid(indicator, ids[0]);
+        fuzzyCompare(inactiveDot.height, 8, 0.5, "inactive dot stays a small dot on the cross axis");
+        fuzzyCompare(inactiveDot.width, 8, 0.5, "inactive dot stays a small dot on the major axis");
+    }
+
+    // A pill thicker than the dots raises the advertised CROSS thickness (implicitHeight on a
+    // horizontal strip) to the pill thickness, so the panel allocates room for the fat pill.
+    function test_pillThicknessAdvertisedOnCrossAxis() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24 });
+        fuzzyCompare(indicator.naturalCrossThickness, 24, 0.5, "cross thickness is the thicker pill, not the dot");
+        fuzzyCompare(indicator.implicitHeight, 24, 0.5, "implicitHeight advertises the pill thickness on a horizontal strip");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "major axis still advertises the strip length");
+    }
+
+    // Independent pill + dot shrink in LOCKSTEP under scale-to-fit: a narrow panel forces a shrink,
+    // but the configured pill:dot thickness ratio is preserved (pillSize == dotSize * ratio always).
+    function test_pillScalesWithFitShrink() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 16, pillSizeRequest: 32, pillWidthFactor: 3 });
+        const ratio = indicator.pillThicknessRatio;   // 32 / 16 == 2
+        fuzzyCompare(ratio, 2, 0.001, "configured ratio is pill/dot");
+        indicator.width = indicator.naturalStripLength * 0.5;   // force a major-axis shrink (stays above the floor)
+        tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "dot shrank below natural");
+        fuzzyCompare(indicator.pillSize / indicator.dotSize, ratio, 0.01, "pill thickness keeps the configured ratio while shrinking");
+        fuzzyCompare(indicator.pillWidth, indicator.pillSize * indicator.pillWidthFactor, 0.5, "pillWidth tracks the shrunk pill thickness");
+    }
+
     // Custom colours flow through: with followThemeColors off, each dot's circle uses the
     // configured colours (active vs inactive).
     function test_colorsFlowThrough() {
@@ -1239,6 +1290,46 @@ TestCase {
         fuzzyCompare(indicator.minDotSize, 2, 0.001, "minDotSize clamps to natural (never above it)");
         indicator.width = indicator.naturalStripLength * 4;     // an enormous allocation
         fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.001, "huge room never scales the dot UP past natural");
+    }
+
+    // Cross-axis centring: an inactive dot must sit centred against a thicker pill, not top-aligned
+    // (the line is as thick as the capsule). Compares the dots' cross-axis centre lines.
+    function test_inactiveDotCentredAgainstThickPillHorizontal() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24 });
+        indicator.width = indicator.naturalStripLength * 2;
+        indicator.height = indicator.naturalCrossThickness * 2;
+        const active = dotByUuid(indicator, currentUuid);
+        const inactive = dotByUuid(indicator, ids[0]);
+        const activeCentreY = active.mapToItem(indicator, active.width / 2, active.height / 2).y;
+        const inactiveCentreY = inactive.mapToItem(indicator, inactive.width / 2, inactive.height / 2).y;
+        fuzzyCompare(inactiveCentreY, activeCentreY, 0.5, "inactive dot is cross-centred against the thicker pill");
+    }
+
+    // The vertical-strip transpose of the centring fix: the cross axis is horizontal, so an inactive
+    // dot must be centred on X against the wider (tall) pill.
+    function test_inactiveDotCentredAgainstThickPillVertical() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true, dotSizeRequest: 8, pillSizeRequest: 24 });
+        indicator.height = indicator.naturalStripLength * 2;
+        indicator.width = indicator.naturalCrossThickness * 2;
+        const active = dotByUuid(indicator, currentUuid);
+        const inactive = dotByUuid(indicator, ids[0]);
+        const activeCentreX = active.mapToItem(indicator, active.width / 2, active.height / 2).x;
+        const inactiveCentreX = inactive.mapToItem(indicator, inactive.width / 2, inactive.height / 2).x;
+        fuzzyCompare(inactiveCentreX, activeCentreX, 0.5, "inactive dot is cross-centred against the thicker pill (vertical)");
+    }
+
+    // Floor (extreme narrow) with a thick pill: the dot clamps at minDotSize and the pill at its
+    // proportional floor minDotSize * pillThicknessRatio — neither shrinks past its minimum (overflow is
+    // accepted over illegible elements), and the lockstep ratio is preserved at the floor.
+    function test_pillFloorAtExtremeNarrow() {
+        const indicator = makeIndicator(makeMock(sixIds, sixIds[0]), { dotSizeRequest: 16, pillSizeRequest: 32 });
+        const ratio = indicator.pillThicknessRatio;   // 2
+        indicator.width = indicator.naturalStripLength * 0.2;   // far below the floor's strip length
+        tryVerify(() => Math.abs(indicator.dotSize - indicator.minDotSize) < 0.001, 2000,
+                  "the effective dot clamps exactly at the legible floor");
+        verify(indicator.dotSize >= indicator.minDotSize - 0.001, "dot never shrinks past the floor");
+        fuzzyCompare(indicator.pillSize, indicator.minDotSize * ratio, 0.01, "pill clamps at its proportional floor (minDotSize * ratio)");
+        verify(indicator.pillSize >= indicator.minDotSize * ratio - 0.01, "pill never shrinks past its floor");
     }
 
     // --- multi-row: lines are sized independently (the documented trade-off) ---------

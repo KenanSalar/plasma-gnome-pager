@@ -5,9 +5,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
-"Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/"
-"issues\n"
-"POT-Creation-Date: 2026-06-18 17:47+0200\n"
+"Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
+"POT-Creation-Date: 2026-06-19 16:02+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Italian\n"
@@ -27,66 +26,79 @@ msgstr "Comportamento"
 msgid "Appearance"
 msgstr "Aspetto"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:81
 #, kde-format
 msgid "Dot size:"
 msgstr "Dimensione dei punti:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:82
-#: package/contents/ui/config/ConfigGeneral.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:98
 #, kde-format
 msgid "Default"
 msgstr "Predefinito"
 
-#: package/contents/ui/config/ConfigAppearance.qml:82
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigAppearance.qml:98
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:87
+#: package/contents/ui/config/ConfigAppearance.qml:93
+#, kde-format
+msgid "Pill thickness:"
+msgstr "Spessore della pillola:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:98
+#, kde-format
+msgid "Match dots"
+msgstr "Adatta ai punti"
+
+#: package/contents/ui/config/ConfigAppearance.qml:103
 #, kde-format
 msgid "Spacing:"
 msgstr "Spaziatura:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:91
-#: package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:107
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× punto"
 
-#: package/contents/ui/config/ConfigAppearance.qml:96
+#: package/contents/ui/config/ConfigAppearance.qml:112
 #, kde-format
 msgid "Pill length:"
 msgstr "Lunghezza della pillola:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:105
+#: package/contents/ui/config/ConfigAppearance.qml:117
+#, kde-format
+msgid "%1× pill"
+msgstr "%1× pillola"
+
+#: package/contents/ui/config/ConfigAppearance.qml:122
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Opacità inattiva:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:114
+#: package/contents/ui/config/ConfigAppearance.qml:131
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Opacità al passaggio:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:127
+#: package/contents/ui/config/ConfigAppearance.qml:144
 #, kde-format
 msgid "Colors:"
 msgstr "Colori:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:128
+#: package/contents/ui/config/ConfigAppearance.qml:145
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Segui lo schema di colori"
 
-#: package/contents/ui/config/ConfigAppearance.qml:132
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Active desktop:"
 msgstr "Desktop attivo:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:138
+#: package/contents/ui/config/ConfigAppearance.qml:155
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Desktop inattivo:"
@@ -153,13 +165,13 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Valori predefiniti"
 
-#: package/contents/ui/main.qml:233 package/contents/ui/main.qml:246
+#: package/contents/ui/main.qml:236 package/contents/ui/main.qml:249
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Finestra senza titolo"
 
-#: package/contents/ui/main.qml:235
+#: package/contents/ui/main.qml:238
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -167,7 +179,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… e %1 altra finestra"
 msgstr[1] "… e %1 altre finestre"
 
-#: package/contents/ui/main.qml:248
+#: package/contents/ui/main.qml:251
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -175,7 +187,7 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 finestra:"
 msgstr[1] "%1 finestre:"
 
-#: package/contents/ui/main.qml:252
+#: package/contents/ui/main.qml:255
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
@@ -183,37 +195,37 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 finestra minimizzata:"
 msgstr[1] "%1 finestre minimizzate:"
 
-#: package/contents/ui/main.qml:287
+#: package/contents/ui/main.qml:290
 #, kde-format
 msgid "New Desktop"
 msgstr "Nuovo desktop"
 
-#: package/contents/ui/main.qml:330
+#: package/contents/ui/main.qml:333
 #, kde-format
 msgid "Add Desktop"
 msgstr "Aggiungi desktop"
 
-#: package/contents/ui/main.qml:338
+#: package/contents/ui/main.qml:341
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Rimuovi l'ultimo desktop"
 
-#: package/contents/ui/main.qml:346
+#: package/contents/ui/main.qml:349
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Rinomina il desktop attuale…"
 
-#: package/contents/ui/main.qml:396
+#: package/contents/ui/main.qml:399
 #, kde-format
 msgid "Rename desktop:"
 msgstr "Rinomina desktop:"
 
-#: package/contents/ui/main.qml:410
+#: package/contents/ui/main.qml:413
 #, kde-format
 msgid "Cancel"
 msgstr "Annulla"
 
-#: package/contents/ui/main.qml:415
+#: package/contents/ui/main.qml:418
 #, kde-format
 msgid "Rename"
 msgstr "Rinomina"
