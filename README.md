@@ -33,8 +33,10 @@ the same widget, transposed:
   `Kirigami.Units` (HiDPI-correct on fractional scaling).
 - **Reflow / morph pill** — the active desktop's dot morphs in place into a wider highlighted
   capsule; the strip reflows around it (no overlay), so the pill-to-dot gap matches the
-  dot-to-dot gap for the signature GNOME look. The first placement is instant (no grow-in on
-  shell reload); later switches animate, and motion respects the "reduce animations" setting.
+  dot-to-dot gap for the signature GNOME look. The pill's thickness can be sized independently
+  of the dots (`pillSize`, `0` = match dots), so a thick pill can sit over thin dots or vice
+  versa. The first placement is instant (no grow-in on shell reload); later switches animate,
+  and motion respects the "reduce animations" setting.
 - **Reactive** — bound to `VirtualDesktopInfo`, so switches made from the keyboard, another
   pager, or KWin settings update the widget immediately (state is never cached).
 - **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
@@ -44,6 +46,8 @@ the same widget, transposed:
   (sourced from the public `TasksModel`).
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
+- **Accessible** — each dot is exposed as a named, pressable button (`Accessible.role` / `name` /
+  press action), so screen readers (Orca) announce each desktop and can activate it.
 - **Works everywhere a pager goes** — **a vertical side panel behaves identically to a
   horizontal one** (the row of dots becomes a column and the pill grows vertically), plus a
   multi-row grid that mirrors KWin's "Rows" setting live. On a thin or crowded panel the dots
@@ -110,8 +114,10 @@ From Local File…**.
 
 ### KDE Store
 
-Coming soon — once published it will be installable from **Add Widgets → Get New Widgets…**
-and from [store.kde.org](https://store.kde.org/).
+Published on the KDE Store: **[Plasma Gnome Pager](https://store.kde.org/p/2363190)** (also on
+[OpenDesktop](https://www.opendesktop.org/p/2363190/)). Install it straight from the desktop:
+right-click the panel or desktop → **Add Widgets… → Get New Widgets… → Download New Plasma
+Widgets**, then search for "Plasma Gnome Pager".
 
 ## Configuration
 
@@ -135,8 +141,9 @@ restart; the defaults give the intended GNOME look out of the box.
 | Setting | Default | Description |
 |---|---|---|
 | `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
+| `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
 | `spacingFactor` | `0.5` | Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). |
-| `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the dot size. |
+| `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
 | `inactiveOpacity` | `0.45` | Opacity of an inactive (dim) dot. |
 | `hoverOpacity` | `0.8` | Opacity an inactive dot brightens to on hover. |
 | `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour). When off, use the two colours below. |
@@ -159,7 +166,7 @@ plasma-gnome-pager/
 ├── .contextProperties.ini   # declares i18n/Plasmoid globals so qmllint stays clean
 ├── .github/                 # CI workflows (PR validation, PR-source guard, publish) + CODEOWNERS
 ├── screenshots/             # README media (not shipped in the package)
-├── po/                      # translation source: <domain>.pot + per-language *.po
+├── po/                      # translation source: per-language *.po (the *.pot template is generated)
 ├── tests/                   # headless QML tests (not shipped in the package)
 │   ├── README.md
 │   ├── unit/                       # one component in isolation (+ pure-JS logic)
@@ -207,10 +214,10 @@ The widget ships **English** (the source language) plus **12 translation catalog
 (`it`), Japanese (`ja`), European Portuguese (`pt`), Brazilian Portuguese (`pt_BR`), Russian
 (`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are translated through
 `ki18n`; Plasma auto-binds them to the catalog domain
-`plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The translation source lives in `po/`
-(`*.pot` template + per-language `*.po`); compiled `*.mo` catalogs are generated into
-`package/contents/locale/<lang>/LC_MESSAGES/` by `make i18n` (so `make install`/`update`/`dev`
-ship them automatically).
+`plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The committed translation source is the
+per-language `po/*.po`; the `*.pot` template is regenerated from the QML by `make messages` and the
+compiled `*.mo` catalogs are generated into `package/contents/locale/<lang>/LC_MESSAGES/` by
+`make i18n` (so `make install`/`update`/`dev` ship them automatically) — both are gitignored.
 
 **Contributing a translation** — say, Korean:
 
@@ -223,7 +230,7 @@ make i18n                                  # compile, then `make restart` to see
 
 Open a pull request with the new `po/ko.po` (and, optionally, a `Description[ko]` key in
 `package/metadata.json` so the description in **Add Widgets** is localized too). After changing
-any in-code string, re-run `make messages` and commit the updated `.pot` + `.po`.
+any in-code string, re-run `make messages` and commit the updated `.po` (the `.pot` is gitignored).
 
 ## License
 

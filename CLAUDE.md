@@ -14,9 +14,9 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
 below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
-the windows open on that desktop), add/remove desktops, form-factor (vertical-panel) handling, the
-settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
-guards) are built; the remaining work is packaging/release. This file and
+the windows open on that desktop), add/remove/rename desktops, an independently-sized active pill,
+screen-reader accessibility, form-factor (vertical-panel) handling, the settings UI, and robustness
+hardening (per-screen current desktop, scale-to-fit, transient-state guards) are built. This file and
 `.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
 history lives in git history and the GitHub Releases).
 
@@ -124,11 +124,16 @@ the Visual model below).
 **Visual model — REFLOW: each element morphs dot⇄capsule (no overlay).** Each `WorkspaceDot`
 *is* a workspace and renders as a dim circle (`Kirigami.Theme.textColor` @ `inactiveOpacity`,
 `dotSize` across) when inactive, and morphs into a longer highlighted **capsule** (the "pill":
-`Kirigami.Theme.highlightColor` @ full opacity, `pillWidth` along the major axis) when `active`.
+`Kirigami.Theme.highlightColor` @ full opacity, `pillWidth` along the major axis, `pillSize` across)
+when `active`. **The pill is sized independently of the dots** (see the independent-pill gotcha
+below): its cross-axis *thickness* is the effective `pillSize` (config key `pillSize`, `0 = auto =
+match the dots`) and its *length* is `pillSize * pillWidthFactor`, so a thick pill can sit over tiny
+dots (or vice versa). By default `pillSize` tracks `dotSize`, recovering the original look exactly.
 There is **no** separate overlay. Switching morphs two elements at once (old capsule → dot, new dot
 → capsule) and the line reflows between them. **Form factor (M4):** the major axis is horizontal on
 a horizontal panel and vertical on a vertical one (`vertical`, from `Plasmoid.formFactor`); the dot
-morphs `width` or `height` accordingly (`radius` stays `dotSize/2` so the ends keep stadium-round).
+morphs `width` or `height` accordingly (`radius` is `min(width,height)/2` — half the shorter, cross
+axis — so the ends keep stadium-round in both orientations and at any pill thickness).
 When KWin's grid has more than one row, the strip is several such reflow lines stacked along the
 cross axis (mirroring `VirtualDesktopInfo.desktopLayoutRows`) — see the multi-row gotcha below.
 Hover brighten (M3) is a *separate* inactive-only state driven by
@@ -147,15 +152,15 @@ how GNOME and the KDE `compact_pager` actually work.
 > pill, which spread the dots far apart): here inactive dots stay `dotSize`-tight and only the
 > active one is longer. Size is advertised by a **formula** on the major axis (at the natural dot
 > size) — `naturalStripLength = perLine > 0 ? pillWidth + (perLine-1)*(dotSize+dotSpacing) : dotSize`
-> — and the cross axis carries the lines
-> (`naturalCrossThickness = lineCount*dotSize + (lineCount-1)*dotSpacing`),
+> (with `pillWidth = naturalPillSize * pillWidthFactor`) — and the cross axis carries the lines
+> (`naturalCrossThickness = lineCount*max(dotSize,pillSize) + (lineCount-1)*dotSpacing`),
 > not the live positioner extent, so the panel cell stays put during the morph and when no element
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
 > single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
 > Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
 > test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
-> (`dotSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match the
-> `main.xml` settings keys exactly (see "Config flow" below).
+> (`dotSize`, `pillSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match
+> the `main.xml` settings keys exactly (see "Config flow" below).
 >
 > **Scale-to-fit (M6 major axis; cross axis post-M6) — shrink the dots to the allocation on BOTH axes,
 > never overflow; NATURAL vs EFFECTIVE size.** When the natural strip would exceed the panel-allocated
@@ -168,9 +173,11 @@ how GNOME and the KDE `compact_pager` actually work.
 > must fit BOTH axes, so the binding constraint is the smaller fit. Both reuse the one pure
 > `Logic.fitDotSize(available, count, pillFactor, spacingFactor)`, the algebraic **inverse of
 > `lineExtent`** — the dot size that makes a full line exactly fill `available`: the MAJOR fit reads the
-> live major length with `perLine` and the real `pillWidthFactor` (one capsule + dots); the CROSS fit
-> reads the live cross thickness with `lineCount` and **`pillFactor == 1`** (no capsule — every line is
-> one dot thick, so it is the exact inverse of `naturalCrossThickness`). It returns `+Infinity` when
+> live major length with `perLine` and `pillThicknessRatio * pillWidthFactor` (the capsule length in
+> dot units; `== pillWidthFactor` when the pill tracks the dots); the CROSS fit reads the live cross
+> thickness with `lineCount` and **`max(1, pillThicknessRatio)`** (the pill-bearing line is the thicker
+> of dot/pill; `== 1`, recovering the exact inverse of `naturalCrossThickness`, when the pill is no
+> thicker than a dot). It returns `+Infinity` when
 > there's nothing to fit (non-positive `available`/`count`/denominator), so the unconstrained axis keeps
 > natural and `min` picks the other. The crucial constraint: **the `Layout.*` hints are computed from
 > the NATURAL/floor sizes only** (`naturalStripLength`/`floorStripLength`/`naturalCrossThickness`/
@@ -178,8 +185,10 @@ how GNOME and the KDE `compact_pager` actually work.
 > feeding the effective size back into the hints would be a binding loop. The cross-axis `Layout`
 > **minimum drops to `floorCrossThickness`** (mirroring the major axis's `floorStripLength`) so a thin
 > panel can compress the thickness; preferred stays `naturalCrossThickness`, maximum stays `-1` (free to
-> fill the thickness). Everything *downstream* (`pillWidth`, `dotSpacing`, each `WorkspaceDot`, the
-> `Grid` spacing) reads the effective `dotSize`, so the whole strip scales in lockstep. Common case (room
+> fill the thickness). Everything *downstream* (`pillSize`, `pillWidth`, `dotSpacing`, each
+> `WorkspaceDot`, the `Grid` spacing) reads the effective `dotSize` — the effective `pillSize = dotSize *
+> pillThicknessRatio`, so dots AND an independently-sized pill scale in lockstep (the configured
+> dot:pill proportion is preserved under shrink). Common case (room
 > available on both axes): `fitDotSize >= naturalDotSize`, so effective == natural and the look is
 > byte-for-byte unchanged. Guarded by `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
 > test_scaleDotsUnchangedWhenAmple,test_scaleDotsShrinkOnShortHeightVertical,
@@ -187,6 +196,32 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_scaleDotsShrinkOnThinCrossVertical,test_advertisesWidthViaLayout,
 > test_verticalAdvertisesHeightViaLayout,test_gridSizingTwoRows}` +
 > `tst_logic.qml::{test_fitDotSize,test_fitDotSizeUnbounded}`.
+>
+> **Independent pill thickness — `pillSize` is decoupled from `dotSize` via ONE ratio; reuse the fit
+> math, don't fork it.** The pill's cross-axis *thickness* is its own config key `pillSize` (`Int`, `0
+> = auto = match the dots`); the dots keep `dotSize`. The decoupling is carried entirely by **one**
+> derived quantity in `WorkspaceIndicator`: `pillThicknessRatio = naturalPillSize / naturalDotSize`
+> (`1` when auto, because `naturalPillSize` falls back to `naturalDotSize`). With it, the existing pure
+> `Logic.fitDotSize`/`Logic.lineExtent` are reused **unchanged** — only their *factor arguments*
+> change: the capsule length in dot units becomes `pillThicknessRatio * pillWidthFactor` (major fit /
+> `naturalStripLength` `activeExtent = naturalPillSize * pillWidthFactor`) and the cross "pill factor"
+> becomes `max(1, pillThicknessRatio)` (cross fit / `naturalCrossThickness` `activeExtent =
+> max(naturalDotSize, naturalPillSize)`). The effective thickness `pillSize = dotSize *
+> pillThicknessRatio` and `pillWidth = pillSize * pillWidthFactor`. `WorkspaceDot` takes `pillSize` as
+> an input and its capsule cross axis is `active ? pillSize : dotSize` (radius `min(width,height)/2`).
+> Because the line is then as thick as its tallest element (the capsule when `pillSize > dotSize`), the
+> inner per-line `Grid` MUST centre elements on the **cross axis** (`verticalItemAlignment:
+> Grid.AlignVCenter` horizontal / `horizontalItemAlignment: Grid.AlignHCenter` vertical) — otherwise the
+> positioner top/left-aligns the smaller inactive dots against the taller pill (guarded by
+> `test_inactiveDotCentredAgainstThickPill{Horizontal,Vertical}`). The effective `pillSize = dotSize *
+> ratio` also floors in lockstep: at an extreme-narrow panel `dotSize` clamps at `minDotSize` and the
+> pill at `minDotSize * ratio`, neither shrinking further (`test_pillFloorAtExtremeNarrow`).
+> **`pillWidthFactor` is now relative to the PILL thickness, not the dot** (config label "× pill"),
+> i.e. the pill's aspect ratio. When `ratio == 1` (the default, or any dot-size-only change) every
+> formula collapses to the pre-existing one, so the look — and every prior test — is byte-for-byte
+> unchanged. Guarded by `tst_workspaceindicator.qml::{test_autoPillTracksDotSize,
+> test_independentThickerPill,test_pillThicknessAdvertisedOnCrossAxis,test_pillScalesWithFitShrink}` +
+> `tst_workspacedot.qml::test_independentPillThickness` + `tst_logic.qml` defaults (the `pillSize` key).
 >
 > **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
@@ -232,10 +267,24 @@ the tested sub-components never touch `plasmoid.configuration`. `main.qml` owns 
 DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActions`, gated by
 `enableAddRemove` / `enableRename`, never removing the last desktop via `logic.js::canRemoveDesktop`).
 
+> **Gotcha — KWin DBus call SHAPES live in pure `logic.js`, so they are unit-tested (not e2e-only).**
+> Each write's exact `{ service, path, iface, member, args:[{t,v}] }` is built by a pure
+> `logic.js::{switchSpec, addSpec, removeSpec, renameSpec}` (with the robustness guards folded IN, so
+> they're tested too: a transient-empty uuid, never-remove-last via `canRemoveDesktop`, and a blank
+> rename via `sanitizeDesktopName` each return **`null` = no-op**; `removeLastDesktop` resolves the
+> target via `lastDesktopId` first). `main.qml` is then a thin `dispatch(spec)`: it maps each arg
+> `{t,v}` to the order-sensitive `DBus.*` constructor in `toDBusArg` — `t` mirrors a DBus signature
+> letter (`"s"` string, `"u"` uint32, `"i"` int32, `"v"` variant), and the `"v"` case is the LONE
+> place that `new DBus.variant(v)`-wraps a plain value (the silent-fail gotcha below). The shapes — the
+> exact strings/types KWin drops silently when wrong, and the most upgrade-fragile thing in the widget
+> — are pinned by `tst_logic.qml::{test_switchSpec, test_addSpec, test_removeSpec, test_renameSpec}`;
+> only the trivial 4-case `toDBusArg` map needs the real DBus plugin and stays the in-shell smoke test.
+
 > **Rename — a public `setDesktopName(id, name)` DBus write + a `PlasmaCore.Dialog`, NOT
 > `Kirigami.PromptDialog`.** "Rename Current Desktop…" is a `Plasmoid.contextualAction` (gated by the
-> `enableRename` key) that renames `vdi.currentDesktop` via `kwinCall(... "setDesktopName", [DBus.string(uuid),
-> DBus.string(name)])` (the verified `ss` signature on `org.kde.KWin.VirtualDesktopManager`). It is
+> `enableRename` key) that renames `vdi.currentDesktop` via `root.dispatch(Logic.renameSpec(uuid, name))`
+> — the pure builder emits the verified `setDesktopName(ss)` shape on `org.kde.KWin.VirtualDesktopManager`,
+> which `dispatch`/`toDBusArg` turn into the DBus call (see the call-SHAPES gotcha above). It is
 > menu-only / current-desktop (no per-dot trigger), so `WorkspaceIndicator`/`WorkspaceDot` are untouched.
 > The new name comes back through the live `desktopNames` binding — **no cache** (the read/write split).
 > The name is validated by pure `logic.js::sanitizeDesktopName` (trim, reject empty/whitespace → `""`
@@ -267,6 +316,16 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > prototype `QQuickItem`, so it has `containsMouse`/`active`/`mainText` but is **not** a `MouseArea`
 > — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
 > importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
+
+> **Accessibility — each `WorkspaceDot` is a named, pressable button for screen readers.** The dot's
+> root sets `Accessible.role: Accessible.Button`, `Accessible.name: desktopName` (the same string the
+> tooltip shows; tracks it live), and `Accessible.onPressAction: dot.activated()` — so Orca announces
+> each dot as a button named after its desktop and an AT-driven press switches through the **same**
+> `activated()` → `switchRequested` path as a pointer click. `Accessible` is part of `QtQuick` (no
+> extra import) and the per-dot a11y lives on the element (not the indicator), staying headless-testable
+> (`tst_workspacedot.qml::{test_accessibleExposesButtonRole,test_accessiblePressEmitsActivated}`).
+> Keyboard *switching* itself is KWin's global `Ctrl+F<n>` (reflected live via `VirtualDesktopInfo`),
+> so the dots add **no** Tab-focus/key handling of their own — deliberately out of scope.
 
 **Window-list tooltip — windows-per-desktop from the PUBLIC `TasksModel`, NOT the private
 `PagerModel`.** The tooltip's `subText` is the stock KDE pager's window list ("N Windows:" + a
@@ -324,9 +383,10 @@ gotcha below.) The keys:
 behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
 `enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `animationDuration`;
-appearance — `dotSize`, `spacingFactor`, `pillWidthFactor`, `inactiveOpacity`, `hoverOpacity`,
-`followThemeColors`, `activeColor`, `inactiveColor`. The settings UI is two files that must agree
-with the schema:
+appearance — `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
+auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
+thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`, `activeColor`,
+`inactiveColor`. The settings UI is two files that must agree with the schema:
 - `package/contents/config/config.qml` — `ConfigModel` listing the settings categories
   (Behavior, Appearance).
 - `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),
@@ -367,9 +427,10 @@ with the schema:
 
 > **Gotcha — theme/HiDPI-derived defaults use a `0 = auto` sentinel.** A KConfigXT default is a
 > fixed literal, so it cannot be `Kirigami.Units.iconSizes.small / 2` or `Kirigami.Units.longDuration`
-> — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize` and
+> — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize`, `pillSize`
+> (`0 = match the dots` → the effective `dotSize`, via `pillThicknessRatio == 1`), and
 > `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
-> components** (the indicator's `dotSize`, and `Logic.effectiveDuration` for the morph) — NOT in
+> components** (the indicator's `dotSize`/`pillSize`, and `Logic.effectiveDuration` for the morph) — NOT in
 > `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
 > Kirigami, but only for the rename dialog's spacing, and is not itself headless-testable).
 > `effectiveDuration` also
@@ -402,15 +463,20 @@ globals don't exist (see "Config flow"/the window-list section). So extraction s
 - **Domain (auto-bound):** the Plasma runtime sets the QML `KLocalizedContext` domain to
   `plasma_applet_<KPlugin.Id>` = `plasma_applet_com.github.kenansalar.plasma-gnome-pager`, so the
   bare `i18n(...)` calls resolve to our catalog with **no** explicit domain wiring in QML.
-- **Source vs. artifact:** `po/<domain>.pot` (template) + `po/<lang>.po` (per-language) are the
-  committed **source of truth**; the compiled `po/<lang>.po → package/contents/locale/<lang>/`
-  `LC_MESSAGES/<domain>.mo` catalogs are **generated** (gitignored). `kpackagetool6` ships the
-  package tree verbatim and does **no** compilation, so the `.mo` must exist under `package/`
-  before packaging — `make i18n` compiles them and `install`/`update`/`dev` depend on it.
-- **Workflow:** `make messages` extracts via `xgettext` (ki18n keyword set, so contexts + plural
-  forms come through) into the `.pot` and `msgmerge`s every `.po`; `make i18n` compiles each `.po`
-  (`msgfmt --check`) into the package. Add a language by `msginit --locale=<ll>` from the `.pot`,
-  translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
+- **Source vs. artifact:** the committed **source of truth** is the per-language `po/<lang>.po`
+  files (human-authored translations). BOTH the `po/<domain>.pot` template AND the compiled
+  `po/<lang>.po → package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo` catalogs are **generated
+  and gitignored** (`po/*.pot` + `package/contents/locale/`): the `.pot` is re-extracted from the
+  QML by `make messages` on every run (nothing in the build *reads* the committed copy — `xgettext`
+  overwrites it, then `msgmerge` reads that fresh copy), so committing it only adds date +
+  line-number churn. `kpackagetool6` ships the package tree verbatim and does **no** compilation, so
+  the `.mo` must exist under `package/` before packaging — `make i18n` compiles them and
+  `install`/`update`/`dev` depend on it.
+- **Workflow:** `make messages` (re)extracts via `xgettext` (ki18n keyword set, so contexts +
+  plural forms come through) into the `.pot` and `msgmerge`s every `.po`; `make i18n` compiles each
+  `.po` (`msgfmt --check`) into the package. Commit only the changed `.po` (the `.pot` is ignored).
+  Add a language by running `make messages` (to regenerate the local `.pot`), then `msginit
+  --locale=<ll>` from it, translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
   12 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `ar`, `zh_CN`, `ru`,
   `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for `zh_CN`/`ja`,
   3 for `ru`, 6 for `ar`).

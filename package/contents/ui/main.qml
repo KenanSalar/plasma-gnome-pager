@@ -66,6 +66,7 @@ PlasmoidItem {
     // mirrors the schema default for the transient-undefined frame, exactly like the booleans above.
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
+    readonly property int pillSize: Plasmoid.configuration.pillSize ?? Logic.DEFAULTS.pillSize
     readonly property real spacingFactor: Plasmoid.configuration.spacingFactor ?? Logic.DEFAULTS.spacingFactor
     readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? Logic.DEFAULTS.pillWidthFactor
     readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? Logic.DEFAULTS.inactiveOpacity
@@ -91,8 +92,10 @@ PlasmoidItem {
         showTooltips: root.showTooltips
         desktopTooltips: root.desktopTooltips
 
-        // Appearance/animation config (dotSize passed as the raw 0=auto request; resolved here).
+        // Appearance/animation config (dotSize/pillSize passed as the raw 0=auto requests; resolved
+        // in the indicator — pillSize 0 there means "match the dot size").
         dotSizeRequest: root.dotSize
+        pillSizeRequest: root.pillSize
         spacingFactor: root.spacingFactor
         pillWidthFactor: root.pillWidthFactor
         inactiveOpacity: root.inactiveOpacity
@@ -256,43 +259,58 @@ PlasmoidItem {
         Component.onCompleted: aggregator.rebuild()
     }
 
-    // Every virtual-desktop write goes through KWin's VirtualDesktopManager (service + path are
-    // the invariant; only iface/member/arguments vary). Async fire-and-forget: issue the call and
-    // let `vdi` report the resulting state. The typed-arg `arguments` arrays stay at each call site
-    // — they hold the order-sensitive DBus.* constructors (see CLAUDE.md DBus gotcha).
-    function kwinCall(iface, member, args) {
+    // Every virtual-desktop write goes through KWin's VirtualDesktopManager. The CALL SHAPES
+    // (service/path/iface/member + per-arg DBus types) live in pure logic.js as *Spec builders, so
+    // the exact strings/types — the parts that fail SILENTLY on a Plasma upgrade (CLAUDE.md DBus
+    // gotcha) — are unit-tested by tst_logic.qml. Here we only DISPATCH a built spec: async
+    // fire-and-forget (issue the call, let `vdi` report the resulting state). A null spec (a guard
+    // tripped in logic.js: transient-empty uuid, never-remove-last, blank rename) is a no-op.
+    function dispatch(spec) {
+        if (!spec) {
+            return;
+        }
         DBus.SessionBus.asyncCall({
-            "service": "org.kde.KWin",
-            "path": "/VirtualDesktopManager",
-            "iface": iface,
-            "member": member,
-            "arguments": args
+            "service": spec.service,
+            "path": spec.path,
+            "iface": spec.iface,
+            "member": spec.member,
+            "arguments": spec.args.map(a => root.toDBusArg(a))
         });
+    }
+
+    // Map ONE spec arg { t, v } to the order-sensitive DBus.* constructor it describes (t mirrors a
+    // DBus signature letter: "s" string, "u" uint32, "i" int32, "v" variant). This is the only seam
+    // tests can't reach (it needs the real DBus plugin); it stays a trivial 1:1 switch. The "v" case
+    // wraps a PLAIN value — never a wrapped DBus.string, which KWin silently rejects (CLAUDE.md).
+    function toDBusArg(a) {
+        switch (a.t) {
+        case "s":
+            return new DBus.string(a.v);
+        case "u":
+            return new DBus.uint32(a.v);
+        case "i":
+            return new DBus.int32(a.v);
+        case "v":
+            return new DBus.variant(a.v);
+        }
+        return a.v;
     }
 
     // Switch to a desktop by UUID via the VirtualDesktopManager "current" property.
     function switchTo(uuid) {
-        if (!uuid) {
-            return; // robustness: desktopIds/currentDesktop can be transiently empty
-        }
-        root.kwinCall("org.freedesktop.DBus.Properties", "Set", [new DBus.string("org.kde.KWin.VirtualDesktopManager"), new DBus.string("current"), new DBus.variant(uuid)]);
+        root.dispatch(Logic.switchSpec(uuid));
     }
 
-    // Append a new desktop at the end. `vdi` reports the new count. `?? 0` keeps a transient undefined
-    // (shell reload / widget re-add) from reaching DBus.uint32 (an unguarded undefined would coerce to
-    // NaN/throw); when the menu action is actually invoked the widget is live, so numberOfDesktops is a
-    // real count and the position is a true append (robustness.md: guard every transient read before use).
+    // Append a new desktop at the end. `?? 0` keeps a transient-undefined count (shell reload / widget
+    // re-add) out of the uint32 position; when the menu action actually fires the widget is live, so it
+    // is a real append. The i18n label stays here (logic.js is i18n-free). `vdi` reports the new count.
     function addDesktop() {
-        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "createDesktop", [new DBus.uint32(vdi.numberOfDesktops ?? 0),   // position = append at end
-            new DBus.string(i18n("New Desktop"))]);
+        root.dispatch(Logic.addSpec(vdi.numberOfDesktops ?? 0, i18n("New Desktop")));
     }
 
-    // Remove a desktop by UUID. Never remove the last one (there must always be ≥1).
+    // Remove a desktop by UUID. logic.js's removeSpec enforces never-remove-last (returns null).
     function removeDesktop(uuid) {
-        if (!uuid || !Logic.canRemoveDesktop(vdi.numberOfDesktops)) {
-            return;
-        }
-        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "removeDesktop", [new DBus.string(uuid)]);
+        root.dispatch(Logic.removeSpec(uuid, vdi.numberOfDesktops));
     }
 
     // "Remove" targets the last desktop (the one addDesktop appended).
@@ -300,16 +318,11 @@ PlasmoidItem {
         root.removeDesktop(Logic.lastDesktopId(vdi.desktopIds));
     }
 
-    // Rename a desktop by UUID via KWin's setDesktopName(id, name). Logic.sanitizeDesktopName trims and
-    // rejects an empty/whitespace-only name (returns ""), so a blank rename is a no-op; uuid can be
-    // transiently empty during reconfigure (robustness.md). `vdi` reports the new name back via the
-    // desktopNames binding — no cache (the read/write split).
+    // Rename a desktop by UUID via KWin's setDesktopName(id, name). renameSpec trims/sanitizes and
+    // rejects an empty/whitespace-only name (returns null → no-op); `vdi` reports the new name back
+    // via the desktopNames binding — no cache (the read/write split).
     function renameDesktop(uuid, name) {
-        const clean = Logic.sanitizeDesktopName(name);
-        if (!uuid || !clean) {
-            return;
-        }
-        root.kwinCall("org.kde.KWin.VirtualDesktopManager", "setDesktopName", [new DBus.string(uuid), new DBus.string(clean)]);
+        root.dispatch(Logic.renameSpec(uuid, name));
     }
 
     // Open the rename prompt for a desktop, prefilled with its current name. Resolves the name from the
