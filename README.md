@@ -14,6 +14,15 @@ A GNOME-style virtual-desktop switcher for KDE Plasma 6 panels: dim dots, with a
 |---|---|
 | ![Dot strip following the theme highlight colour](screenshots/pager-theme.png) | ![Dot strip with a custom pill colour](screenshots/pager-light.png) |
 
+On a **vertical side panel** the row of dots becomes a column and the pill grows vertically —
+the same widget, transposed:
+
+![Plasma Gnome Pager switching desktops on a vertical panel](screenshots/showcase-vertical.gif)
+
+| Vertical — theme highlight (default) | Vertical — custom pill colour |
+|---|---|
+| ![Vertical dot column following the theme highlight colour](screenshots/pager-theme-vertical.png) | ![Vertical dot column with a custom pill colour](screenshots/pager-light-vertical.png) |
+
 | Right-click menu | Settings — Behavior | Settings — Appearance |
 |---|---|---|
 | ![Context menu](screenshots/context-menu.png) | ![Behavior settings page](screenshots/config-behavior.png) | ![Appearance settings page](screenshots/config-appearance.png) |
