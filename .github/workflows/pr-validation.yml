@@ -1,0 +1,49 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+# One in-flight run per PR branch; a new push supersedes the old run.
+concurrency:
+  group: pr-validation-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+# Minimal posture — this job only reads the tree (no PR comments, no release writes).
+# Matches the security note in .github/CODEOWNERS about workflow scope.
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint & headless tests
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      # Install before checkout so git is present for a real clone (avoids the
+      # checkout REST-API fallback). dnf5 on fedora:latest; one install covers
+      # lint and tests since they share the QML-module surface.
+      - name: Install Qt6 + Plasma 6 QML toolchain
+        run: >-
+          dnf -y install
+          make git dbus-daemon
+          qt6-qtdeclarative-devel
+          kf6-kirigami kf6-kdeclarative
+          plasma-workspace
+
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      # qmllint-qt6 over UI + config pages + tests; warnings are errors (project rule).
+      - name: qmllint
+        run: make lint
+
+      # qmltestrunner-qt6 (offscreen) over tests/unit + tests/integration.
+      # dbus-run-session gives org.kde.plasma.core (the ToolTipArea plugin that
+      # WorkspaceDot imports) a session bus, since the container has none.
+      - name: Headless QML tests (unit + integration)
+        run: dbus-run-session -- make check

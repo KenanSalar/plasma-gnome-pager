@@ -1,0 +1,94 @@
+name: Publish
+
+# Cut a draft GitHub Release whenever a version bump lands on main. The dev -> main merge is the
+# push that fires this (PRs into main are gated by enforce-pr-source.yml). package/metadata.json's
+# .KPlugin.Version is the single source of truth -> tag v<Version>. The release is created as a
+# DRAFT carrying the built .plasmoid + GitHub's auto-generated notes; you edit the description and
+# publish manually, which is what actually creates the tag. The KDE Store upload is a separate
+# manual step (the store has no stable upload API).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One publish run per ref; never cancel a release mid-upload.
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+# Write is needed to create the release and (on publish) the tag. Nothing else.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Draft GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Resolve version/id from metadata.json (the SSOT) and decide the action:
+      #   no release for the tag      -> create  (a fresh draft)
+      #   existing release is a draft -> update  (refresh the .plasmoid, keep edited notes)
+      #   existing release published  -> skip    (bump the version to start a new cycle)
+      - name: Resolve version and release state
+        id: gate
+        run: |
+          VERSION=$(jq -r '.KPlugin.Version' package/metadata.json)
+          ID=$(jq -r '.KPlugin.Id' package/metadata.json)
+          TAG="v${VERSION}"
+          {
+            echo "version=${VERSION}"
+            echo "id=${ID}"
+            echo "tag=${TAG}"
+            echo "plasmoid=dist/${ID}-${VERSION}.plasmoid"
+          } >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            if [ "$(gh release view "$TAG" --json isDraft -q .isDraft)" = "true" ]; then
+              echo "mode=update" >> "$GITHUB_OUTPUT"
+              echo "==> draft ${TAG} exists -> refresh its .plasmoid asset"
+            else
+              echo "mode=skip" >> "$GITHUB_OUTPUT"
+              echo "==> ${TAG} already published -> nothing to do (bump the version to release again)"
+            fi
+          else
+            echo "mode=create" >> "$GITHUB_OUTPUT"
+            echo "==> no release for ${TAG} -> create a fresh draft"
+          fi
+
+      # gettext provides msgfmt, which `make package` calls via its i18n dependency. gh / jq / zip /
+      # make are preinstalled on ubuntu-latest; no Qt/Plasma toolchain is needed (packaging is just
+      # zip + compiled .mo catalogs).
+      - name: Install packaging tools
+        if: steps.gate.outputs.mode != 'skip'
+        run: sudo apt-get update && sudo apt-get install -y gettext
+
+      - name: Build the .plasmoid
+        if: steps.gate.outputs.mode != 'skip'
+        run: make package VERSION="${{ steps.gate.outputs.version }}"
+
+      # New version: open the draft at this commit with auto-generated notes + the .plasmoid. The tag
+      # is only created when you publish the draft (as an admin -> the main ruleset's bypass applies).
+      - name: Create draft release
+        if: steps.gate.outputs.mode == 'create'
+        run: |
+          gh release create "${{ steps.gate.outputs.tag }}" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "Plasma Gnome Pager ${{ steps.gate.outputs.tag }}" \
+            --generate-notes \
+            "${{ steps.gate.outputs.plasmoid }}"
+
+      # Draft already exists (e.g. a follow-up push before you publish): swap in the rebuilt
+      # .plasmoid but DO NOT touch the description -- it may already be hand-edited.
+      - name: Refresh draft asset
+        if: steps.gate.outputs.mode == 'update'
+        run: |
+          gh release upload "${{ steps.gate.outputs.tag }}" \
+            "${{ steps.gate.outputs.plasmoid }}" --clobber

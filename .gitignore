@@ -5,6 +5,9 @@
 build/
 dist/
 
+# Compiled translation catalogs — generated from po/*.po by `make i18n`; the .po/.pot are source.
+package/contents/locale/
+
 # KDE / Qt scratch files
 .directory
 *.kdev4
