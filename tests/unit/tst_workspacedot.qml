@@ -143,21 +143,40 @@ TestCase {
         fuzzyCompare(dot.implicitHeight, dot.dotSize, 0.5, "implicitHeight is a dot");
     }
 
-    // Regression guard for the radius fix: radius is pinned to the constant cross-axis
-    // half-thickness (dotSize/2), NOT height/2 — otherwise a tall vertical capsule would round
-    // into a lozenge (radius pillWidth/2) instead of a stadium with circular ends.
+    // Regression guard: radius is half the SHORTER side (min(width, height) / 2) — the cross axis,
+    // since the capsule's long axis is always >= its cross axis — so the ends stay stadium-round and a
+    // tall vertical capsule never rounds into a lozenge. With the default pill (== dotSize) that is
+    // dotSize/2 in both orientations.
     function test_verticalRadiusStaysStadium() {
         const dot = makeDot({ vertical: true, active: true });
         const circle = circleOf(dot);
         fuzzyCompare(circle.radius, dot.dotSize / 2, 0.5, "vertical capsule keeps stadium ends (radius == dotSize/2)");
     }
 
-    // The same radius invariant holds horizontally — the radius refactor (height/2 → dotSize/2)
-    // must not change horizontal rounding.
+    // The same radius invariant holds horizontally — min(width, height) / 2 == dotSize/2 when the pill
+    // is no thicker than a dot.
     function test_horizontalRadiusUnchanged() {
         const dot = makeDot({ active: true });   // default horizontal
         const circle = circleOf(dot);
         fuzzyCompare(circle.radius, dot.dotSize / 2, 0.5, "horizontal capsule radius is dotSize/2");
+    }
+
+    // Independent pill thickness: an active dot given a pillSize thicker than its dotSize renders a
+    // capsule that is pillSize across (not dotSize), pillWidth long (pillSize * pillWidthFactor), with
+    // stadium ends at pillSize/2; an inactive dot is unaffected and stays a dotSize circle.
+    function test_independentPillThickness() {
+        const active = makeDot({ active: true, dotSize: 8, pillSize: 24, pillWidthFactor: 3 });
+        const circle = circleOf(active);
+        fuzzyCompare(active.pillWidth, 72, 0.5, "pillWidth = pillSize * pillWidthFactor");
+        fuzzyCompare(circle.height, 24, 0.5, "horizontal active capsule is pill-thick across (height == pillSize)");
+        fuzzyCompare(circle.width, 72, 0.5, "horizontal active capsule is pill-long (width == pillWidth)");
+        fuzzyCompare(circle.radius, 12, 0.5, "stadium ends at half the pill thickness (pillSize/2)");
+
+        const inactive = makeDot({ active: false, dotSize: 8, pillSize: 24, pillWidthFactor: 3 });
+        const inactiveCircle = circleOf(inactive);
+        fuzzyCompare(inactiveCircle.width, 8, 0.5, "inactive stays a dotSize circle (width)");
+        fuzzyCompare(inactiveCircle.height, 8, 0.5, "inactive stays a dotSize circle (height)");
+        fuzzyCompare(inactiveCircle.radius, 4, 0.5, "inactive radius is dotSize/2");
     }
 
     // --- Milestone 3: hover --------------------------------------------------------

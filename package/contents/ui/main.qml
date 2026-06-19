@@ -66,6 +66,7 @@ PlasmoidItem {
     // mirrors the schema default for the transient-undefined frame, exactly like the booleans above.
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
+    readonly property int pillSize: Plasmoid.configuration.pillSize ?? Logic.DEFAULTS.pillSize
     readonly property real spacingFactor: Plasmoid.configuration.spacingFactor ?? Logic.DEFAULTS.spacingFactor
     readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? Logic.DEFAULTS.pillWidthFactor
     readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? Logic.DEFAULTS.inactiveOpacity
@@ -91,8 +92,10 @@ PlasmoidItem {
         showTooltips: root.showTooltips
         desktopTooltips: root.desktopTooltips
 
-        // Appearance/animation config (dotSize passed as the raw 0=auto request; resolved here).
+        // Appearance/animation config (dotSize/pillSize passed as the raw 0=auto requests; resolved
+        // in the indicator — pillSize 0 there means "match the dot size").
         dotSizeRequest: root.dotSize
+        pillSizeRequest: root.pillSize
         spacingFactor: root.spacingFactor
         pillWidthFactor: root.pillWidthFactor
         inactiveOpacity: root.inactiveOpacity

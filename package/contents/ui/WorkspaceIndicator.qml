@@ -187,23 +187,36 @@ Item {
     // legible. naturalDotSize (NOT the effective size) drives the Layout
     // hints below, so the panel allocation never feeds back into the hints — no binding loop. In the
     // common case (room available) the effective size == naturalDotSize, so the look is unchanged.
-    // Everything downstream (pillWidth, dotSpacing, each WorkspaceDot, the Grid spacing) reads the
-    // effective `dotSize`, so the whole strip scales in lockstep.
+    // Everything downstream (pillSize, pillWidth, dotSpacing, each WorkspaceDot, the Grid spacing)
+    // reads the effective `dotSize`, so the whole strip — dots AND pill — scales in lockstep, even
+    // when the pill is sized independently of the dots (its thickness tracks the same shrink ratio).
     property int dotSizeRequest: Logic.DEFAULTS.dotSize  // px override from config; 0 = auto
     readonly property real naturalDotSize: dotSizeRequest > 0 ? dotSizeRequest : Kirigami.Units.iconSizes.small / 2
+    // Active-pill thickness, sized INDEPENDENTLY of the dots. 0 = auto = match the dot size, so the
+    // default (and any dot-size-only change) keeps the pill tracking the dots — the look is unchanged
+    // unless the user explicitly sets a pill size. pillThicknessRatio is the natural pill thickness in
+    // DOT units (1 when auto); it is the ONE quantity that carries the decoupling into the otherwise
+    // unchanged fit/extent formulas below (pill length stays pillWidthFactor *thicknesses* long).
+    property int pillSizeRequest: Logic.DEFAULTS.pillSize
+    readonly property real naturalPillSize: pillSizeRequest > 0 ? pillSizeRequest : naturalDotSize
+    readonly property real pillThicknessRatio: naturalPillSize / naturalDotSize
     // Smallest legible dot we will shrink to: half the default dot, clamped to <= natural so a tiny
     // configured dot never scales UP (keeps the room-available common case byte-for-byte identical).
     readonly property real minDotSize: Math.min(naturalDotSize, Kirigami.Units.iconSizes.small / 4)
     // Dot size that makes one full line exactly fill the panel-allocated MAJOR length (width when
     // horizontal, height when vertical): one capsule + the rest of that line's dots + uniform gaps.
+    // The capsule's length in DOT units is pillThicknessRatio * pillWidthFactor (pill length =
+    // pillSize * pillWidthFactor, and pillSize = dot * ratio) — the only change vs M6, and it reduces
+    // to pillWidthFactor when the pill tracks the dots (ratio == 1).
     // Pure math (logic.js); +Infinity before layout / with no line, so it does not bind there.
-    readonly property real majorFitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillWidthFactor, spacingFactor)
+    readonly property real majorFitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillThicknessRatio * pillWidthFactor, spacingFactor)
     // Dot size that makes the stacked lines exactly fill the panel-allocated CROSS thickness (height
-    // when horizontal, width when vertical). The cross axis carries no capsule — every line is one dot
-    // thick — so the "pill factor" is 1, which makes this the exact inverse of naturalCrossThickness.
+    // when horizontal, width when vertical). Only the line holding the pill is max(dot, pill) thick;
+    // every other line is one dot thick — so the cross "pill factor" is max(1, pillThicknessRatio)
+    // (1 when the pill is no thicker than a dot, recovering the M6 inverse of naturalCrossThickness).
     // +Infinity on a single thick panel (room to spare) or before layout, so it does not bind in the
-    // common case; it only bites for a multi-row grid on a thin panel.
-    readonly property real crossFitDotSize: Logic.fitDotSize(vertical ? width : height, lineCount, 1, spacingFactor)
+    // common case; it only bites for a multi-row grid (or a thick pill) on a thin panel.
+    readonly property real crossFitDotSize: Logic.fitDotSize(vertical ? width : height, lineCount, Math.max(1, pillThicknessRatio), spacingFactor)
     // A dot must fit BOTH axes, so the binding constraint is the smaller fit (the unconstrained axis
     // returns +Infinity, so min keeps the other). This generalises the M6 major-axis fit to the
     // multi-row + thin-panel case without ever overflowing the panel thickness (robustness.md).
@@ -213,8 +226,11 @@ Item {
     readonly property real dotSize: Math.max(minDotSize, Math.min(naturalDotSize, fitDotSize))
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
-    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, as a multiple of a dot
-    readonly property real pillWidth: dotSize * pillWidthFactor
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, as a multiple of the PILL thickness
+    // EFFECTIVE pill thickness: scales in lockstep with the dot (same shrink ratio), so the configured
+    // dot:pill proportion is preserved under scale-to-fit. == dotSize when the pill tracks the dots.
+    readonly property real pillSize: dotSize * pillThicknessRatio
+    readonly property real pillWidth: pillSize * pillWidthFactor   // active capsule LENGTH (major axis)
     property real spacingFactor: Logic.DEFAULTS.spacingFactor      // uniform gap as a multiple of a dot (GNOME-tight)
     readonly property real dotSpacing: dotSize * spacingFactor
 
@@ -239,11 +255,15 @@ Item {
     // cross-axis MINIMUM, so a thin panel may compress the thickness into the cross scale-to-fit path
     // (a multi-row grid on a thin panel) but no further than still-legible dots, exactly mirroring
     // floorStripLength on the major axis. All reduce to the M3 single-line formula when desktopRows == 1.
-    readonly property real naturalStripLength: Logic.lineExtent(perLine, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize * pillWidthFactor)
-    readonly property real floorStripLength: Logic.lineExtent(perLine, minDotSize, minDotSize * spacingFactor, minDotSize * pillWidthFactor)
-    // No capsule on the cross axis: pass activeExtent == the dot size (the all-dots degenerate case).
-    readonly property real naturalCrossThickness: Logic.lineExtent(lineCount, naturalDotSize, naturalDotSize * spacingFactor, naturalDotSize)
-    readonly property real floorCrossThickness: Logic.lineExtent(lineCount, minDotSize, minDotSize * spacingFactor, minDotSize)
+    // The capsule's length is naturalPillSize * pillWidthFactor (the pill thickness, sized
+    // independently of the dot, times its aspect ratio); == naturalDotSize * pillWidthFactor when the
+    // pill tracks the dots. The floor uses the pill thickness at the dot floor (minDotSize * ratio).
+    readonly property real naturalStripLength: Logic.lineExtent(perLine, naturalDotSize, naturalDotSize * spacingFactor, naturalPillSize * pillWidthFactor)
+    readonly property real floorStripLength: Logic.lineExtent(perLine, minDotSize, minDotSize * spacingFactor, minDotSize * pillThicknessRatio * pillWidthFactor)
+    // The pill-bearing line is as thick as the thicker of dot/pill: pass activeExtent == max(dot, pill)
+    // (== the dot size, the all-dots degenerate case, when the pill is no thicker than a dot).
+    readonly property real naturalCrossThickness: Logic.lineExtent(lineCount, naturalDotSize, naturalDotSize * spacingFactor, Math.max(naturalDotSize, naturalPillSize))
+    readonly property real floorCrossThickness: Logic.lineExtent(lineCount, minDotSize, minDotSize * spacingFactor, minDotSize * Math.max(1, pillThicknessRatio))
 
     // Raised when a dot is clicked or the strip is scrolled; main.qml turns the UUID into
     // a KWin switch.
@@ -352,6 +372,13 @@ Item {
                 spacing: indicator.dotSpacing
                 rows: indicator.vertical ? -1 : 1
                 columns: indicator.vertical ? 1 : -1
+                // Centre every element on the CROSS axis. The line is as thick as its tallest element
+                // (the capsule when pillSize > dotSize), so without this the positioner top/left-aligns
+                // the smaller inactive dots against the taller pill. The MAJOR-axis alignment is the
+                // default (a no-op: one item per row/column along that axis). Flips with `vertical`:
+                // a horizontal line centres vertically, a vertical one horizontally.
+                verticalItemAlignment: indicator.vertical ? Grid.AlignTop : Grid.AlignVCenter
+                horizontalItemAlignment: indicator.vertical ? Grid.AlignHCenter : Grid.AlignLeft
 
                 Repeater {
                     model: lineStrip.modelData
@@ -368,6 +395,7 @@ Item {
 
                         vertical: indicator.vertical
                         dotSize: indicator.dotSize
+                        pillSize: indicator.pillSize
                         pillWidthFactor: indicator.pillWidthFactor
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
