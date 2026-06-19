@@ -316,3 +316,89 @@ function groupWindowsByDesktop(windows, desktopIds) {
     }
     return out;
 }
+
+/*
+ * KWin DBus call SHAPES.
+ *
+ * Each builder below returns a plain, dependency-free *description* of a KWin VirtualDesktopManager
+ * call — { service, path, iface, member, args } — or `null` when a robustness guard trips (a
+ * transient-empty uuid, the never-remove-last rule, an empty rename). main.qml maps each arg
+ * { t, v } to the matching DBus.* constructor (t: "s" string, "u" uint32, "i" int32, "v" variant)
+ * and issues the async call (see main.qml::dispatch/toDBusArg). Keeping the SHAPES here — the exact
+ * service/path/iface/member and per-arg DBus types — is the whole point: a wrong string or arg type
+ * fails SILENTLY (KWin drops the call, no error in QML; see CLAUDE.md's DBus gotcha), and it is the
+ * most likely thing to break on a Plasma upgrade. Pure here, they go under `make check`
+ * (tst_logic.qml) instead of being verifiable only in a live shell. The i18n desktop name for
+ * addSpec is passed IN from main.qml so this file stays i18n-free / headless-testable.
+ */
+var KWIN_SERVICE = "org.kde.KWin";
+var KWIN_VDM_PATH = "/VirtualDesktopManager";
+var KWIN_VDM_IFACE = "org.kde.KWin.VirtualDesktopManager";
+
+/**
+ * Switch the (global) current desktop to `uuid`, via the VirtualDesktopManager "current" property.
+ * Returns null for a falsy uuid (desktopIds/currentDesktop can be transiently empty — robustness.md).
+ * The variant arg wraps a PLAIN string (main.qml's "v" case does `new DBus.variant(v)`), never a
+ * wrapped DBus.string — a gadget-wrapped variant is silently rejected (CLAUDE.md DBus gotcha).
+ */
+function switchSpec(uuid) {
+    if (!uuid)
+        return null;
+    return {
+        service: KWIN_SERVICE,
+        path: KWIN_VDM_PATH,
+        iface: "org.freedesktop.DBus.Properties",
+        member: "Set",
+        args: [{ t: "s", v: KWIN_VDM_IFACE }, { t: "s", v: "current" }, { t: "v", v: uuid }]
+    };
+}
+
+/**
+ * Append a new desktop at `position` (createDesktop(uint32 position, string name)). `name` is the
+ * already-i18n'd label from main.qml (kept out of this file). `position|0` coerces a transient
+ * undefined/NaN count to 0 so the uint32 arg is always a real integer.
+ */
+function addSpec(position, name) {
+    return {
+        service: KWIN_SERVICE,
+        path: KWIN_VDM_PATH,
+        iface: KWIN_VDM_IFACE,
+        member: "createDesktop",
+        args: [{ t: "u", v: position | 0 }, { t: "s", v: String(name) }]
+    };
+}
+
+/**
+ * Remove the desktop `uuid` (removeDesktop(string id)). Returns null for a falsy uuid OR when
+ * `count <= 1` — the never-remove-last rule, reusing canRemoveDesktop so the guard is one source
+ * of truth and tested here.
+ */
+function removeSpec(uuid, count) {
+    if (!uuid || !canRemoveDesktop(count))
+        return null;
+    return {
+        service: KWIN_SERVICE,
+        path: KWIN_VDM_PATH,
+        iface: KWIN_VDM_IFACE,
+        member: "removeDesktop",
+        args: [{ t: "s", v: uuid }]
+    };
+}
+
+/**
+ * Rename the desktop `uuid` to `name` (setDesktopName(string id, string name)). The name is run
+ * through sanitizeDesktopName (trim, reject empty/whitespace, cap length); returns null for a falsy
+ * uuid OR an empty sanitized name, so a blank rename is a tested no-op.
+ */
+function renameSpec(uuid, name) {
+    var clean = sanitizeDesktopName(name);
+    if (!uuid || !clean)
+        return null;
+    return {
+        service: KWIN_SERVICE,
+        path: KWIN_VDM_PATH,
+        iface: KWIN_VDM_IFACE,
+        member: "setDesktopName",
+        args: [{ t: "s", v: uuid }, { t: "s", v: clean }]
+    };
+}

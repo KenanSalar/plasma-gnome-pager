@@ -267,10 +267,24 @@ the tested sub-components never touch `plasmoid.configuration`. `main.qml` owns 
 DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActions`, gated by
 `enableAddRemove` / `enableRename`, never removing the last desktop via `logic.js::canRemoveDesktop`).
 
+> **Gotcha — KWin DBus call SHAPES live in pure `logic.js`, so they are unit-tested (not e2e-only).**
+> Each write's exact `{ service, path, iface, member, args:[{t,v}] }` is built by a pure
+> `logic.js::{switchSpec, addSpec, removeSpec, renameSpec}` (with the robustness guards folded IN, so
+> they're tested too: a transient-empty uuid, never-remove-last via `canRemoveDesktop`, and a blank
+> rename via `sanitizeDesktopName` each return **`null` = no-op**; `removeLastDesktop` resolves the
+> target via `lastDesktopId` first). `main.qml` is then a thin `dispatch(spec)`: it maps each arg
+> `{t,v}` to the order-sensitive `DBus.*` constructor in `toDBusArg` — `t` mirrors a DBus signature
+> letter (`"s"` string, `"u"` uint32, `"i"` int32, `"v"` variant), and the `"v"` case is the LONE
+> place that `new DBus.variant(v)`-wraps a plain value (the silent-fail gotcha below). The shapes — the
+> exact strings/types KWin drops silently when wrong, and the most upgrade-fragile thing in the widget
+> — are pinned by `tst_logic.qml::{test_switchSpec, test_addSpec, test_removeSpec, test_renameSpec}`;
+> only the trivial 4-case `toDBusArg` map needs the real DBus plugin and stays the in-shell smoke test.
+
 > **Rename — a public `setDesktopName(id, name)` DBus write + a `PlasmaCore.Dialog`, NOT
 > `Kirigami.PromptDialog`.** "Rename Current Desktop…" is a `Plasmoid.contextualAction` (gated by the
-> `enableRename` key) that renames `vdi.currentDesktop` via `kwinCall(... "setDesktopName", [DBus.string(uuid),
-> DBus.string(name)])` (the verified `ss` signature on `org.kde.KWin.VirtualDesktopManager`). It is
+> `enableRename` key) that renames `vdi.currentDesktop` via `root.dispatch(Logic.renameSpec(uuid, name))`
+> — the pure builder emits the verified `setDesktopName(ss)` shape on `org.kde.KWin.VirtualDesktopManager`,
+> which `dispatch`/`toDBusArg` turn into the DBus call (see the call-SHAPES gotcha above). It is
 > menu-only / current-desktop (no per-dot trigger), so `WorkspaceIndicator`/`WorkspaceDot` are untouched.
 > The new name comes back through the live `desktopNames` binding — **no cache** (the read/write split).
 > The name is validated by pure `logic.js::sanitizeDesktopName` (trim, reject empty/whitespace → `""`
@@ -302,6 +316,16 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > prototype `QQuickItem`, so it has `containsMouse`/`active`/`mainText` but is **not** a `MouseArea`
 > — no `onClicked`). It loads and tracks hover under headless `qmltestrunner`, so `WorkspaceDot`
 > importing `org.kde.plasma.core` does **not** break the unit/integration tiers.
+
+> **Accessibility — each `WorkspaceDot` is a named, pressable button for screen readers.** The dot's
+> root sets `Accessible.role: Accessible.Button`, `Accessible.name: desktopName` (the same string the
+> tooltip shows; tracks it live), and `Accessible.onPressAction: dot.activated()` — so Orca announces
+> each dot as a button named after its desktop and an AT-driven press switches through the **same**
+> `activated()` → `switchRequested` path as a pointer click. `Accessible` is part of `QtQuick` (no
+> extra import) and the per-dot a11y lives on the element (not the indicator), staying headless-testable
+> (`tst_workspacedot.qml::{test_accessibleExposesButtonRole,test_accessiblePressEmitsActivated}`).
+> Keyboard *switching* itself is KWin's global `Ctrl+F<n>` (reflected live via `VirtualDesktopInfo`),
+> so the dots add **no** Tab-focus/key handling of their own — deliberately out of scope.
 
 **Window-list tooltip — windows-per-desktop from the PUBLIC `TasksModel`, NOT the private
 `PagerModel`.** The tooltip's `subText` is the stock KDE pager's window list ("N Windows:" + a

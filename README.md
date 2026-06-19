@@ -110,8 +110,10 @@ From Local File…**.
 
 ### KDE Store
 
-Coming soon — once published it will be installable from **Add Widgets → Get New Widgets…**
-and from [store.kde.org](https://store.kde.org/).
+Published on the KDE Store: **[Plasma Gnome Pager](https://store.kde.org/p/2363190)** (also on
+[OpenDesktop](https://www.opendesktop.org/p/2363190/)). Install it straight from the desktop:
+right-click the panel or desktop → **Add Widgets… → Get New Widgets… → Download New Plasma
+Widgets**, then search for "Plasma Gnome Pager".
 
 ## Configuration
 

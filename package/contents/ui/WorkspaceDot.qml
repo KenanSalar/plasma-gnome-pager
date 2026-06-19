@@ -98,6 +98,20 @@ Item {
     // Emitted on click; the indicator turns this into a switch request.
     signal activated
 
+    // Expose the element to assistive technology (e.g. Orca): announced as a button named after the
+    // desktop, with an accessibility press action that switches to it through the SAME path as a click
+    // (the activated() signal the indicator turns into switchRequested). The name is the string the
+    // ToolTipArea already shows; KWin's desktopNames are normally non-empty (the brief transient-empty
+    // frame is acceptable — robustness.md). checkable/checked mirror `active`, so a screen reader can
+    // tell WHICH dot is the current desktop (every dot is otherwise an identically-named button). Kept
+    // here (not the indicator) so the per-dot a11y stays with the element and is headless-testable;
+    // Accessible is part of QtQuick, so no extra import.
+    Accessible.role: Accessible.Button
+    Accessible.name: dot.desktopName
+    Accessible.checkable: true
+    Accessible.checked: dot.active
+    Accessible.onPressAction: dot.activated()
+
     // Footprint advertised to the positioner tracks the (possibly animating) capsule on BOTH
     // axes, so the strip reflows smoothly as the element morphs — the major axis grows to the
     // capsule length and the cross axis to the pill thickness (a dot thick by default, when the
