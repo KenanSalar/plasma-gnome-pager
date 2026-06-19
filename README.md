@@ -160,7 +160,7 @@ plasma-gnome-pager/
 ├── .contextProperties.ini   # declares i18n/Plasmoid globals so qmllint stays clean
 ├── .github/                 # CI workflows (PR validation, PR-source guard, publish) + CODEOWNERS
 ├── screenshots/             # README media (not shipped in the package)
-├── po/                      # translation source: <domain>.pot + per-language *.po
+├── po/                      # translation source: per-language *.po (the *.pot template is generated)
 ├── tests/                   # headless QML tests (not shipped in the package)
 │   ├── README.md
 │   ├── unit/                       # one component in isolation (+ pure-JS logic)
@@ -208,10 +208,10 @@ The widget ships **English** (the source language) plus **12 translation catalog
 (`it`), Japanese (`ja`), European Portuguese (`pt`), Brazilian Portuguese (`pt_BR`), Russian
 (`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are translated through
 `ki18n`; Plasma auto-binds them to the catalog domain
-`plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The translation source lives in `po/`
-(`*.pot` template + per-language `*.po`); compiled `*.mo` catalogs are generated into
-`package/contents/locale/<lang>/LC_MESSAGES/` by `make i18n` (so `make install`/`update`/`dev`
-ship them automatically).
+`plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The committed translation source is the
+per-language `po/*.po`; the `*.pot` template is regenerated from the QML by `make messages` and the
+compiled `*.mo` catalogs are generated into `package/contents/locale/<lang>/LC_MESSAGES/` by
+`make i18n` (so `make install`/`update`/`dev` ship them automatically) — both are gitignored.
 
 **Contributing a translation** — say, Korean:
 
@@ -224,7 +224,7 @@ make i18n                                  # compile, then `make restart` to see
 
 Open a pull request with the new `po/ko.po` (and, optionally, a `Description[ko]` key in
 `package/metadata.json` so the description in **Add Widgets** is localized too). After changing
-any in-code string, re-run `make messages` and commit the updated `.pot` + `.po`.
+any in-code string, re-run `make messages` and commit the updated `.po` (the `.pot` is gitignored).
 
 ## License
 

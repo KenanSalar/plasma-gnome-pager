@@ -20,8 +20,9 @@ QMLTEST     := QT_QPA_PLATFORM=offscreen QT_LOGGING_RULES="kf.plasma.quick.warni
 
 # --- Translations (i18n) -------------------------------------------------------------------------
 # The plasmoid runtime auto-binds the QML i18n() calls to the catalog domain plasma_applet_<Id>, so
-# catalogs install as compiled .mo under contents/locale/<lang>/LC_MESSAGES/. The .po/.pot are the
-# committed source of truth; the .mo are generated (gitignored) and compiled by `i18n`, which
+# catalogs install as compiled .mo under contents/locale/<lang>/LC_MESSAGES/. The .po are the
+# committed source of truth; the .pot template AND the .mo are generated (gitignored) — the .pot is
+# re-extracted from the QML each `messages` run — and the .mo are compiled by `i18n`, which
 # install/update/dev depend on (kpackagetool6 ships the tree verbatim — it does no compilation).
 # See CLAUDE.md "Internationalization (i18n)". logic.js is i18n-free by design, so only .qml is scanned.
 DOMAIN      := plasma_applet_$(PLASMOID_ID)
@@ -143,7 +144,7 @@ lint:
 
 # Extract translatable strings from the QML into the .pot template, then merge them into every
 # existing po/<lang>.po (so translators pick up new/changed strings without losing their work).
-# Run after adding or changing any i18n() string. Commit the updated .pot + .po.
+# Run after adding or changing any i18n() string. Commit only the updated .po (the .pot is ignored).
 messages:
 	$(XGETTEXT) -o $(POT) $$(find $(PKG_DIR)/contents -name '*.qml' | sort)
 	@for po in $(PO_FILES); do \
