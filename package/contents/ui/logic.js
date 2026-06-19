@@ -39,8 +39,10 @@ var DEFAULTS = Object.freeze({
     animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
     // Appearance group
     dotSize: 0,                  // px; 0 = auto (HiDPI themed size, resolved in the indicator)
+    pillSize: 0,                 // px; active-pill thickness, 0 = auto (matches the dot size). Sized
+                                 // independently of dotSize; pill length = pillSize * pillWidthFactor
     spacingFactor: 0.5,
-    pillWidthFactor: 3.5,
+    pillWidthFactor: 3.5,        // pill length as a multiple of the pill thickness (its aspect ratio)
     inactiveOpacity: 0.45,
     hoverOpacity: 0.8,
     followThemeColors: true,

@@ -529,6 +529,7 @@ TestCase {
             { tag: "enableRename", key: "enableRename", exp: true },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },
+            { tag: "pillSize", key: "pillSize", exp: 0 },
             { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
             { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
@@ -559,9 +560,9 @@ TestCase {
         var keys = Object.keys(Logic.DEFAULTS).sort();
         var expected = ["activeColor", "animationDuration", "dotSize", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
-                        "inactiveOpacity", "pillWidthFactor", "scrollWrap", "showTooltips",
+                        "inactiveOpacity", "pillSize", "pillWidthFactor", "scrollWrap", "showTooltips",
                         "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 16, "DEFAULTS has exactly 16 keys");
+        compare(keys.length, 17, "DEFAULTS has exactly 17 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 }
