@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-19 15:25+0200\n"
+"POT-Creation-Date: 2026-06-19 16:02+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Russian\n"
@@ -36,7 +36,7 @@ msgstr "Размер точки:"
 msgid "Default"
 msgstr "По умолчанию"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigAppearance.qml:96
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigAppearance.qml:98
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
@@ -44,62 +44,62 @@ msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 msgstr[2] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:91
-#, fuzzy, kde-format
-msgid "Pill size:"
-msgstr "Длина капсулы:"
+#: package/contents/ui/config/ConfigAppearance.qml:93
+#, kde-format
+msgid "Pill thickness:"
+msgstr "Толщина капсулы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:96
+#: package/contents/ui/config/ConfigAppearance.qml:98
 #, kde-format
 msgid "Match dots"
-msgstr ""
+msgstr "Как у точек"
 
-#: package/contents/ui/config/ConfigAppearance.qml:101
+#: package/contents/ui/config/ConfigAppearance.qml:103
 #, kde-format
 msgid "Spacing:"
 msgstr "Интервал:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:105
+#: package/contents/ui/config/ConfigAppearance.qml:107
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× точка"
 
-#: package/contents/ui/config/ConfigAppearance.qml:110
+#: package/contents/ui/config/ConfigAppearance.qml:112
 #, kde-format
 msgid "Pill length:"
 msgstr "Длина капсулы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:115
+#: package/contents/ui/config/ConfigAppearance.qml:117
 #, kde-format
 msgid "%1× pill"
-msgstr ""
+msgstr "%1× капсула"
 
-#: package/contents/ui/config/ConfigAppearance.qml:120
+#: package/contents/ui/config/ConfigAppearance.qml:122
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Непрозрачность неактивных:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:129
+#: package/contents/ui/config/ConfigAppearance.qml:131
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Непрозрачность при наведении:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:144
 #, kde-format
 msgid "Colors:"
 msgstr "Цвета:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:143
+#: package/contents/ui/config/ConfigAppearance.qml:145
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Следовать цветовой схеме"
 
-#: package/contents/ui/config/ConfigAppearance.qml:147
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Active desktop:"
 msgstr "Активный рабочий стол:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:153
+#: package/contents/ui/config/ConfigAppearance.qml:155
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Неактивный рабочий стол:"

@@ -88,7 +88,9 @@ ConfigPageBase {
 
         ConfigSlider {
             id: pillSize
-            label: i18n("Pill size:")
+            // "Thickness" (not "size") to disambiguate from the "Pill length:" slider below — the two
+            // controls are the pill's two axes — and so msgmerge can't fuzzy-collide it with "Pill length:".
+            label: i18n("Pill thickness:")
             from: 0
             to: 64
             stepSize: 1

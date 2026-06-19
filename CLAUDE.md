@@ -439,15 +439,20 @@ globals don't exist (see "Config flow"/the window-list section). So extraction s
 - **Domain (auto-bound):** the Plasma runtime sets the QML `KLocalizedContext` domain to
   `plasma_applet_<KPlugin.Id>` = `plasma_applet_com.github.kenansalar.plasma-gnome-pager`, so the
   bare `i18n(...)` calls resolve to our catalog with **no** explicit domain wiring in QML.
-- **Source vs. artifact:** `po/<domain>.pot` (template) + `po/<lang>.po` (per-language) are the
-  committed **source of truth**; the compiled `po/<lang>.po → package/contents/locale/<lang>/`
-  `LC_MESSAGES/<domain>.mo` catalogs are **generated** (gitignored). `kpackagetool6` ships the
-  package tree verbatim and does **no** compilation, so the `.mo` must exist under `package/`
-  before packaging — `make i18n` compiles them and `install`/`update`/`dev` depend on it.
-- **Workflow:** `make messages` extracts via `xgettext` (ki18n keyword set, so contexts + plural
-  forms come through) into the `.pot` and `msgmerge`s every `.po`; `make i18n` compiles each `.po`
-  (`msgfmt --check`) into the package. Add a language by `msginit --locale=<ll>` from the `.pot`,
-  translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
+- **Source vs. artifact:** the committed **source of truth** is the per-language `po/<lang>.po`
+  files (human-authored translations). BOTH the `po/<domain>.pot` template AND the compiled
+  `po/<lang>.po → package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo` catalogs are **generated
+  and gitignored** (`po/*.pot` + `package/contents/locale/`): the `.pot` is re-extracted from the
+  QML by `make messages` on every run (nothing in the build *reads* the committed copy — `xgettext`
+  overwrites it, then `msgmerge` reads that fresh copy), so committing it only adds date +
+  line-number churn. `kpackagetool6` ships the package tree verbatim and does **no** compilation, so
+  the `.mo` must exist under `package/` before packaging — `make i18n` compiles them and
+  `install`/`update`/`dev` depend on it.
+- **Workflow:** `make messages` (re)extracts via `xgettext` (ki18n keyword set, so contexts +
+  plural forms come through) into the `.pot` and `msgmerge`s every `.po`; `make i18n` compiles each
+  `.po` (`msgfmt --check`) into the package. Commit only the changed `.po` (the `.pot` is ignored).
+  Add a language by running `make messages` (to regenerate the local `.pot`), then `msginit
+  --locale=<ll>` from it, translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
   12 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `ar`, `zh_CN`, `ru`,
   `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for `zh_CN`/`ja`,
   3 for `ru`, 6 for `ar`).
