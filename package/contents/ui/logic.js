@@ -319,6 +319,27 @@ function groupWindowsByDesktop(windows, desktopIds) {
     return out;
 }
 
+/**
+ * Should a TasksModel `dataChanged(topLeft, bottomRight, roles)` trigger a tooltip rebuild? The
+ * window-list aggregator (main.qml) reads only a handful of roles (title/desktops/minimised/isWindow),
+ * but KWin emits dataChanged for high-frequency roles it never reads — most notably IsActive on EVERY
+ * window-focus change (the losing AND gaining window, X11 and Wayland), plus StackingOrder, Geometry,
+ * IsDemandingAttention, the icon. Rebuilding on those regroups + reformats to a byte-identical result,
+ * pure waste on an always-on widget. `relevantRoles` is the set of role ints the rebuild actually
+ * reads (built from the public taskmanager enum in main.qml, which stays the Plasma-aware caller).
+ * Returns true (rebuild) when ANY changed role is relevant, OR when `changedRoles` is empty/absent —
+ * Qt defines an empty roles list as "ALL roles changed", so that case must always rebuild. Only a
+ * change provably limited to irrelevant roles is skipped, so the tooltip output can never go stale.
+ */
+function dataChangeAffectsRoles(changedRoles, relevantRoles) {
+    if (!changedRoles || changedRoles.length === 0)
+        return true;                                 // Qt: empty roles == ALL roles changed -> rebuild
+    for (var i = 0; i < changedRoles.length; i++)
+        if (relevantRoles.indexOf(changedRoles[i]) !== -1)
+            return true;                             // a role the rebuild reads changed
+    return false;                                    // only roles rebuild() never reads -> skip
+}
+
 /*
  * KWin DBus call SHAPES.
  *
