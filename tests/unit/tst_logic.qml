@@ -515,6 +515,34 @@ TestCase {
         compare(JSON.stringify(Logic.groupWindowsByDesktop(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed ----
+    // Skips the high-frequency churn (IsActive on focus, StackingOrder, …) the aggregator never reads.
+    // Qt semantics: an EMPTY (or null/undefined) roles list means "all roles changed" -> must rebuild.
+    // The role ints are synthetic here (the function is int-agnostic; main.qml supplies the real public
+    // taskmanager enum ints — Qt::DisplayRole + VirtualDesktops/IsOnAllVirtualDesktops/IsMinimized/IsWindow).
+    function test_dataChangeAffectsRoles_data() {
+        var relevant = [0, 5, 6, 7, 8];          // e.g. DisplayRole(0) + the four taskmanager roles read
+        return [
+            { tag: "empty-means-all-rebuilds", changed: [], relevant: relevant, exp: true },
+            { tag: "null-rebuilds", changed: null, relevant: relevant, exp: true },
+            { tag: "undefined-rebuilds", changed: undefined, relevant: relevant, exp: true },
+            { tag: "display-role-rebuilds", changed: [0], relevant: relevant, exp: true },
+            { tag: "relevant-role-rebuilds", changed: [6], relevant: relevant, exp: true },
+            // a change limited to roles rebuild() never reads (e.g. IsActive on focus) is skipped.
+            { tag: "only-irrelevant-skips", changed: [3], relevant: relevant, exp: false },
+            { tag: "all-irrelevant-skips", changed: [3, 4, 9], relevant: relevant, exp: false },
+            // a relevant role present ANYWHERE in the list (even last) still rebuilds.
+            { tag: "mixed-rebuilds", changed: [3, 6], relevant: relevant, exp: true },
+            { tag: "relevant-last-rebuilds", changed: [3, 4, 8], relevant: relevant, exp: true },
+            // an empty relevant set: nothing is relevant, so only the empty-"all" case still rebuilds.
+            { tag: "no-relevant-roles-skips", changed: [0], relevant: [], exp: false },
+            { tag: "no-relevant-empty-changed-rebuilds", changed: [], relevant: [], exp: true }
+        ];
+    }
+    function test_dataChangeAffectsRoles(data) {
+        compare(Logic.dataChangeAffectsRoles(data.changed, data.relevant), data.exp, data.tag);
+    }
+
     // --- DEFAULTS: the single source of truth for the QML-side config defaults --------
     // A change-detector + contract doc: every value mirrors a contents/config/main.xml <default>
     // and is referenced by main.qml's `?? Logic.DEFAULTS.X` and the component property defaults,

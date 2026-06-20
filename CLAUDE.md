@@ -350,7 +350,10 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   `TasksModel { groupMode: GroupDisabled; filterByActivity: true }` (one row per window; current
 >   activity only). An `Instantiator` materialises the rows so role values can be read **by name**
 >   (a C++ `QAbstractItemModel` has no `model.get(i)`); a debounced `Qt.callLater(rebuild)` (driven by
->   the model's `dataChanged`/`onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
+>   the model's `dataChanged` — **role-filtered** via `Logic.dataChangeAffectsRoles(roles, relevantRoles)`
+>   so the high-frequency `IsActive` focus churn KWin emits on every window-focus change never triggers a
+>   no-op regroup (an empty/absent roles list is Qt's "all changed" → still rebuilds) — plus the
+>   Instantiator's `onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
 >   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
 >   `subText`. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
 >   with `desktopIds` (exactly parallel to `desktopNames`): `main.qml` → `WorkspaceIndicator`
@@ -361,8 +364,10 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   `groupWindowsByDesktop(windows, desktopIds)` → per-desktop `{ visible:[title…], minimized:[title…] }`
 >   (a window belongs to a desktop when `isWindow && (onAll || desktops.indexOf(uuid) !== -1)`);
 >   `windowListMaximum(count)` (the stock rule: 4, but all 5 when exactly 5); `sanitizeHtml` (escapes
->   `<>&'"` and the no-break space ` ` — **not** the ordinary space, which must still wrap). i18n
->   formatting stays in `main.qml` because `i18n*` is a plasmoid global, absent under `qmltestrunner`.
+>   `<>&'"` and the no-break space ` ` — **not** the ordinary space, which must still wrap);
+>   `dataChangeAffectsRoles(changedRoles, relevantRoles)` (the rebuild gate above — true when a read role
+>   changed OR `changedRoles` is empty/absent = Qt's "all changed", false for pure focus/stacking churn).
+>   i18n formatting stays in `main.qml` because `i18n*` is a plasmoid global, absent under `qmltestrunner`.
 >
 > **Gotcha — `as`-cast dynamic `Loader.item`/`Instantiator.objectAt()` to a NAMED inline component, or
 > qmllint flags `missing-property`.** `Loader.item` and `Instantiator.objectAt(i)` are typed `QObject`,
@@ -375,7 +380,7 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
 > `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
 > before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings).
-> Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop}` +
+> Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop,test_dataChangeAffectsRoles}` +
 > `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
 > `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
 > itself is e2e-only (verify in-shell).
