@@ -171,6 +171,19 @@ PlasmoidItem {
             activity: activityInfo.currentActivity
         }
 
+        // The exact role ints rebuild() reads — title + the four taskmanager roles below — built from
+        // the PUBLIC org.kde.taskmanager enum (already imported; robustness.md). dataChanged for any
+        // OTHER role leaves desktopTooltips byte-identical, so we skip the rebuild — most importantly
+        // IsActive, which KWin emits on EVERY window-focus change (the losing AND gaining window), plus
+        // StackingOrder/Geometry/IsDemandingAttention/icon. Qt::DisplayRole (== 0) is the window title.
+        readonly property var relevantRoles: [
+            Qt.DisplayRole,
+            TaskManager.AbstractTasksModel.VirtualDesktops,
+            TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
+            TaskManager.AbstractTasksModel.IsMinimized,
+            TaskManager.AbstractTasksModel.IsWindow
+        ]
+
         // Materialise the rows so objectAt(i) can read role values by name (a C++ QAbstractItemModel has
         // no model.get(i)). Row add/remove triggers a rebuild here; role-value changes (title rename,
         // minimise, desktop move) arrive via the model's dataChanged below.
@@ -182,13 +195,16 @@ PlasmoidItem {
             onObjectRemoved: aggregator.scheduleRebuild()
         }
 
-        // Rebuild on any role-value change (dataChanged covers title/minimise/desktop) or a full reset,
-        // and when the desktop SET changes (the index alignment shifts). All funnel through the debounced
-        // scheduleRebuild so a burst collapses to one rebuild per frame.
+        // Rebuild when a role rebuild() actually reads changes (title/desktop/minimise — Logic filters
+        // out the IsActive focus churn etc. against relevantRoles; an empty roles list is Qt's "all
+        // changed" and rebuilds), or on a full reset, or when the desktop SET changes (the index
+        // alignment shifts). All funnel through the debounced scheduleRebuild so a burst collapses to
+        // one rebuild per frame.
         Connections {
             target: tasksModel
-            function onDataChanged() {
-                aggregator.scheduleRebuild();
+            function onDataChanged(topLeft, bottomRight, roles) {
+                if (Logic.dataChangeAffectsRoles(roles, aggregator.relevantRoles))
+                    aggregator.scheduleRebuild();
             }
             function onModelReset() {
                 aggregator.scheduleRebuild();
