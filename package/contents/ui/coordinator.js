@@ -65,7 +65,7 @@ function publish(enabled, prefix) {
     for (var t in _subs) {
         try {
             _subs[t](_enabled, _prefix);
-        } catch (e) {
+        } catch (_e) {
             /* an instance torn down mid-iteration: ignore */
         }
     }

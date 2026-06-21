@@ -621,6 +621,8 @@ make restart    # reload the real panel (systemd user service if active, else kq
 make check      # all headless QML tests (unit + integration): QT_QPA_PLATFORM=offscreen qmltestrunner-qt6 -input tests/<tier>
 make check-unit / make check-integration   # run a single tier (tests/unit, tests/integration)
 make lint       # qmllint-qt6 the widget UI + ui/config/*.qml + config/config.qml + tests/{unit,integration,shared}/*.qml
+make lint-js    # ESLint (strict, --max-warnings 0) the pure-JS tier: contents/ui/{logic,coordinator}.js + tests/shared/*.js (run `npm install` once first)
+make verify     # all static + headless gates in one go: lint + lint-js + check
 make messages   # extract translatable strings -> po/<domain>.pot, then msgmerge each po/*.po
 make i18n       # compile po/*.po -> package/contents/locale/<lang>/LC_MESSAGES/<domain>.mo (install/update/dev depend on it)
 make dev-undev  # remove the dev symlink
@@ -640,6 +642,31 @@ qmlformat-qt6 -i package/contents/ui/*.qml                                # or /
 private-import mistakes that `robustness.md` warns about and that otherwise fail silently at
 runtime on a new Plasma version.
 
+**ESLint covers the JS tier** (the `.qml` is qmllint's job — ESLint cannot lint QML). `make lint-js`
+runs `eslint . --max-warnings 0` (strict, warnings-as-errors) over the only lintable JavaScript:
+`contents/ui/{logic,coordinator}.js` + `tests/shared/*.js`. The rule set is **correctness-only**
+(`@eslint/js` recommended + the strict signature rules `no-unused-vars` with `^_` ignores /
+`no-unassigned-vars` / `no-useless-assignment` / `preserve-caught-error`, mirroring the FitnessMain
+project); stylistic rules (`no-var`/`prefer-const`/`curly`) are deliberately **off** because the
+house style is `var` + braceless ifs. Config: `eslint.config.mjs`. These are dev-only Node deps
+(`package.json` + committed `package-lock.json`, **not** shipped in the `.plasmoid`); provision once
+with `npm install` (or `npm ci` in CI). No TypeScript/`tsc` and no Prettier — see the gotcha below.
+
+> **Gotcha — the JS files are QML `.pragma library` modules, so standard JS tooling can't parse them
+> raw.** Every `.js` here opens with `.pragma library` (and `coordinator.js`/`elements.js` add
+> `.import "x.js" as Y`) — QML engine directives that are **syntax errors** to espree, `tsc`, and
+> Prettier alike. ESLint is made to work via a tiny **custom parser** (`tools/eslint-qml-js-parser.mjs`)
+> that rewrites those 1-2 directive lines to line-preserving comments (`.import … as Logic` →
+> `/​* global Logic *​/`, so `no-undef` sees the cross-module binding) before delegating to `espree`;
+> line/column numbers stay exact. This is a **custom parser, NOT a flat-config processor** — a
+> processor emits a nested virtual filename (`logic.js/0_qml.js`) the `files` globs don't match, so the
+> rules silently never run (verified: it was a no-op). Because top-level `function`/`var` are implicit
+> QML exports, `no-unused-vars` uses `vars: "local"`. The same directive wall is **why there is no
+> `tsc`/checkJs type-checking** (tsc has no parser hook and would need a temp-copy build + ~37 functions
+> of `@param` JSDoc, duplicating `tst_logic.qml`) **and no Prettier** (it errors instead of skipping).
+> A TS-aware editor will still red-underline the `.pragma`/`.import` lines — that's the editor's
+> built-in JS validator, harmless, and unrelated to `make lint-js`.
+
 ## Verifying a change
 
 There is a headless QML test harness (`tests/`, run with `make check`) split into two tiers:
@@ -658,6 +685,8 @@ bus), so it still relies on the manual in-shell loop below. New logic should com
    `./.contextProperties.ini` (so they no longer flag `unqualified`, while a genuine unqualified
    access still does — see "Internationalization (i18n)"). A `DBus.*` constructor may print an
    `unresolved-type` info on some qmllint versions (runtime JS types the plugin provides) — benign.
+   Then `make lint-js` (ESLint, strict, `--max-warnings 0`) clean for the JS tier — needs
+   `npm install` once (see "Lint/format before installing"). `make verify` runs check + lint + lint-js.
 3. `make dev && make test` — watch the `plasmawindowed` terminal and
    `journalctl --user -f -t plasmashell` for QML errors/warnings.
 4. `make restart` — confirm it works in a real panel (some failures only show in-shell).

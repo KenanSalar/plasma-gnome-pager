@@ -48,7 +48,7 @@ XGETTEXT    := xgettext --from-code=UTF-8 -C --kde \
 DIST_DIR      := dist
 PLASMOID_FILE := $(DIST_DIR)/$(PLASMOID_ID)-$(VERSION).plasmoid
 
-.PHONY: help install update uninstall package dev dev-undev test restart check check-unit check-integration lint messages i18n _no-dev-symlink
+.PHONY: help install update uninstall package dev dev-undev test restart check check-unit check-integration lint lint-js verify messages i18n _no-dev-symlink
 
 help:
 	@echo "Targets:"
@@ -60,6 +60,8 @@ help:
 	@echo "  make check-unit Run only the unit tests (tests/unit)"
 	@echo "  make check-integration  Run only the integration tests (tests/integration)"
 	@echo "  make lint       qmllint the widget UI (clean — i18n globals resolved via .contextProperties.ini)"
+	@echo "  make lint-js    ESLint the pure-JS tier (logic.js/coordinator.js + tests/shared/*.js); run 'npm install' first"
+	@echo "  make verify     Run all static + headless gates: lint + lint-js + check"
 	@echo "  make messages   Extract translatable strings into po/ (.pot template) and merge .po files"
 	@echo "  make i18n       Compile po/*.po into the package (contents/locale/.../*.mo)"
 	@echo "  make install    Install the package with kpackagetool6"
@@ -148,6 +150,19 @@ check-integration:
 lint:
 	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml \
 		$(TESTS_DIR)/unit/*.qml $(TESTS_DIR)/integration/*.qml $(TESTS_DIR)/shared/*.qml
+
+# ESLint (strict, warnings-as-errors) over the pure-JS tier ONLY: contents/ui/{logic,coordinator}.js
+# and the shared headless-test helpers tests/shared/*.js. The .qml files are NOT linted here —
+# `make lint` (qmllint) covers them. The QML ".pragma library"/".import ... as X" directives are not
+# valid JavaScript, so a thin custom parser (tools/eslint-qml-js-parser.mjs) rewrites them before
+# espree parses (config: eslint.config.mjs). Provision the toolchain first: `npm install` (locally,
+# once) or `npm ci` (CI). See CLAUDE.md "Verifying a change".
+lint-js:
+	@[ -d node_modules ] || { echo "==> node_modules/ missing — run 'npm install' (or 'npm ci') first"; exit 1; }
+	npx --no-install eslint . --max-warnings 0
+
+# Convenience: every static + headless gate in one go (mirrors what CI runs across its jobs).
+verify: lint lint-js check
 
 # Extract translatable strings from the QML into the .pot template, then merge them into every
 # existing po/<lang>.po (so translators pick up new/changed strings without losing their work).
