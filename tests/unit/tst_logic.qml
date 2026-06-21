@@ -245,6 +245,38 @@ TestCase {
         compare(JSON.stringify(Logic.chunk(data.arr, data.size)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- arraysShallowEqual: skip a `var` reassignment whose flat-primitive contents are identical -
+    // The aggregator uses this to avoid notifying on an unchanged occupancy/tooltip snapshot (a QML
+    // `var` write always fires its change signal). Element-wise strict compare; identity/null/length
+    // guarded; two empty arrays are equal. NOT recursive — nested arrays compare by reference only.
+    function test_arraysShallowEqual_data() {
+        var same = [true, false, true];
+        var nested = [["a"]];
+        return [
+            { tag: "identical-bools", a: [true, false, true], b: [true, false, true], exp: true },
+            { tag: "identical-strings", a: ["x", "y"], b: ["x", "y"], exp: true },
+            { tag: "same-reference", a: same, b: same, exp: true },
+            { tag: "both-empty", a: [], b: [], exp: true },
+            { tag: "differ-element", a: [true, false], b: [true, true], exp: false },
+            { tag: "differ-length-shorter", a: [true], b: [true, false], exp: false },
+            { tag: "differ-length-longer", a: [true, false, false], b: [true, false], exp: false },
+            { tag: "string-vs-empty", a: ["a"], b: [], exp: false },
+            { tag: "null-a", a: null, b: [], exp: false },
+            { tag: "null-b", a: [], b: null, exp: false },
+            { tag: "both-null-identity", a: null, b: null, exp: true },
+            { tag: "undefined-a", a: undefined, b: [true], exp: false },
+            // strict !== compare: distinct nested arrays are unequal even with equal contents.
+            { tag: "nested-distinct-refs-unequal", a: [["a"]], b: [["a"]], exp: false },
+            { tag: "nested-same-ref-equal", a: nested, b: nested, exp: true },
+            // type-strictness: 1 !== true, "1" !== 1 (no coercion).
+            { tag: "no-bool-number-coercion", a: [1], b: [true], exp: false },
+            { tag: "no-string-number-coercion", a: ["1"], b: [1], exp: false }
+        ];
+    }
+    function test_arraysShallowEqual(data) {
+        compare(Logic.arraysShallowEqual(data.a, data.b), data.exp, data.tag);
+    }
+
     // --- lineExtent: one capsule + the rest dots, uniform gaps; transient -> one dot ---
     // Two callers: the major axis passes the pill as activeExtent (a real capsule); the cross
     // axis passes dotSize (the all-dots degenerate case, n*dot + (n-1)*gap).
@@ -446,6 +478,49 @@ TestCase {
         compare(Logic.windowIsOnDesktop(data.window, data.uuid), data.exp, data.tag);
     }
 
+    // --- windowOccupiesDesktop: per-window OCCUPANCY predicate (used by computeDesktopOccupancy) -----
+    // Deliberately DIFFERENT from windowIsOnDesktop (the tooltip membership above): for dynamic-workspace
+    // occupancy an on-all-desktops window does NOT count (it would pin every desktop, so none could ever be
+    // empty) and a skipPager window does NOT count, while a MINIMIZED window DOES (it still occupies its
+    // desktop). Real window only; a null/undefined window or missing `desktops` is false. Strict boolean.
+    function test_windowOccupiesDesktop_data() {
+        const occ = function (opts) {
+            opts = opts || {};
+            return {
+                isWindow: opts.isWindow !== false, onAll: opts.onAll === true,
+                skipPager: opts.skipPager === true, minimized: opts.minimized === true,
+                desktops: opts.desktops
+            };
+        };
+        return [
+            // null/undefined ELEMENT guard — the one branch computeDesktopOccupancy can't reach (it only
+            // nulls the whole array, which short-circuits before this predicate is ever called).
+            { tag: "null-window", window: null, uuid: "a", exp: false },
+            { tag: "undefined-window", window: undefined, uuid: "a", exp: false },
+            // a real window on its desktop occupies it; a miss / empty / missing list does not.
+            { tag: "desktops-match", window: occ({ desktops: ["a", "b"] }), uuid: "a", exp: true },
+            { tag: "desktops-miss", window: occ({ desktops: ["b"] }), uuid: "a", exp: false },
+            { tag: "desktops-undefined", window: occ({}), uuid: "a", exp: false },
+            { tag: "empty-desktops-array", window: occ({ desktops: [] }), uuid: "a", exp: false },
+            // non-window (launcher/panel) never occupies, even with a matching desktops list.
+            { tag: "non-window-excluded", window: occ({ isWindow: false, desktops: ["a"] }), uuid: "a", exp: false },
+            // KEY divergence from windowIsOnDesktop: on-all is EXCLUDED here (would pin every desktop).
+            { tag: "on-all-excluded", window: occ({ onAll: true, desktops: ["a"] }), uuid: "a", exp: false },
+            { tag: "on-all-excluded-no-desktops", window: occ({ onAll: true }), uuid: "a", exp: false },
+            // skipPager (hidden from the pager) is excluded too.
+            { tag: "skip-pager-excluded", window: occ({ skipPager: true, desktops: ["a"] }), uuid: "a", exp: false },
+            // KEY inclusion: a MINIMIZED window still occupies its desktop (no minimized check by design).
+            { tag: "minimized-still-counts", window: occ({ minimized: true, desktops: ["a"] }), uuid: "a", exp: true },
+            // isWindow entirely missing (a raw object) is falsy → excluded, even with a matching list.
+            { tag: "isWindow-missing", window: { desktops: ["a"] }, uuid: "a", exp: false }
+        ];
+    }
+    function test_windowOccupiesDesktop(data) {
+        var result = Logic.windowOccupiesDesktop(data.window, data.uuid);
+        compare(result, data.exp, data.tag);
+        compare(typeof result, "boolean", data.tag + " (strict boolean)");
+    }
+
     // --- groupWindowsByDesktop: per-desktop visible/minimized title lists --------------
     // Index-aligned with desktopIds. A window belongs to a desktop when it is a real window AND
     // (it is on all desktops OR its `desktops` list holds that id); minimized windows bucket apart;
@@ -515,6 +590,116 @@ TestCase {
         compare(JSON.stringify(Logic.groupWindowsByDesktop(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- computeDesktopOccupancy: per-desktop "has a window" boolean[] for dynamic workspaces -------
+    // Index-aligned with desktopIds. A desktop is occupied by a REAL window that is NOT on-all and NOT
+    // skipPager; minimized windows DO count (unlike a tooltip, an on-all window does NOT pin a desktop).
+    function test_computeDesktopOccupancy_data() {
+        const occ = function (desktops, opts) {
+            opts = opts || {};
+            return { isWindow: opts.isWindow !== false, onAll: opts.onAll === true, skipPager: opts.skipPager === true, minimized: opts.minimized === true, desktops: desktops };
+        };
+        return [
+            // transient/degenerate inputs degrade to [] or all-false, never throw.
+            { tag: "empty-ids", windows: [occ(["a"])], ids: [], exp: [] },
+            { tag: "null-ids", windows: [occ(["a"])], ids: null, exp: [] },
+            { tag: "undefined-ids", windows: [occ(["a"])], ids: undefined, exp: [] },
+            { tag: "null-windows-all-false", windows: null, ids: ["a", "b"], exp: [false, false] },
+            { tag: "empty-windows-all-false", windows: [], ids: ["a", "b"], exp: [false, false] },
+            // a window pins exactly its desktop; alignment is by index.
+            { tag: "membership-and-alignment", windows: [occ(["a"]), occ(["b"])], ids: ["a", "b"], exp: [true, true] },
+            { tag: "not-on-this-desktop", windows: [occ(["b"])], ids: ["a"], exp: [false] },
+            { tag: "empty-desktops-array", windows: [occ([])], ids: ["a"], exp: [false] },
+            // the three exclusions: on-all (would pin everything), skipPager (hidden), non-window (launcher).
+            { tag: "on-all-excluded", windows: [occ([], { onAll: true })], ids: ["a", "b"], exp: [false, false] },
+            { tag: "skip-pager-excluded", windows: [occ(["a"], { skipPager: true })], ids: ["a"], exp: [false] },
+            { tag: "non-window-excluded", windows: [occ(["a"], { isWindow: false })], ids: ["a"], exp: [false] },
+            // the one inclusion that differs from the exclusions: a minimized window still occupies.
+            { tag: "minimized-counts", windows: [occ(["a"], { minimized: true })], ids: ["a"], exp: [true] },
+            // a window on two desktops pins both, not a third.
+            { tag: "window-on-multiple-desktops", windows: [occ(["a", "b"])], ids: ["a", "b", "c"], exp: [true, true, false] },
+            // mixed: one visible, one minimized, a trailing empty.
+            { tag: "mixed", windows: [occ(["a"]), occ(["b"], { minimized: true })], ids: ["a", "b", "c"], exp: [true, true, false] }
+        ];
+    }
+    function test_computeDesktopOccupancy(data) {
+        compare(JSON.stringify(Logic.computeDesktopOccupancy(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
+    // One action per call; reactive re-triggering converges to exactly one trailing empty. Only the
+    // TRAILING run is managed (empty middles are left alone); transient/length-mismatch frames are no-ops.
+    function test_dynamicWorkspacePlan_data() {
+        return [
+            // guards: absent arrays, empty set, or an occupancy snapshot that lags the desktop set.
+            { tag: "null-occupancy", occ: null, ids: ["a"], exp: null },
+            { tag: "null-ids", occ: [false], ids: null, exp: null },
+            { tag: "empty-ids", occ: [], ids: [], exp: null },
+            { tag: "length-mismatch", occ: [false], ids: ["a", "b"], exp: null },
+            // n==1: keep the single empty (never remove the last); add when it fills.
+            { tag: "single-empty-noop", occ: [false], ids: ["a"], exp: null },
+            { tag: "single-occupied-add", occ: [true], ids: ["a"], exp: { kind: "add" } },
+            // 0 trailing empties -> add (the last desktop is occupied), regardless of a leading empty.
+            { tag: "last-occupied-add", occ: [true, true], ids: ["a", "b"], exp: { kind: "add" } },
+            { tag: "no-trailing-empty-add", occ: [false, true], ids: ["a", "b"], exp: { kind: "add" } },
+            // exactly one trailing empty is the fixpoint -> no-op.
+            { tag: "one-trailing-empty-noop", occ: [true, false], ids: ["a", "b"], exp: null },
+            // >=2 trailing empties -> trim the LAST one (re-trigger trims the rest).
+            { tag: "two-trailing-trim-last", occ: [true, false, false], ids: ["a", "b", "c"], exp: { kind: "remove", uuid: "c" } },
+            { tag: "all-empty-trim-last", occ: [false, false], ids: ["a", "b"], exp: { kind: "remove", uuid: "b" } },
+            // an empty MIDDLE desktop is left alone — only the trailing run is managed.
+            { tag: "empty-middle-left-alone", occ: [false, true, false], ids: ["a", "b", "c"], exp: null },
+            // a leading empty + a 2-deep trailing run still just trims the tail (not the middle).
+            { tag: "leading-empty-trims-tail", occ: [false, true, false, false], ids: ["a", "b", "c", "d"], exp: { kind: "remove", uuid: "d" } }
+        ];
+    }
+    function test_dynamicWorkspacePlan(data) {
+        compare(JSON.stringify(Logic.dynamicWorkspacePlan(data.occ, data.ids)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // --- formatDynamicDesktopName: user-configurable base + " " + number, never empty ---------------
+    // A configured prefix wins; a blank prefix falls back to the i18n default passed in (main.qml's
+    // "Desktop"); an all-blank case uses the literal "Desktop" so the name is never empty (KWin drops
+    // createDesktop with an empty name). The prefix is sanitized (trim, cap 100) like a rename.
+    function test_formatDynamicDesktopName_data() {
+        return [
+            { tag: "custom-prefix", prefix: "Workspace", number: 3, fallback: "Desktop", exp: "Workspace 3" },
+            { tag: "blank-uses-fallback", prefix: "", number: 2, fallback: "Desktop", exp: "Desktop 2" },
+            { tag: "whitespace-uses-fallback", prefix: "   ", number: 5, fallback: "Desktop", exp: "Desktop 5" },
+            { tag: "prefix-trimmed", prefix: "  Web  ", number: 4, fallback: "Desktop", exp: "Web 4" },
+            // a localized fallback (non-English main.qml i18n) is honoured when the prefix is blank.
+            { tag: "localized-fallback", prefix: "", number: 2, fallback: "Bureau", exp: "Bureau 2" },
+            // all-blank (prefix AND fallback) still yields a non-empty name via the literal last resort.
+            { tag: "all-blank-last-resort", prefix: "", number: 1, fallback: "", exp: "Desktop 1" }
+        ];
+    }
+    function test_formatDynamicDesktopName(data) {
+        compare(Logic.formatDynamicDesktopName(data.prefix, data.number, data.fallback), data.exp, data.tag);
+    }
+    function test_formatDynamicDesktopNameCapsPrefix() {
+        // the prefix is capped at 100 chars (sanitizeDesktopName) before the number is appended.
+        var longPrefix = new Array(150).join("a");   // 149 'a's
+        compare(Logic.formatDynamicDesktopName(longPrefix, 7, "Desktop"), new Array(101).join("a") + " 7", "prefix capped at 100, then ' 7'");
+    }
+
+    // --- electDynamicWriter: the single global writer among pager instances (multi-monitor) ----------
+    // registry maps coordinator token -> enabled. The writer is the lowest-token ENABLED instance, or -1
+    // when none is enabled. Keys are strings (object keys) — the function coerces them to Number.
+    function test_electDynamicWriter_data() {
+        return [
+            { tag: "null", reg: null, exp: -1 },
+            { tag: "empty", reg: {}, exp: -1 },
+            { tag: "none-enabled", reg: { "1": false, "2": false }, exp: -1 },
+            { tag: "one-enabled", reg: { "1": true }, exp: 1 },
+            { tag: "lowest-enabled-wins", reg: { "1": true, "2": true }, exp: 1 },
+            { tag: "skip-disabled-lower", reg: { "1": false, "2": true }, exp: 2 },
+            { tag: "numeric-min-not-insertion", reg: { "2": true, "1": true }, exp: 1 },
+            { tag: "mixed", reg: { "3": false, "1": false, "2": true, "4": true }, exp: 2 }
+        ];
+    }
+    function test_electDynamicWriter(data) {
+        compare(Logic.electDynamicWriter(data.reg), data.exp, data.tag);
+    }
+
     // --- dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed ----
     // Skips the high-frequency churn (IsActive on focus, StackingOrder, …) the aggregator never reads.
     // Qt semantics: an EMPTY (or null/undefined) roles list means "all roles changed" -> must rebuild.
@@ -551,10 +736,13 @@ TestCase {
         return [
             { tag: "enableScroll", key: "enableScroll", exp: true },
             { tag: "scrollWrap", key: "scrollWrap", exp: false },
+            { tag: "invertScroll", key: "invertScroll", exp: false },
             { tag: "showTooltips", key: "showTooltips", exp: true },
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
             { tag: "enableRename", key: "enableRename", exp: true },
+            { tag: "dynamicWorkspaces", key: "dynamicWorkspaces", exp: false },
+            { tag: "dynamicNamePrefix", key: "dynamicNamePrefix", exp: "" },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
@@ -586,12 +774,67 @@ TestCase {
     // or REMOVED key). A new config key must be added here and to main.xml together, or this fails.
     function test_defaultsKeySet() {
         var keys = Object.keys(Logic.DEFAULTS).sort();
-        var expected = ["activeColor", "animationDuration", "dotSize", "enableAddRemove", "enableRename",
+        var expected = ["activeColor", "animationDuration", "dotSize", "dynamicNamePrefix",
+                        "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
-                        "inactiveOpacity", "pillSize", "pillWidthFactor", "scrollWrap", "showTooltips",
-                        "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 17, "DEFAULTS has exactly 17 keys");
+                        "inactiveOpacity", "invertScroll", "pillSize", "pillWidthFactor", "scrollWrap",
+                        "showTooltips", "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
+        compare(keys.length, 20, "DEFAULTS has exactly 20 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
+    }
+
+    // CROSS-CHECK the KConfigXT schema against the JS mirror: every contents/config/main.xml
+    // <default> must equal Logic.DEFAULTS[name]. The two are hand-synced (KConfigXT can't read a JS
+    // literal — CLAUDE.md), and nothing else verified they agree: editing one and not the other would
+    // pass test_defaults (which pins DEFAULTS against literals, not the schema) yet make a fresh
+    // install's schema default disagree with main.qml's `?? Logic.DEFAULTS` fallback for that frame.
+    // This reads main.xml and asserts the match per entry type; logic.js stays pure (the parse lives
+    // only here). wheelNotchDelta is the one DEFAULTS key with no main.xml entry (a non-config const).
+    function test_mainXmlDefaultsMatchLogicDefaults() {
+        // Relative URL — XMLHttpRequest resolves it against this test file's location, so no
+        // Qt.resolvedUrl (which qmllint can't resolve here, importing only QtTest + the .js).
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "../../package/contents/config/main.xml", false);
+        xhr.send();
+        var xml = xhr.responseText;
+        verify(xml && xml.length > 0, "main.xml is readable");
+
+        // Capture each entry's name + type + <default> body. Non-greedy across newlines, so each
+        // <entry …> pairs with its OWN immediately-following <default> (comments sit before entries,
+        // never between the open tag and its default); an empty <default></default> yields "".
+        var re = /<entry\s+name="([^"]+)"\s+type="([^"]+)"\s*>[\s\S]*?<default>([\s\S]*?)<\/default>/g;
+        var seen = 0;
+        var m;
+        while ((m = re.exec(xml)) !== null) {
+            var name = m[1], type = m[2], raw = m[3];
+            ++seen;
+            verify(Logic.DEFAULTS.hasOwnProperty(name), "main.xml entry '" + name + "' exists in Logic.DEFAULTS");
+            var expected = Logic.DEFAULTS[name];
+            switch (type) {
+            case "Bool":
+                compare(raw === "true", expected, name + " (Bool) default matches");
+                break;
+            case "Int":
+                compare(parseInt(raw, 10), expected, name + " (Int) default matches");
+                break;
+            case "Double":
+                // Tolerate a float ULP between the parsed schema literal and the JS literal.
+                verify(Math.abs(parseFloat(raw) - expected) <= 1e-9, name + " (Double) default matches");
+                break;
+            case "Color":
+                // QColor hex strings; compare case-insensitively (#3daee9 vs #3DAEE9).
+                compare(raw.toLowerCase(), String(expected).toLowerCase(), name + " (Color) default matches");
+                break;
+            case "String":
+                compare(raw, expected, name + " (String) default matches");
+                break;
+            default:
+                verify(false, "unhandled main.xml entry type '" + type + "' for '" + name + "'");
+            }
+        }
+        // Every schema entry was parsed (a regex miss would silently skip a key). The 19 entries are
+        // all of DEFAULTS except wheelNotchDelta, which has no main.xml entry.
+        compare(seen, Object.keys(Logic.DEFAULTS).length - 1, "every main.xml entry was checked (all but wheelNotchDelta)");
     }
 
     // --- KWin DBus call SHAPES: pin the silently-failing strings/types -----------------

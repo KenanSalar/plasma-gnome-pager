@@ -1,0 +1,17 @@
+{
+  "name": "plasma-gnome-pager-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dev-only JS lint tooling for the pure-QML plasmoid (not shipped in the .plasmoid).",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --max-warnings 0 --fix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "espree": "^11.2.0",
+    "globals": "^17.6.0"
+  }
+}

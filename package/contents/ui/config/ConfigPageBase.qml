@@ -25,6 +25,11 @@ Kirigami.ScrollablePage {
     // Derived page binds this to its per-key "differs from default" check.
     property bool isModified: false
 
+    // The settings forms' field-column width: a derived page pins its non-slider fields (e.g. a
+    // TextField) to this so they line up with the sliders. Kept equal to ConfigSlider.trackWidth
+    // (the same Kirigami.Units.gridUnit * 18) so every row's field column is the same width.
+    readonly property int fieldWidth: Kirigami.Units.gridUnit * 18
+
     // Raised by the Defaults action; the derived page resets its cfg_<key> values in the handler.
     signal defaultsRequested()
 

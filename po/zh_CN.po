@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-19 16:02+0200\n"
+"POT-Creation-Date: 2026-06-21 14:47+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Chinese (Simplified)\n"
@@ -31,7 +31,7 @@ msgstr "外观"
 msgid "Dot size:"
 msgstr "圆点大小："
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:144
 #, kde-format
 msgid "Default"
 msgstr "默认"
@@ -102,57 +102,88 @@ msgstr "活动桌面："
 msgid "Inactive desktop:"
 msgstr "非活动桌面："
 
-#: package/contents/ui/config/ConfigGeneral.qml:63
+#: package/contents/ui/config/ConfigGeneral.qml:76
 #, kde-format
 msgid "Mouse:"
 msgstr "鼠标："
 
-#: package/contents/ui/config/ConfigGeneral.qml:64
+#: package/contents/ui/config/ConfigGeneral.qml:77
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "在分页器上滚动以切换桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:68
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "在第一个和最后一个桌面之间循环"
 
-#: package/contents/ui/config/ConfigGeneral.qml:73
+#: package/contents/ui/config/ConfigGeneral.qml:86
+#, kde-format
+msgid "Invert the scroll direction"
+msgstr ""
+
+#: package/contents/ui/config/ConfigGeneral.qml:91
 #, kde-format
 msgid "Tooltips:"
 msgstr "工具提示："
 
-#: package/contents/ui/config/ConfigGeneral.qml:74
+#: package/contents/ui/config/ConfigGeneral.qml:92
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "悬停时显示桌面名称"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:96
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "在工具提示中列出打开的窗口"
 
-#: package/contents/ui/config/ConfigGeneral.qml:83
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, kde-format
 msgid "Menu:"
 msgstr "菜单："
 
-#: package/contents/ui/config/ConfigGeneral.qml:84
+#: package/contents/ui/config/ConfigGeneral.qml:102
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "从右键菜单添加和移除桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:88
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "从右键菜单重命名当前桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:93
+#: package/contents/ui/config/ConfigGeneral.qml:114
+#, kde-format
+msgid "Dynamic desktops:"
+msgstr "动态桌面："
+
+#: package/contents/ui/config/ConfigGeneral.qml:115
+#, kde-format
+msgid "Automatically add and remove desktops (GNOME-style)"
+msgstr "自动添加和移除桌面（GNOME 风格）"
+
+#: package/contents/ui/config/ConfigGeneral.qml:119
+#, kde-format
+msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
+msgstr "启用后，桌面将被自动管理 — 菜单中的添加/移除选项将被禁用。"
+
+#: package/contents/ui/config/ConfigGeneral.qml:129
+#, kde-format
+msgid "New desktop name:"
+msgstr "新桌面名称："
+
+#: package/contents/ui/config/ConfigGeneral.qml:133 package/contents/ui/main.qml:453
+#, kde-format
+msgctxt "@info default base name for auto-created virtual desktops"
+msgid "Desktop"
+msgstr "桌面"
+
+#: package/contents/ui/config/ConfigGeneral.qml:139
 #, kde-format
 msgid "Animation duration:"
 msgstr "动画时长："
 
-#: package/contents/ui/config/ConfigGeneral.qml:98
+#: package/contents/ui/config/ConfigGeneral.qml:144
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -163,64 +194,64 @@ msgstr[0] "%1 ms"
 msgid "Defaults"
 msgstr "默认值"
 
-#: package/contents/ui/main.qml:236 package/contents/ui/main.qml:249
+#: package/contents/ui/main.qml:281 package/contents/ui/main.qml:294
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "无标题窗口"
 
-#: package/contents/ui/main.qml:238
+#: package/contents/ui/main.qml:283
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
 msgid_plural "…and %1 other windows"
 msgstr[0] "…以及另外 %1 个窗口"
 
-#: package/contents/ui/main.qml:251
+#: package/contents/ui/main.qml:296
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
 msgid_plural "%1 Windows:"
 msgstr[0] "%1 个窗口："
 
-#: package/contents/ui/main.qml:255
+#: package/contents/ui/main.qml:300
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
 msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 个最小化的窗口："
 
-#: package/contents/ui/main.qml:290
+#: package/contents/ui/main.qml:353
 #, kde-format
 msgid "New Desktop"
 msgstr "新桌面"
 
-#: package/contents/ui/main.qml:333
+#: package/contents/ui/main.qml:504
 #, kde-format
 msgid "Add Desktop"
 msgstr "添加桌面"
 
-#: package/contents/ui/main.qml:341
+#: package/contents/ui/main.qml:512
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "移除最后一个桌面"
 
-#: package/contents/ui/main.qml:349
+#: package/contents/ui/main.qml:520
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "重命名当前桌面…"
 
-#: package/contents/ui/main.qml:399
+#: package/contents/ui/main.qml:570
 #, kde-format
 msgid "Rename desktop:"
 msgstr "重命名桌面："
 
-#: package/contents/ui/main.qml:413
+#: package/contents/ui/main.qml:584
 #, kde-format
 msgid "Cancel"
 msgstr "取消"
 
-#: package/contents/ui/main.qml:418
+#: package/contents/ui/main.qml:589
 #, kde-format
 msgid "Rename"
 msgstr "重命名"
