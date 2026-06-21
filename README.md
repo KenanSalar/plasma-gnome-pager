@@ -46,6 +46,12 @@ the same widget, transposed:
   (sourced from the public `TasksModel`).
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
+- **Dynamic workspaces (GNOME-style)** — optional (default off): automatically keeps exactly one
+  empty desktop at the end — open a window on the last desktop and a new empty one appears; close
+  the windows and the surplus empties are removed. Auto-created desktops are named from a
+  configurable prefix (`"Desktop 2"`, `"Desktop 3"`, …). It's a single **global** behaviour: the
+  toggle and the prefix sync across every panel/monitor, and only one pager actually manages the
+  desktops (no double-create), all through KWin's public DBus — no KWin script required.
 - **Accessible** — each dot is exposed as a named, pressable button (`Accessible.role` / `name` /
   press action), so screen readers (Orca) announce each desktop and can activate it.
 - **Works everywhere a pager goes** — **a vertical side panel behaves identically to a
@@ -135,6 +141,8 @@ restart; the defaults give the intended GNOME look out of the box.
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
 | `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. |
 | `enableRename` | `true` | Offer a "Rename Current Desktop…" entry in the right-click menu. |
+| `dynamicWorkspaces` | `false` | GNOME-style dynamic workspaces: automatically keep exactly one empty desktop at the end (add when the last fills, trim surplus trailing empties). A single **global** setting — synced across all panels/monitors. |
+| `dynamicNamePrefix` | _(empty)_ | Base name for desktops created by dynamic workspaces; the desktop's number is appended (e.g. "Desktop 2"). Empty = the localized default "Desktop". Also synced across panels. |
 | `animationDuration` | `0` | Morph animation length in ms; **0 = follow the theme** (`Kirigami.Units.longDuration`, which also inherits "reduce animations"). |
 
 ### Appearance
@@ -185,6 +193,7 @@ plasma-gnome-pager/
             ├── WorkspaceIndicator.qml # the dot strip (row / column / grid + reflow)
             ├── WorkspaceDot.qml       # one element (dot ⇄ capsule morph + tooltip)
             ├── logic.js               # pure, unit-tested branching logic (no Plasma deps)
+            ├── coordinator.js         # shared cross-panel state: dynamic-workspaces global sync + writer election
             └── config/                # settings pages (ConfigGeneral, ConfigAppearance, …)
 ```
 
@@ -205,8 +214,9 @@ make dev-undev          # remove the dev symlink
 ```
 
 The tests cover the Kirigami-only components (`WorkspaceDot`, `WorkspaceIndicator` driven by a
-mock `VirtualDesktopInfo`, and the pure `logic.js`); `main.qml` needs a live plasmashell + KWin
-session, so it is verified by the manual `make dev` → `make test` → `make restart` loop.
+mock `VirtualDesktopInfo`, the pure `logic.js`, and the `coordinator.js` state machine); `main.qml`
+— and the cross-panel coordination it relies on — needs a live plasmashell + KWin session, so it is
+verified by the manual `make dev` → `make test` → `make restart` loop.
 
 ## Translations
 

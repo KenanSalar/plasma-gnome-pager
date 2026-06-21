@@ -14,9 +14,11 @@ test harness (`make check` — see "Verifying a change"), split into **unit** an
 The dot strip renders one dim circle per virtual desktop, reflects the current desktop live,
 and switches on click; the active dot morphs into a wider highlight "pill" (the reflow model
 below). Scroll/hover, per-dot tooltips (desktop name + an optional GNOME/stock-pager-style list of
-the windows open on that desktop), add/remove/rename desktops, an independently-sized active pill,
-screen-reader accessibility, form-factor (vertical-panel) handling, the settings UI, and robustness
-hardening (per-screen current desktop, scale-to-fit, transient-state guards) are built. This file and
+the windows open on that desktop), add/remove/rename desktops, GNOME-style dynamic workspaces
+(auto-maintain one empty trailing desktop; default off; one global behaviour across panels), an
+independently-sized active pill, screen-reader accessibility, form-factor (vertical-panel) handling,
+the settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
+guards) are built. This file and
 `.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
 history lives in git history and the GitHub Releases).
 
@@ -345,8 +347,9 @@ gated by the `showWindowList` key. The stock pager builds this from a **private*
 reproduce the exact *presentation* from the public `org.kde.taskmanager` `TasksModel` + `ActivityInfo`
 instead. The split, following the project's data-source-vs-pure-logic rule:
 > - **`main.qml` (e2e boundary, not headless-testable)** owns the live model. A `Loader` gated by
->   `showTooltips && showWindowList` (so the always-on model cost is **zero** when the list is off —
->   qml-performance.md) loads a `TooltipAggregator` Item holding ONE unfiltered
+>   `(showTooltips && showWindowList) || dynamicWorkspaces` (so the always-on model cost is **zero**
+>   when neither the window list nor dynamic workspaces needs it — qml-performance.md) loads a
+>   `WindowAggregator` Item (shared by both features) holding ONE unfiltered
 >   `TasksModel { groupMode: GroupDisabled; filterByActivity: true }` (one row per window; current
 >   activity only). An `Instantiator` materialises the rows so role values can be read **by name**
 >   (a C++ `QAbstractItemModel` has no `model.get(i)`); a debounced `Qt.callLater(rebuild)` (driven by
@@ -355,7 +358,8 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   no-op regroup (an empty/absent roles list is Qt's "all changed" → still rebuilds) — plus the
 >   Instantiator's `onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
 >   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
->   `subText`. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
+>   `subText`. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` for
+>   the dynamic-workspaces controller (see "Dynamic workspaces" below) — one model, two outputs. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
 >   with `desktopIds` (exactly parallel to `desktopNames`): `main.qml` → `WorkspaceIndicator`
 >   (`desktopTooltips`) → each `WorkspaceDot.tooltipText` by `globalIndex` → `ToolTipArea.subText`
 >   (with `textFormat: Text.RichText`). The sub-components never touch `TasksModel`, so they stay
@@ -373,10 +377,10 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > qmllint flags `missing-property`.** `Loader.item` and `Instantiator.objectAt(i)` are typed `QObject`,
 > so reading a dynamic property off them (`tooltipLoader.item.desktopTooltips`, `o.display`) warns. Fix
 > exactly like the stock pager's `itemAt(i) as WindowDelegate`: declare the loaded item and the row as
-> named inline components (`component TooltipAggregator: Item {…}`, `component WindowRow: QtObject {…}`)
-> and cast — `(tooltipLoader.item as TooltipAggregator).desktopTooltips`,
+> named inline components (`component WindowAggregator: Item {…}`, `component WindowRow: QtObject {…}`)
+> and cast — `(tooltipLoader.item as WindowAggregator).desktopTooltips`,
 > `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
-> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`) aren't valid lowercase identifiers, so they can't
+> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`, `SkipPager`) aren't valid lowercase identifiers, so they can't
 > be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
 > `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
 > before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings).
@@ -384,6 +388,70 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
 > `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
 > itself is e2e-only (verify in-shell).
+
+**Dynamic workspaces (GNOME-style) — auto-maintain ONE empty trailing desktop; default OFF; one
+GLOBAL behaviour across panels.** When enabled, the widget keeps exactly one empty desktop at the
+end: populate the last desktop and a new empty one is appended; trim surplus trailing empties back to
+one. It reuses the **same** shared `WindowAggregator` `TasksModel` as the window-list tooltip (the
+Loader gate is the OR of the two features), which now also emits a per-desktop occupancy `bool[]`
+(`desktopOccupancy`, index-aligned with `desktopIds`). The split mirrors the rest of the project —
+pure decision in `logic.js`, e2e wiring in `main.qml`:
+> - **`logic.js` (pure, unit-tested)**: `windowOccupiesDesktop(window, uuid)` — occupancy membership
+>   that, UNLIKE the tooltip's `windowIsOnDesktop`, **excludes** on-all-desktops AND `skipPager`
+>   windows (an on-all window would pin every desktop as non-empty, so nothing could ever be empty)
+>   and **includes** minimized ones (a minimized window still occupies its desktop — GNOME + the KWin
+>   "Dynamic Workspaces" scripts agree); `computeDesktopOccupancy(windows, desktopIds)` → the `bool[]`;
+>   `dynamicWorkspacePlan(occupancy, desktopIds)` → ONE action per cycle (`{kind:"add"}` at 0 trailing
+>   empties, `{kind:"remove", uuid}` of the LAST at ≥2, else `null`), so reactive re-triggering
+>   converges to exactly one trailing empty. **Only the trailing run is managed — empty MIDDLE desktops
+>   are left alone** (an earlier `dynamicRemoveMiddle` option was removed as unreliable). Every transient
+>   frame is a no-op: `null` on absent arrays, an empty set, or `occupancy.length !== desktopIds.length`
+>   (occupancy lags a just-changed desktop set by a frame). `formatDynamicDesktopName(prefix, number,
+>   fallback)` → `"<prefix> N"`, **never empty**. Removal reuses `canRemoveDesktop`.
+> - **`main.qml` controller (e2e-only)**: a debounced `scheduleDynamic` → `evaluateDynamic` that, when
+>   this instance is the elected writer (below), runs the pure plan and `dispatch`es the single
+>   `addSpec`/`removeSpec`; a per-instance `dynBusy` lock (cleared on `vdi.desktopIdsChanged` — the
+>   signal our own write landed — with a 750 ms `Timer` fallback) stops it re-firing before its change
+>   reflects. Triggered by `onDesktopOccupancyChanged`, `vdi.desktopIdsChanged`, and config changes.
+>
+> **Gotcha — the desktop SET is GLOBAL, so this must be a SINGLE global behaviour: `coordinator.js`
+> (`.pragma library`, shared ONCE per plasmashell engine).** Two panels (multi-monitor) both see the
+> last desktop fill and BOTH `createDesktop` → the surplus is trimmed → a visible **flash** of the
+> dots/pill (and inconsistent naming). plasmashell runs every applet in ONE process/QML engine, and a
+> `.pragma library` is instantiated ONCE per engine, so `coordinator.js`'s module state is **shared
+> across all pager instances** — the only pure-QML way to coordinate them (robustness.md: no private
+> imports, no C++). It provides: (1) **single-WRITER election** — `Logic.electDynamicWriter(registry)`
+> (pure, tested) picks the lowest-token present instance; only it issues add/remove, killing the flash;
+> (2) **GLOBAL setting SYNC** — `dynamicWorkspaces` AND `dynamicNamePrefix` are ONE global value:
+> `publish()` records it and pushes it to every instance (the `onSync` callback each passed to `join`),
+> which `applyDynamicSync` mirrors into its OWN `Plasmoid.configuration` — so toggling/renaming on ANY
+> panel applies everywhere and every settings dialog agrees (a true global toggle; the writer election
+> is STILL needed because all panels are then enabled). If the shared-engine assumption ever failed,
+> each instance would seed/own its global and elect itself — the per-instance behaviour — degraded,
+> never crashing.
+>
+> **Gotcha — KWin silently DROPS `createDesktop` when the name is empty.** An empty-name auto-create
+> no-ops with no error (the "feature does nothing" symptom we hit). `Logic.formatDynamicDesktopName`
+> therefore always returns a non-empty `"<prefix> N"` (prefix synced via the coordinator, default the
+> i18n `"Desktop"` passed IN from `main.qml` so `logic.js` stays i18n-free). KWin's `removeDesktop(uuid)`
+> reassigns any windows itself, so removal needs no window-shifting.
+>
+> **Gotcha — config bindings (and their `onChanged`) evaluate BEFORE `Component.onCompleted`.** So a
+> coordinator write during binding setup would use the sentinel token `0` (not joined yet) and register
+> a phantom "enabled" instance that wins the election (`0 < every real token`) and stalls the real
+> writer — the bug that made the feature "do nothing". Guard every coordinator write until
+> `dynToken !== 0` (`join()` never returns 0); `Component.onCompleted` joins first, then adopts the
+> global (if a sibling seeded it) or seeds it from this instance's stored config. `applyDynamicSync` is
+> value-guarded and `publishDynamicConfig` only republishes a value that DIFFERS from the coordinator's
+> authoritative global, so the apply→`onChanged`→publish path can't loop. Writing
+> `Plasmoid.configuration.<key>` from the applet (not just the config dialog) is what persists + mirrors
+> the synced value.
+>
+> Guarded by `tst_logic.qml::{test_computeDesktopOccupancy,test_dynamicWorkspacePlan,
+> test_formatDynamicDesktopName,test_electDynamicWriter}` + `tst_coordinator.qml` (the coordinator
+> state machine). The controller, the live occupancy model, and the cross-instance SHARING are
+> **e2e-only** (verify in-shell). New files: `package/contents/ui/coordinator.js`,
+> `tests/unit/tst_coordinator.qml`.
 
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
@@ -398,7 +466,10 @@ gotcha below.) The keys:
 behaviour — `enableScroll`, `scrollWrap`, `invertScroll` (flip the wheel-direction → desktop
 mapping), `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
-`enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `animationDuration`;
+`enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `dynamicWorkspaces`
+(GNOME-style auto add/remove of one empty trailing desktop, default off; GLOBAL across panels via
+`coordinator.js`), `dynamicNamePrefix` (base name for auto-created desktops — a `String` edited via a
+`ConfigGeneral` `TextField`, `"" = the i18n default "Desktop"`; also globally synced), `animationDuration`;
 appearance — `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
 thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`, `activeColor`,
