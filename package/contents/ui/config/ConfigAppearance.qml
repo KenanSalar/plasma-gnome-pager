@@ -103,8 +103,8 @@ ConfigPageBase {
             label: i18n("Spacing:")
             from: 0.0
             to: 2.0
-            stepSize: 0.1
-            format: v => i18n("%1× dot", v.toFixed(1))
+            stepSize: 0.05
+            format: v => i18n("%1× dot", v.toFixed(2))
         }
 
         ConfigSlider {

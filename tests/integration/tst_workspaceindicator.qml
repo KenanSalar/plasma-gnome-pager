@@ -211,11 +211,10 @@ TestCase {
     function test_exactlyOneCapsule() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator);
-        let capsules = 0, plain = 0;
+        const capsules = Elements.countCapsules(dots, indicator.pillWidth);
+        let plain = 0;
         for (let i = 0; i < dots.length; i++) {
-            if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5)
-                capsules++;
-            else if (Math.abs(dots[i].width - indicator.dotSize) <= 0.5)
+            if (Math.abs(dots[i].width - indicator.dotSize) <= 0.5)
                 plain++;
         }
         compare(capsules, 1, "exactly one capsule");
@@ -279,12 +278,12 @@ TestCase {
     function test_morphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
-        verify(Math.abs(dotByUuid(indicator, ids[0]).width - indicator.pillWidth) <= 0.5, "ids[0] starts as the capsule");
+        verify(Elements.isCapsule(dotByUuid(indicator, ids[0]), indicator.pillWidth), "ids[0] starts as the capsule");
 
         vdi.currentDesktop = ids[2];
 
         tryVerify(function () {
-            return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5
+            return Elements.isCapsule(dotByUuid(indicator, ids[2]), indicator.pillWidth)
                 && Math.abs(dotByUuid(indicator, ids[0]).width - indicator.dotSize) <= 0.5;
         }, 2000, "capsule morphs onto the newly current element; the old shrinks to a dot");
     }
@@ -317,7 +316,7 @@ TestCase {
         }, 2000, "a dot is removed");
         compare(indicator.activeIndex, 1, "the surviving current desktop is re-found at its new index");
         tryVerify(function () {
-            return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5;
+            return Elements.isCapsule(dotByUuid(indicator, ids[2]), indicator.pillWidth);
         }, 2000, "the surviving current desktop is the capsule");
     }
 
@@ -484,7 +483,7 @@ TestCase {
         switchSpy.clear();
 
         const capsule = dotByUuid(indicator, currentUuid);
-        const p = capsule.mapToItem(indicator, capsule.width / 2, capsule.height / 2);
+        const p = Elements.centerOf(capsule, indicator);
         mouseClick(indicator, p.x, p.y);
 
         compare(switchSpy.count, 1, "clicking the active capsule emits a switch");
@@ -515,6 +514,28 @@ TestCase {
         indicator.handleWheel(120);
         compare(switchSpy.count, 1, "one switch on a full notch up");
         compare(switchSpy.signalArguments[0][0], ids[0], "scroll up moves to the previous desktop");
+    }
+
+    // invertScroll flips the wheel-sign → direction mapping: wheel DOWN → previous, wheel UP → next
+    // (the opposite of the two tests above). Default is off, so every other test stays valid.
+    function test_invertScrollDownStepsPrevious() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 1, "one switch on a full notch down");
+        compare(switchSpy.signalArguments[0][0], ids[0], "inverted scroll down moves to the previous desktop");
+    }
+
+    function test_invertScrollUpStepsNext() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, invertScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);
+        compare(switchSpy.count, 1, "one switch on a full notch up");
+        compare(switchSpy.signalArguments[0][0], ids[1], "inverted scroll up moves to the next desktop");
     }
 
     function test_scrollClampAtStartIsNoOp() {
@@ -591,6 +612,16 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[1], "wheel down moves to the next desktop");
     }
 
+    function test_wheelEventInvertedStepsPrevious() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: true, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);   // wheel down over the strip
+        compare(switchSpy.count, 1, "a real wheel event switches when inverted");
+        compare(switchSpy.signalArguments[0][0], ids[0], "inverted wheel down moves to the previous desktop");
+    }
+
     function test_wheelEventDisabledIsNoOp() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false, width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -608,7 +639,7 @@ TestCase {
         switchSpy.clear();
 
         const dot = dotByUuid(indicator, ids[0]);
-        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        const c = Elements.centerOf(dot, indicator);
         mouseClick(indicator, c.x, c.y);
         compare(switchSpy.count, 1, "clicking a dot still works with the wheel layer present");
         compare(switchSpy.signalArguments[0][0], ids[0], "the clicked dot's UUID is forwarded");
@@ -1096,7 +1127,7 @@ TestCase {
         const circle = circleOf(dot);
         fuzzyCompare(circle.opacity, indicator.inactiveOpacity, 0.001, "inactive dot starts dim");
 
-        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        const c = Elements.centerOf(dot, indicator);
         mouseMove(indicator, c.x, c.y);
         tryCompare(circle, "opacity", indicator.hoverOpacity, 2000, "hover brightens through the wheel layer");
 
@@ -1263,7 +1294,7 @@ TestCase {
                     caps++;
             return caps === 1;
         }, 2000, "exactly one capsule after the burst");
-        tryVerify(() => Math.abs(dotByUuid(indicator, fiveIds[3]).width - indicator.pillWidth) < 0.5,
+        tryVerify(() => Elements.isCapsule(dotByUuid(indicator, fiveIds[3]), indicator.pillWidth),
                   2000, "the final desktop morphs to the capsule width");
     }
 
@@ -1300,8 +1331,8 @@ TestCase {
         indicator.height = indicator.naturalCrossThickness * 2;
         const active = dotByUuid(indicator, currentUuid);
         const inactive = dotByUuid(indicator, ids[0]);
-        const activeCentreY = active.mapToItem(indicator, active.width / 2, active.height / 2).y;
-        const inactiveCentreY = inactive.mapToItem(indicator, inactive.width / 2, inactive.height / 2).y;
+        const activeCentreY = Elements.centerOf(active, indicator).y;
+        const inactiveCentreY = Elements.centerOf(inactive, indicator).y;
         fuzzyCompare(inactiveCentreY, activeCentreY, 0.5, "inactive dot is cross-centred against the thicker pill");
     }
 
@@ -1313,8 +1344,8 @@ TestCase {
         indicator.width = indicator.naturalCrossThickness * 2;
         const active = dotByUuid(indicator, currentUuid);
         const inactive = dotByUuid(indicator, ids[0]);
-        const activeCentreX = active.mapToItem(indicator, active.width / 2, active.height / 2).x;
-        const inactiveCentreX = inactive.mapToItem(indicator, inactive.width / 2, inactive.height / 2).x;
+        const activeCentreX = Elements.centerOf(active, indicator).x;
+        const inactiveCentreX = Elements.centerOf(inactive, indicator).x;
         fuzzyCompare(inactiveCentreX, activeCentreX, 0.5, "inactive dot is cross-centred against the thicker pill (vertical)");
     }
 
@@ -1377,13 +1408,8 @@ TestCase {
 
         vdi.desktopIds = ids;   // ids come back
         tryVerify(() => collectDots(indicator).length === 3, 2000, "dots return when ids repopulate");
-        tryVerify(() => {
-            const dots = collectDots(indicator);
-            let caps = 0;
-            for (let i = 0; i < dots.length; i++)
-                if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5) caps++;
-            return caps === 1;
-        }, 2000, "exactly one capsule after repopulation");
+        tryVerify(() => Elements.countCapsules(collectDots(indicator), indicator.pillWidth) === 1,
+                  2000, "exactly one capsule after repopulation");
     }
 
     // --- per-screen degrade paths -------------------------------------------------
@@ -1457,9 +1483,181 @@ TestCase {
         const circle = circleOf(capsule);
         fuzzyCompare(circle.opacity, 1.0, 0.001, "active capsule starts at full strength");
 
-        const c = capsule.mapToItem(indicator, capsule.width / 2, capsule.height / 2);
+        const c = Elements.centerOf(capsule, indicator);
         mouseMove(indicator, c.x, c.y);
         wait(Math.max(50, Kirigami.Units.longDuration * 2));
         fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule in the strip");
+    }
+
+    // --- tooltip routing THROUGH the composed strip (not just the dot properties) ----------
+    // The tests above assert each dot's desktopName/tooltipText/showTooltips PROPERTIES; these reach
+    // into each dot's actual PlasmaCore.ToolTipArea (located by the shared isTooltip predicate) and
+    // assert the strip-level data lands on mainText/subText/active/textFormat — the standalone-dot
+    // analogues are tst_workspacedot.qml::{test_tooltipShowsDesktopName,test_tooltipShowsSubText,...}.
+
+    function test_tooltipAreaRoutesNameAndSubTextThroughStrip() {
+        const names = ["One", "Two", "Three"];
+        const tips = ["<ul><li>a</li></ul>", "<ul><li>b</li></ul>", "<ul><li>c</li></ul>"];
+        const indicator = makeIndicator(makeMock(ids, currentUuid, names), { showTooltips: true, desktopTooltips: tips });
+        for (let i = 0; i < ids.length; i++) {
+            const tip = Elements.tooltipOf(dotByUuid(indicator, ids[i]));
+            verify(tip, "dot " + i + " carries a ToolTipArea");
+            compare(tip.mainText, names[i], "ToolTipArea.mainText is this desktop's name");
+            compare(tip.subText, tips[i], "ToolTipArea.subText is this desktop's window list");
+            compare(tip.textFormat, Text.RichText, "the window list renders as rich text");
+            verify(tip.active, "tooltip is active when enabled and named");
+        }
+
+        // Turning tooltips off at runtime deactivates every dot's ToolTipArea (reactive through the strip).
+        indicator.showTooltips = false;
+        for (let j = 0; j < ids.length; j++)
+            verify(!Elements.tooltipOf(dotByUuid(indicator, ids[j])).active, "ToolTipArea inactive once showTooltips is off");
+    }
+
+    // The ToolTipArea data follows the GLOBAL index across grid lines (mirrors test_tooltipTextMapsAcrossLines),
+    // proving the globalIndex mapping reaches the actual tooltip, not just the dot's plain property.
+    function test_tooltipAreaMapsAcrossGridLines() {
+        const names = ["n0", "n1", "n2", "n3"];
+        const tips = ["t0", "t1", "t2", "t3"];
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], names, 2), { showTooltips: true, desktopTooltips: tips });
+        for (let i = 0; i < fourIds.length; i++) {
+            const tip = Elements.tooltipOf(dotByUuid(indicator, fourIds[i]));
+            compare(tip.mainText, names[i], "mainText keeps its global index across the two lines");
+            compare(tip.subText, tips[i], "subText keeps its global index across the two lines");
+        }
+    }
+
+    // --- accessibility THROUGH the composed strip (per-screen + multi-line) -----------------
+    // Accessible.role/name/checked are unit-tested on a lone dot (tst_workspacedot.qml); these verify
+    // they hold once the dots are composed and driven by the live source — in particular that the
+    // CHECKED dot is THIS screen's current (per-screen, Plasma 6.7), not the global current.
+
+    function test_accessibleCheckedTracksPerScreenActiveDot() {
+        const vdi = makeMock(ids, ids[0], ["One", "Two", "Three"]);   // global current = uuid-a
+        vdi.perScreenCurrent = { "DP-2": ids[2] };                    // THIS screen is on uuid-c
+        const indicator = makeIndicator(vdi, { screenName: "DP-2" });
+
+        verify(dotByUuid(indicator, ids[2]).Accessible.checked, "this screen's current dot reports checked to AT");
+        verify(!dotByUuid(indicator, ids[0]).Accessible.checked, "the GLOBAL current is NOT checked on this screen");
+        compare(dotByUuid(indicator, ids[1]).Accessible.name, "Two", "accessible name is the index-aligned desktop name");
+
+        // This screen switches: the checked state moves reactively (same path as the visible pill).
+        vdi.perScreenCurrent = { "DP-2": ids[1] };
+        vdi.currentDesktopForScreenChanged("DP-2");
+        verify(dotByUuid(indicator, ids[1]).Accessible.checked, "checked follows this screen's new current");
+        verify(!dotByUuid(indicator, ids[2]).Accessible.checked, "the previously-current dot is no longer checked");
+    }
+
+    function test_accessibleNameMapsAcrossGridLines() {
+        const names = ["n0", "n1", "n2", "n3"];
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], names, 2));
+        for (let i = 0; i < fourIds.length; i++)
+            compare(dotByUuid(indicator, fourIds[i]).Accessible.name, names[i], "accessible name keeps its global index across lines");
+    }
+
+    // --- runtime form-factor flip (horizontal <-> vertical on a LIVE indicator) -------------
+    // Every other vertical test sets `vertical` at construction; this toggles it on a running strip
+    // (a panel re-docked from a top/bottom edge to a side edge) and asserts the major/cross axes swap:
+    // the capsule's long axis flips width->height and the Layout major/cross hints swap with it. Ample
+    // room on BOTH axes (400x400) so scale-to-fit never changes the dot/pill sizes across the flip.
+    function test_runtimeFormFactorFlip() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 400, height: 400 });
+        const cap = dotByUuid(indicator, currentUuid);
+        fuzzyCompare(cap.width, indicator.pillWidth, 0.5, "horizontal: the capsule's long axis is width");
+        fuzzyCompare(cap.height, indicator.pillSize, 0.5, "horizontal: the capsule's cross axis is the pill thickness");
+
+        indicator.vertical = true;   // the widget's panel moved to a side edge
+
+        tryVerify(function () {
+            return Math.abs(cap.height - indicator.pillWidth) <= 0.5
+                && Math.abs(cap.width - indicator.pillSize) <= 0.5;
+        }, 2000, "after the flip the capsule's long axis becomes height; the cross axis becomes width");
+
+        // The Layout hints swap with the orientation: the major axis is now the vertical one.
+        compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "major (height) preferred now pins the strip length");
+        compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "major (height) maximum pins the natural length");
+        const maxW = indicator.Layout.maximumWidth;
+        verify(maxW < 0 || maxW > indicator.implicitWidth, "cross (width) axis is now free to fill the panel thickness");
+    }
+
+    // --- reactive behaviour-flag toggling (enableScroll / invertScroll / scrollWrap) --------
+    // Only showTooltips was toggled live so far; the scroll flags were set at construction. These flip
+    // each one on a running indicator and assert the scroll behaviour changes mid-session (the index
+    // math is unit-tested; here it's the live wiring). handleWheel() returns before touching the
+    // accumulator when disabled, so a disabled wheel leaves no carried remainder.
+
+    function test_enableScrollToggledLive() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 0, "no switch while scrolling is disabled");
+
+        indicator.enableScroll = true;   // user enables scrolling mid-session
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 1, "enabling scroll at runtime makes the wheel step");
+        compare(switchSpy.signalArguments[0][0], ids[1], "and it steps to the next desktop");
+
+        indicator.enableScroll = false;  // ...and disables it again
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 1, "disabling scroll again stops further steps");
+    }
+
+    function test_invertScrollToggledLive() {
+        // current stays ids[1] throughout (the mock isn't moved by the signal), so both steps compute
+        // from the middle desktop — only the direction changes when invert flips.
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);   // default: wheel down → next
+        compare(switchSpy.signalArguments[0][0], ids[2], "default mapping: scroll down → next desktop");
+
+        indicator.invertScroll = true;
+        switchSpy.clear();
+        indicator.handleWheel(-120);   // inverted: wheel down → previous
+        compare(switchSpy.signalArguments[0][0], ids[0], "after enabling invert at runtime, scroll down → previous");
+    }
+
+    function test_scrollWrapToggledLive() {
+        const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true, scrollWrap: false });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);   // down from the last desktop, no wrap → no-op
+        compare(switchSpy.count, 0, "no wrap: scrolling past the end is a no-op");
+
+        indicator.scrollWrap = true;   // user enables wrap mid-session
+        indicator.handleWheel(-120);   // down from the last desktop, wrapping → first
+        compare(switchSpy.count, 1, "enabling wrap at runtime wraps past the end");
+        compare(switchSpy.signalArguments[0][0], ids[0], "and it wraps to the first desktop");
+    }
+
+    // --- followThemeColors live toggle AT THE INDICATOR LEVEL --------------------------------
+    // test_colorsFlowThrough sets it at creation; this toggles it on a running strip and asserts the
+    // dots' circle colours switch theme<->custom (the colour Behavior animates, so poll). The
+    // standalone-dot analogues are tst_workspacedot.qml::{test_followThemeColorsUsesTheme,
+    // test_customColorsWhenNotFollowingTheme}.
+    function test_followThemeColorsToggledLive() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), {
+            followThemeColors: true, activeColor: "#ff0000", inactiveColor: "#00ff00"
+        });
+        const activeCircle = circleOf(dotByUuid(indicator, currentUuid));
+        const inactiveCircle = circleOf(dotByUuid(indicator, ids[0]));
+        compare(activeCircle.color, Kirigami.Theme.highlightColor, "following the theme: active dot uses highlightColor");
+        compare(inactiveCircle.color, Kirigami.Theme.textColor, "following the theme: inactive dot uses textColor");
+
+        indicator.followThemeColors = false;   // user opts into custom colours mid-session
+        tryVerify(function () {
+            return Qt.colorEqual(activeCircle.color, indicator.activeColor)
+                && Qt.colorEqual(inactiveCircle.color, indicator.inactiveColor);
+        }, 2000, "custom colours take over reactively when follow-theme is turned off");
+
+        indicator.followThemeColors = true;    // ...and back to the theme
+        tryVerify(function () {
+            return Qt.colorEqual(activeCircle.color, Kirigami.Theme.highlightColor)
+                && Qt.colorEqual(inactiveCircle.color, Kirigami.Theme.textColor);
+        }, 2000, "toggling follow-theme back on restores the theme colours");
     }
 }

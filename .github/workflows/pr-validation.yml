@@ -47,3 +47,27 @@ jobs:
       # WorkspaceDot imports) a session bus, since the container has none.
       - name: Headless QML tests (unit + integration)
         run: dbus-run-session -- make check
+
+  # Separate, parallel job: a plain Node runner is far cheaper than booting the Fedora/Qt
+  # container, and ESLint only needs Node. Lints the pure-JS tier (logic.js/coordinator.js +
+  # tests/shared/*.js) with strict, warnings-as-errors rules; the .qml is covered by the qmllint
+  # job above. CI mirrors the Makefile target (make lint-js -> eslint . --max-warnings 0).
+  js-lint:
+    name: ESLint (strict, JS tier)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dev tooling
+        run: npm ci
+
+      - name: ESLint
+        run: make lint-js

@@ -39,3 +39,25 @@ function tooltipOf(item) {
     var found = TreeWalk.collect(item, isTooltip);
     return found.length ? found[0] : null;
 }
+
+// True when a WorkspaceDot has morphed into the active capsule: its major-axis length matches the
+// indicator's pillWidth (within half a px). The caller passes indicator.pillWidth so this stays
+// component-agnostic. (The strip is horizontal where this is used, so the major axis is width.)
+function isCapsule(dot, pillWidth) {
+    return Math.abs(dot.width - pillWidth) <= 0.5;
+}
+
+// How many of `dots` are the active capsule — exactly one in steady state.
+function countCapsules(dots, pillWidth) {
+    var n = 0;
+    for (var i = 0; i < dots.length; ++i)
+        if (isCapsule(dots[i], pillWidth))
+            ++n;
+    return n;
+}
+
+// The centre point of `item` in `target`'s coordinates (a point with .x/.y) — for centring a
+// pointer event (mouseClick/mouseMove) on a dot or asserting cross-axis centre alignment.
+function centerOf(item, target) {
+    return item.mapToItem(target, item.width / 2, item.height / 2);
+}

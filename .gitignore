@@ -18,6 +18,10 @@ package/contents/locale/
 *.qmlc
 *.jsc
 
+# Node tooling (dev-only JS lint; not shipped in the .plasmoid)
+node_modules/
+.eslintcache
+
 # Editor / OS
 .vscode/
 .idea/
