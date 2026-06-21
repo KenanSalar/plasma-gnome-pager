@@ -551,39 +551,78 @@ TestCase {
     }
 
     // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
-    // One action per call; reactive re-triggering converges to exactly one trailing empty. Trailing-trim
-    // takes priority over middle removal; transient/length-mismatch frames are no-ops (null).
+    // One action per call; reactive re-triggering converges to exactly one trailing empty. Only the
+    // TRAILING run is managed (empty middles are left alone); transient/length-mismatch frames are no-ops.
     function test_dynamicWorkspacePlan_data() {
         return [
             // guards: absent arrays, empty set, or an occupancy snapshot that lags the desktop set.
-            { tag: "null-occupancy", occ: null, ids: ["a"], mid: false, exp: null },
-            { tag: "null-ids", occ: [false], ids: null, mid: false, exp: null },
-            { tag: "empty-ids", occ: [], ids: [], mid: false, exp: null },
-            { tag: "length-mismatch", occ: [false], ids: ["a", "b"], mid: false, exp: null },
+            { tag: "null-occupancy", occ: null, ids: ["a"], exp: null },
+            { tag: "null-ids", occ: [false], ids: null, exp: null },
+            { tag: "empty-ids", occ: [], ids: [], exp: null },
+            { tag: "length-mismatch", occ: [false], ids: ["a", "b"], exp: null },
             // n==1: keep the single empty (never remove the last); add when it fills.
-            { tag: "single-empty-noop", occ: [false], ids: ["a"], mid: false, exp: null },
-            { tag: "single-occupied-add", occ: [true], ids: ["a"], mid: false, exp: { kind: "add" } },
+            { tag: "single-empty-noop", occ: [false], ids: ["a"], exp: null },
+            { tag: "single-occupied-add", occ: [true], ids: ["a"], exp: { kind: "add" } },
             // 0 trailing empties -> add (the last desktop is occupied), regardless of a leading empty.
-            { tag: "last-occupied-add", occ: [true, true], ids: ["a", "b"], mid: false, exp: { kind: "add" } },
-            { tag: "no-trailing-empty-add", occ: [false, true], ids: ["a", "b"], mid: false, exp: { kind: "add" } },
-            // exactly one trailing empty is the fixpoint (middle off) -> no-op.
-            { tag: "one-trailing-empty-noop", occ: [true, false], ids: ["a", "b"], mid: false, exp: null },
+            { tag: "last-occupied-add", occ: [true, true], ids: ["a", "b"], exp: { kind: "add" } },
+            { tag: "no-trailing-empty-add", occ: [false, true], ids: ["a", "b"], exp: { kind: "add" } },
+            // exactly one trailing empty is the fixpoint -> no-op.
+            { tag: "one-trailing-empty-noop", occ: [true, false], ids: ["a", "b"], exp: null },
             // >=2 trailing empties -> trim the LAST one (re-trigger trims the rest).
-            { tag: "two-trailing-trim-last", occ: [true, false, false], ids: ["a", "b", "c"], mid: false, exp: { kind: "remove", uuid: "c" } },
-            { tag: "all-empty-trim-last", occ: [false, false], ids: ["a", "b"], mid: false, exp: { kind: "remove", uuid: "b" } },
-            // middle removal OFF leaves an empty middle alone.
-            { tag: "middle-empty-off-noop", occ: [false, true, false], ids: ["a", "b", "c"], mid: false, exp: null },
-            { tag: "middle-empty-off-undefined-noop", occ: [false, true, false], ids: ["a", "b", "c"], mid: undefined, exp: null },
-            // middle removal ON purges the FIRST empty middle desktop (excludes the trailing empty).
-            { tag: "middle-empty-on-removes-first", occ: [false, true, false], ids: ["a", "b", "c"], mid: true, exp: { kind: "remove", uuid: "a" } },
-            { tag: "middle-empty-on-skips-occupied", occ: [true, false, true, false], ids: ["a", "b", "c", "d"], mid: true, exp: { kind: "remove", uuid: "b" } },
-            { tag: "middle-on-no-middle-empty-noop", occ: [true, true, false], ids: ["a", "b", "c"], mid: true, exp: null },
-            // trailing-trim wins over middle removal even when both apply.
-            { tag: "trailing-trim-beats-middle", occ: [false, true, false, false], ids: ["a", "b", "c", "d"], mid: true, exp: { kind: "remove", uuid: "d" } }
+            { tag: "two-trailing-trim-last", occ: [true, false, false], ids: ["a", "b", "c"], exp: { kind: "remove", uuid: "c" } },
+            { tag: "all-empty-trim-last", occ: [false, false], ids: ["a", "b"], exp: { kind: "remove", uuid: "b" } },
+            // an empty MIDDLE desktop is left alone — only the trailing run is managed.
+            { tag: "empty-middle-left-alone", occ: [false, true, false], ids: ["a", "b", "c"], exp: null },
+            // a leading empty + a 2-deep trailing run still just trims the tail (not the middle).
+            { tag: "leading-empty-trims-tail", occ: [false, true, false, false], ids: ["a", "b", "c", "d"], exp: { kind: "remove", uuid: "d" } }
         ];
     }
     function test_dynamicWorkspacePlan(data) {
-        compare(JSON.stringify(Logic.dynamicWorkspacePlan(data.occ, data.ids, data.mid)), JSON.stringify(data.exp), data.tag);
+        compare(JSON.stringify(Logic.dynamicWorkspacePlan(data.occ, data.ids)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // --- formatDynamicDesktopName: user-configurable base + " " + number, never empty ---------------
+    // A configured prefix wins; a blank prefix falls back to the i18n default passed in (main.qml's
+    // "Desktop"); an all-blank case uses the literal "Desktop" so the name is never empty (KWin drops
+    // createDesktop with an empty name). The prefix is sanitized (trim, cap 100) like a rename.
+    function test_formatDynamicDesktopName_data() {
+        return [
+            { tag: "custom-prefix", prefix: "Workspace", number: 3, fallback: "Desktop", exp: "Workspace 3" },
+            { tag: "blank-uses-fallback", prefix: "", number: 2, fallback: "Desktop", exp: "Desktop 2" },
+            { tag: "whitespace-uses-fallback", prefix: "   ", number: 5, fallback: "Desktop", exp: "Desktop 5" },
+            { tag: "prefix-trimmed", prefix: "  Web  ", number: 4, fallback: "Desktop", exp: "Web 4" },
+            // a localized fallback (non-English main.qml i18n) is honoured when the prefix is blank.
+            { tag: "localized-fallback", prefix: "", number: 2, fallback: "Bureau", exp: "Bureau 2" },
+            // all-blank (prefix AND fallback) still yields a non-empty name via the literal last resort.
+            { tag: "all-blank-last-resort", prefix: "", number: 1, fallback: "", exp: "Desktop 1" }
+        ];
+    }
+    function test_formatDynamicDesktopName(data) {
+        compare(Logic.formatDynamicDesktopName(data.prefix, data.number, data.fallback), data.exp, data.tag);
+    }
+    function test_formatDynamicDesktopNameCapsPrefix() {
+        // the prefix is capped at 100 chars (sanitizeDesktopName) before the number is appended.
+        var longPrefix = new Array(150).join("a");   // 149 'a's
+        compare(Logic.formatDynamicDesktopName(longPrefix, 7, "Desktop"), new Array(101).join("a") + " 7", "prefix capped at 100, then ' 7'");
+    }
+
+    // --- electDynamicWriter: the single global writer among pager instances (multi-monitor) ----------
+    // registry maps coordinator token -> enabled. The writer is the lowest-token ENABLED instance, or -1
+    // when none is enabled. Keys are strings (object keys) — the function coerces them to Number.
+    function test_electDynamicWriter_data() {
+        return [
+            { tag: "null", reg: null, exp: -1 },
+            { tag: "empty", reg: {}, exp: -1 },
+            { tag: "none-enabled", reg: { "1": false, "2": false }, exp: -1 },
+            { tag: "one-enabled", reg: { "1": true }, exp: 1 },
+            { tag: "lowest-enabled-wins", reg: { "1": true, "2": true }, exp: 1 },
+            { tag: "skip-disabled-lower", reg: { "1": false, "2": true }, exp: 2 },
+            { tag: "numeric-min-not-insertion", reg: { "2": true, "1": true }, exp: 1 },
+            { tag: "mixed", reg: { "3": false, "1": false, "2": true, "4": true }, exp: 2 }
+        ];
+    }
+    function test_electDynamicWriter(data) {
+        compare(Logic.electDynamicWriter(data.reg), data.exp, data.tag);
     }
 
     // --- dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed ----
@@ -628,7 +667,7 @@ TestCase {
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
             { tag: "enableRename", key: "enableRename", exp: true },
             { tag: "dynamicWorkspaces", key: "dynamicWorkspaces", exp: false },
-            { tag: "dynamicRemoveMiddle", key: "dynamicRemoveMiddle", exp: false },
+            { tag: "dynamicNamePrefix", key: "dynamicNamePrefix", exp: "" },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
@@ -660,7 +699,7 @@ TestCase {
     // or REMOVED key). A new config key must be added here and to main.xml together, or this fails.
     function test_defaultsKeySet() {
         var keys = Object.keys(Logic.DEFAULTS).sort();
-        var expected = ["activeColor", "animationDuration", "dotSize", "dynamicRemoveMiddle",
+        var expected = ["activeColor", "animationDuration", "dotSize", "dynamicNamePrefix",
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
                         "inactiveOpacity", "invertScroll", "pillSize", "pillWidthFactor", "scrollWrap",

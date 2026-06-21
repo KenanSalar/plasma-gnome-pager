@@ -38,7 +38,7 @@ var DEFAULTS = Object.freeze({
     enableAddRemove: true,
     enableRename: true,          // offer "Rename Current Desktop…" in the right-click menu
     dynamicWorkspaces: false,    // GNOME-style: auto-keep exactly one empty trailing desktop
-    dynamicRemoveMiddle: false,  // also remove empty desktops in the MIDDLE (only with dynamicWorkspaces)
+    dynamicNamePrefix: "",       // base name for auto-created desktops ("" = the i18n default "Desktop")
     animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
     // Appearance group
     dotSize: 0,                  // px; 0 = auto (HiDPI themed size, resolved in the indicator)
@@ -329,7 +329,7 @@ function groupWindowsByDesktop(windows, desktopIds) {
  * empty the others and they collapse away. The functions below are the PURE decision layer for that
  * (no Plasma deps) — main.qml feeds them a window snapshot + the live desktop ids and dispatches the
  * single add/remove they return, letting `vdi` report the resulting state (the read/write split).
- * Default OFF; see DEFAULTS.dynamicWorkspaces / dynamicRemoveMiddle.
+ * Default OFF; see DEFAULTS.dynamicWorkspaces / dynamicNamePrefix.
  */
 
 /**
@@ -377,8 +377,7 @@ function computeDesktopOccupancy(windows, desktopIds) {
 
 /**
  * Decide the SINGLE dynamic-workspace action for the current state, or null for "leave it alone".
- * `occupancy` is computeDesktopOccupancy(...) aligned with `desktopIds`; `removeMiddle` is the
- * optional config for purging empty desktops between occupied ones (full GNOME fidelity).
+ * `occupancy` is computeDesktopOccupancy(...) aligned with `desktopIds`.
  *
  * Returns one of:
  *   { kind: "add" }                  — append an empty desktop at the end
@@ -387,16 +386,16 @@ function computeDesktopOccupancy(windows, desktopIds) {
  *
  * The rule, computing ONE action per call so reactive re-triggering converges to a stable fixpoint
  * (always exactly one trailing empty):
- *   - 0 trailing empties        → add (the last desktop is occupied)
- *   - >=2 trailing empties      → remove the LAST (trims one; re-trigger trims the rest)
- *   - 1 trailing empty + middle → remove the first empty MIDDLE desktop (only when removeMiddle)
- *   - otherwise                 → null (one empty desktop is exactly right; never touch the last one)
+ *   - 0 trailing empties   → add (the last desktop is occupied)
+ *   - >=2 trailing empties → remove the LAST (trims one; re-trigger trims the rest)
+ *   - otherwise            → null (one empty desktop is exactly right; never touch the last one)
  *
+ * Empty desktops BETWEEN occupied ones are deliberately left alone (only the trailing run is managed).
  * Guards (every transient frame is a no-op): null arrays, an empty desktop set, or a length mismatch
  * between `occupancy` and `desktopIds` (the occupancy snapshot lags a desktop add/remove by a frame)
  * all return null. Removal reuses canRemoveDesktop so the never-remove-last rule is one source of truth.
  */
-function dynamicWorkspacePlan(occupancy, desktopIds, removeMiddle) {
+function dynamicWorkspacePlan(occupancy, desktopIds) {
     if (!occupancy || !desktopIds)
         return null;
     var n = desktopIds.length;
@@ -411,12 +410,50 @@ function dynamicWorkspacePlan(occupancy, desktopIds, removeMiddle) {
         return { kind: "add" };                                  // last desktop occupied → grow
     if (trailing >= 2 && canRemoveDesktop(n))
         return { kind: "remove", uuid: desktopIds[n - 1] };      // too many trailing empties → trim tail
-    if (trailing === 1 && removeMiddle) {
-        for (var j = 0; j < n - 1; j++)
-            if (!occupancy[j] && canRemoveDesktop(n))
-                return { kind: "remove", uuid: desktopIds[j] };  // an empty desktop between occupied ones
-    }
     return null;
+}
+
+/**
+ * Build the name for an auto-created dynamic desktop: a user-chosen base + " " + its number (so a
+ * configured prefix "Workspace" with number 3 → "Workspace 3"). `prefix` is the raw config value
+ * (DEFAULTS.dynamicNamePrefix, "" by default); `fallback` is the i18n default base ("Desktop") passed
+ * IN from main.qml so this file stays i18n-free. Both prefix and fallback are run through
+ * sanitizeDesktopName (trim, cap 100, "" if blank); an all-blank case falls back to the literal
+ * "Desktop" so the name is NEVER empty — KWin silently drops createDesktop with an empty name.
+ */
+function formatDynamicDesktopName(prefix, number, fallback) {
+    var base = sanitizeDesktopName(prefix);
+    if (base === "")
+        base = sanitizeDesktopName(fallback);
+    if (base === "")
+        base = "Desktop";
+    return base + " " + number;
+}
+
+/**
+ * Elect the single "writer" instance for dynamic workspaces among all pager instances in this
+ * plasmashell. `registry` maps each instance's coordinator token -> its enabled flag (object keys are
+ * strings; values are bools). The writer is the ENABLED instance with the smallest token — first-
+ * registered wins, deterministic, and stable as instances join/leave. Returns that token as a Number,
+ * or -1 when no instance is enabled.
+ *
+ * Why: the virtual-desktop SET is global (every monitor shows the same desktops), so two pagers (one
+ * per panel) both react to the last desktop filling and BOTH create a desktop — which is then trimmed,
+ * the visible "flash". Electing exactly one writer makes the management a single global behaviour (and
+ * keeps auto-created naming consistent). Pure here; the shared mutable registry lives in coordinator.js.
+ */
+function electDynamicWriter(registry) {
+    if (!registry)
+        return -1;
+    var winner = -1;
+    for (var token in registry) {
+        if (!registry[token])
+            continue;                            // the feature is off on that instance
+        var t = Number(token);
+        if (winner === -1 || t < winner)
+            winner = t;
+    }
+    return winner;
 }
 
 /**

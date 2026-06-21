@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-21 12:35+0200\n"
+"POT-Creation-Date: 2026-06-21 13:15+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -31,7 +31,7 @@ msgstr "Aparência"
 msgid "Dot size:"
 msgstr "Tamanho dos pontos:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:125
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:130
 #, kde-format
 msgid "Default"
 msgstr "Padrão"
@@ -103,77 +103,83 @@ msgstr "Área de trabalho ativa:"
 msgid "Inactive desktop:"
 msgstr "Área de trabalho inativa:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:75
+#: package/contents/ui/config/ConfigGeneral.qml:76
 #, kde-format
 msgid "Mouse:"
 msgstr "Mouse:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:76
+#: package/contents/ui/config/ConfigGeneral.qml:77
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Rolar sobre o paginador para alternar entre áreas de trabalho"
 
-#: package/contents/ui/config/ConfigGeneral.qml:80
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "Voltar ao início na primeira e na última área de trabalho"
 
-#: package/contents/ui/config/ConfigGeneral.qml:85
+#: package/contents/ui/config/ConfigGeneral.qml:86
 #, kde-format
 msgid "Invert the scroll direction"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:90
+#: package/contents/ui/config/ConfigGeneral.qml:91
 #, kde-format
 msgid "Tooltips:"
 msgstr "Dicas:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:91
+#: package/contents/ui/config/ConfigGeneral.qml:92
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Mostrar o nome da área de trabalho ao passar o cursor"
 
-#: package/contents/ui/config/ConfigGeneral.qml:95
+#: package/contents/ui/config/ConfigGeneral.qml:96
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Listar as janelas abertas na dica"
 
-#: package/contents/ui/config/ConfigGeneral.qml:100
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, kde-format
 msgid "Menu:"
 msgstr "Menu:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:101
+#: package/contents/ui/config/ConfigGeneral.qml:102
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Adicionar e remover áreas de trabalho pelo menu de contexto"
 
-#: package/contents/ui/config/ConfigGeneral.qml:105
+#: package/contents/ui/config/ConfigGeneral.qml:106
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Renomear a área de trabalho atual pelo menu de contexto"
 
-#: package/contents/ui/config/ConfigGeneral.qml:109
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, fuzzy, kde-format
 msgid "Dynamic desktops:"
 msgstr "Renomear área de trabalho:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
+#: package/contents/ui/config/ConfigGeneral.qml:111
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
-#, kde-format
-msgid "Also remove empty desktops in between"
-msgstr ""
+#: package/contents/ui/config/ConfigGeneral.qml:115
+#, fuzzy, kde-format
+msgid "New desktop name:"
+msgstr "Nova área de trabalho"
 
-#: package/contents/ui/config/ConfigGeneral.qml:120
+#: package/contents/ui/config/ConfigGeneral.qml:119 package/contents/ui/main.qml:407
+#, fuzzy, kde-format
+msgctxt "@info default base name for auto-created virtual desktops"
+msgid "Desktop"
+msgstr "Nova área de trabalho"
+
+#: package/contents/ui/config/ConfigGeneral.qml:125
 #, kde-format
 msgid "Animation duration:"
 msgstr "Duração da animação:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:125
+#: package/contents/ui/config/ConfigGeneral.qml:130
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -185,13 +191,13 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Padrões"
 
-#: package/contents/ui/main.qml:276 package/contents/ui/main.qml:289
+#: package/contents/ui/main.qml:277 package/contents/ui/main.qml:290
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Janela sem título"
 
-#: package/contents/ui/main.qml:278
+#: package/contents/ui/main.qml:279
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -199,7 +205,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… e %1 outra janela"
 msgstr[1] "… e %1 outras janelas"
 
-#: package/contents/ui/main.qml:291
+#: package/contents/ui/main.qml:292
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -207,7 +213,7 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 janela:"
 msgstr[1] "%1 janelas:"
 
-#: package/contents/ui/main.qml:295
+#: package/contents/ui/main.qml:296
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
@@ -215,37 +221,37 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 janela minimizada:"
 msgstr[1] "%1 janelas minimizadas:"
 
-#: package/contents/ui/main.qml:348
+#: package/contents/ui/main.qml:349
 #, kde-format
 msgid "New Desktop"
 msgstr "Nova área de trabalho"
 
-#: package/contents/ui/main.qml:446
+#: package/contents/ui/main.qml:453
 #, kde-format
 msgid "Add Desktop"
 msgstr "Adicionar área de trabalho"
 
-#: package/contents/ui/main.qml:454
+#: package/contents/ui/main.qml:461
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Remover a última área de trabalho"
 
-#: package/contents/ui/main.qml:462
+#: package/contents/ui/main.qml:469
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Renomear a área de trabalho atual…"
 
-#: package/contents/ui/main.qml:512
+#: package/contents/ui/main.qml:519
 #, kde-format
 msgid "Rename desktop:"
 msgstr "Renomear área de trabalho:"
 
-#: package/contents/ui/main.qml:526
+#: package/contents/ui/main.qml:533
 #, kde-format
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: package/contents/ui/main.qml:531
+#: package/contents/ui/main.qml:538
 #, kde-format
 msgid "Rename"
 msgstr "Renomear"

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-21 12:35+0200\n"
+"POT-Creation-Date: 2026-06-21 13:15+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Japanese\n"
@@ -31,7 +31,7 @@ msgstr "外観"
 msgid "Dot size:"
 msgstr "ドットのサイズ："
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:125
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:130
 #, kde-format
 msgid "Default"
 msgstr "デフォルト"
@@ -102,77 +102,83 @@ msgstr "アクティブなデスクトップ："
 msgid "Inactive desktop:"
 msgstr "非アクティブなデスクトップ："
 
-#: package/contents/ui/config/ConfigGeneral.qml:75
+#: package/contents/ui/config/ConfigGeneral.qml:76
 #, kde-format
 msgid "Mouse:"
 msgstr "マウス："
 
-#: package/contents/ui/config/ConfigGeneral.qml:76
+#: package/contents/ui/config/ConfigGeneral.qml:77
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "ページャー上でスクロールしてデスクトップを切り替える"
 
-#: package/contents/ui/config/ConfigGeneral.qml:80
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "最初と最後のデスクトップで折り返す"
 
-#: package/contents/ui/config/ConfigGeneral.qml:85
+#: package/contents/ui/config/ConfigGeneral.qml:86
 #, kde-format
 msgid "Invert the scroll direction"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:90
+#: package/contents/ui/config/ConfigGeneral.qml:91
 #, kde-format
 msgid "Tooltips:"
 msgstr "ツールチップ："
 
-#: package/contents/ui/config/ConfigGeneral.qml:91
+#: package/contents/ui/config/ConfigGeneral.qml:92
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "ホバー時にデスクトップ名を表示する"
 
-#: package/contents/ui/config/ConfigGeneral.qml:95
+#: package/contents/ui/config/ConfigGeneral.qml:96
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "ツールチップに開いているウィンドウを一覧表示する"
 
-#: package/contents/ui/config/ConfigGeneral.qml:100
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, kde-format
 msgid "Menu:"
 msgstr "メニュー："
 
-#: package/contents/ui/config/ConfigGeneral.qml:101
+#: package/contents/ui/config/ConfigGeneral.qml:102
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "右クリックメニューからデスクトップを追加・削除する"
 
-#: package/contents/ui/config/ConfigGeneral.qml:105
+#: package/contents/ui/config/ConfigGeneral.qml:106
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "右クリックメニューから現在のデスクトップ名を変更する"
 
-#: package/contents/ui/config/ConfigGeneral.qml:109
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, fuzzy, kde-format
 msgid "Dynamic desktops:"
 msgstr "デスクトップ名を変更："
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
+#: package/contents/ui/config/ConfigGeneral.qml:111
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
-#, kde-format
-msgid "Also remove empty desktops in between"
-msgstr ""
+#: package/contents/ui/config/ConfigGeneral.qml:115
+#, fuzzy, kde-format
+msgid "New desktop name:"
+msgstr "新しいデスクトップ"
 
-#: package/contents/ui/config/ConfigGeneral.qml:120
+#: package/contents/ui/config/ConfigGeneral.qml:119 package/contents/ui/main.qml:407
+#, fuzzy, kde-format
+msgctxt "@info default base name for auto-created virtual desktops"
+msgid "Desktop"
+msgstr "新しいデスクトップ"
+
+#: package/contents/ui/config/ConfigGeneral.qml:125
 #, kde-format
 msgid "Animation duration:"
 msgstr "アニメーションの長さ："
 
-#: package/contents/ui/config/ConfigGeneral.qml:125
+#: package/contents/ui/config/ConfigGeneral.qml:130
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -183,64 +189,64 @@ msgstr[0] "%1 ms"
 msgid "Defaults"
 msgstr "デフォルト"
 
-#: package/contents/ui/main.qml:276 package/contents/ui/main.qml:289
+#: package/contents/ui/main.qml:277 package/contents/ui/main.qml:290
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "無題のウィンドウ"
 
-#: package/contents/ui/main.qml:278
+#: package/contents/ui/main.qml:279
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
 msgid_plural "…and %1 other windows"
 msgstr[0] "…他 %1 個のウィンドウ"
 
-#: package/contents/ui/main.qml:291
+#: package/contents/ui/main.qml:292
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
 msgid_plural "%1 Windows:"
 msgstr[0] "%1 個のウィンドウ："
 
-#: package/contents/ui/main.qml:295
+#: package/contents/ui/main.qml:296
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
 msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 個の最小化されたウィンドウ："
 
-#: package/contents/ui/main.qml:348
+#: package/contents/ui/main.qml:349
 #, kde-format
 msgid "New Desktop"
 msgstr "新しいデスクトップ"
 
-#: package/contents/ui/main.qml:446
+#: package/contents/ui/main.qml:453
 #, kde-format
 msgid "Add Desktop"
 msgstr "デスクトップを追加"
 
-#: package/contents/ui/main.qml:454
+#: package/contents/ui/main.qml:461
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "最後のデスクトップを削除"
 
-#: package/contents/ui/main.qml:462
+#: package/contents/ui/main.qml:469
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "現在のデスクトップ名を変更…"
 
-#: package/contents/ui/main.qml:512
+#: package/contents/ui/main.qml:519
 #, kde-format
 msgid "Rename desktop:"
 msgstr "デスクトップ名を変更："
 
-#: package/contents/ui/main.qml:526
+#: package/contents/ui/main.qml:533
 #, kde-format
 msgid "Cancel"
 msgstr "キャンセル"
 
-#: package/contents/ui/main.qml:531
+#: package/contents/ui/main.qml:538
 #, kde-format
 msgid "Rename"
 msgstr "名前を変更"

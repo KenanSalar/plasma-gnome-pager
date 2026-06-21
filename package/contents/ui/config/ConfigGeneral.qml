@@ -16,6 +16,7 @@
  */
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 ConfigPageBase {
@@ -29,7 +30,7 @@ ConfigPageBase {
     property alias cfg_enableAddRemove: enableAddRemove.checked
     property alias cfg_enableRename: enableRename.checked
     property alias cfg_dynamicWorkspaces: dynamicWorkspaces.checked
-    property alias cfg_dynamicRemoveMiddle: dynamicRemoveMiddle.checked
+    property alias cfg_dynamicNamePrefix: dynamicNamePrefix.text
     property alias cfg_animationDuration: animationDuration.value
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
@@ -41,7 +42,7 @@ ConfigPageBase {
     property bool cfg_enableAddRemoveDefault
     property bool cfg_enableRenameDefault
     property bool cfg_dynamicWorkspacesDefault
-    property bool cfg_dynamicRemoveMiddleDefault
+    property string cfg_dynamicNamePrefixDefault
     property int cfg_animationDurationDefault
 
     // True when any key on this page differs from its default (gates the base's Defaults action).
@@ -53,7 +54,7 @@ ConfigPageBase {
         || cfg_enableAddRemove !== cfg_enableAddRemoveDefault
         || cfg_enableRename !== cfg_enableRenameDefault
         || cfg_dynamicWorkspaces !== cfg_dynamicWorkspacesDefault
-        || cfg_dynamicRemoveMiddle !== cfg_dynamicRemoveMiddleDefault
+        || cfg_dynamicNamePrefix !== cfg_dynamicNamePrefixDefault
         || cfg_animationDuration !== cfg_animationDurationDefault
 
     onDefaultsRequested: {
@@ -65,7 +66,7 @@ ConfigPageBase {
         cfg_enableAddRemove = cfg_enableAddRemoveDefault;
         cfg_enableRename = cfg_enableRenameDefault;
         cfg_dynamicWorkspaces = cfg_dynamicWorkspacesDefault;
-        cfg_dynamicRemoveMiddle = cfg_dynamicRemoveMiddleDefault;
+        cfg_dynamicNamePrefix = cfg_dynamicNamePrefixDefault;
         cfg_animationDuration = cfg_animationDurationDefault;
     }
 
@@ -109,10 +110,14 @@ ConfigPageBase {
             Kirigami.FormData.label: i18n("Dynamic desktops:")
             text: i18n("Automatically add and remove desktops (GNOME-style)")
         }
-        QQC2.CheckBox {
-            id: dynamicRemoveMiddle
-            text: i18n("Also remove empty desktops in between")
-            enabled: dynamicWorkspaces.checked   // middle removal only matters when dynamic is on
+        QQC2.TextField {
+            id: dynamicNamePrefix
+            Kirigami.FormData.label: i18n("New desktop name:")
+            // The base name for auto-created desktops; the desktop's number is appended ("<name> 2", "<name> 3").
+            // Empty falls back to the localized default shown as the placeholder. Only matters when dynamic is on.
+            enabled: dynamicWorkspaces.checked
+            placeholderText: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 18   // match the ConfigSlider track width
         }
 
         ConfigSlider {

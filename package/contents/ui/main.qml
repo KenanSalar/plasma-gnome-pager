@@ -23,6 +23,7 @@ import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksMo
 import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
 
 import "logic.js" as Logic
+import "coordinator.js" as Coordinator         // single-writer election + prefix sync across panel instances
 
 PlasmoidItem {
     id: root
@@ -58,10 +59,11 @@ PlasmoidItem {
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
     readonly property bool enableRename: Plasmoid.configuration.enableRename ?? Logic.DEFAULTS.enableRename
-    // Dynamic workspaces (GNOME-style, default OFF): auto-keep exactly one empty trailing desktop, and —
-    // when dynamicRemoveMiddle is on — also purge empty desktops in between. Drives the controller below.
+    // Dynamic workspaces (GNOME-style, default OFF): auto-keep exactly one empty trailing desktop. Drives
+    // the controller below. dynamicNamePrefix is the base name for the desktops it creates ("" = the i18n
+    // default "Desktop"); the controller appends the new desktop's number ("<prefix> N").
     readonly property bool dynamicWorkspaces: Plasmoid.configuration.dynamicWorkspaces ?? Logic.DEFAULTS.dynamicWorkspaces
-    readonly property bool dynamicRemoveMiddle: Plasmoid.configuration.dynamicRemoveMiddle ?? Logic.DEFAULTS.dynamicRemoveMiddle
+    readonly property string dynamicNamePrefix: Plasmoid.configuration.dynamicNamePrefix ?? Logic.DEFAULTS.dynamicNamePrefix
 
     // Appearance + animation settings, read the same way and passed down to the indicator as plain
     // values (it forwards them per-dot). dotSize/animationDuration use a `0 = auto` sentinel: the
@@ -359,21 +361,42 @@ PlasmoidItem {
     }
 
     // ── Dynamic workspaces (GNOME-style) ──────────────────────────────────────────────────────────
-    // When enabled, keep exactly one empty trailing desktop (and, with dynamicRemoveMiddle, no empty
-    // desktops between occupied ones) by issuing ONE KWin add/remove per cycle and letting `vdi` report
-    // the result (the read/write split). The decision is the pure Logic.dynamicWorkspacePlan; here we only
-    // debounce, RE-CHECK against the freshest state right before dispatching, and hold a short busy-lock.
+    // When enabled, keep exactly one empty trailing desktop by issuing ONE KWin add/remove per cycle and
+    // letting `vdi` report the result (the read/write split). The decision is the pure
+    // Logic.dynamicWorkspacePlan; here we debounce, re-check the freshest state right before dispatching,
+    // and hold a short busy-lock against THIS instance re-firing before its own change reflects.
     //
-    // Robust under multiple pager instances (multi-monitor): every instance reads the same reactive global
-    // state, so if another instance already acted, this one's synchronous re-check in evaluateDynamic sees
-    // the new desktop set/occupancy and the plan returns null. The busy-lock stops THIS instance from
-    // re-firing before its own change reflects; dynBusyTimer is the fallback unlock for the case where a
-    // dispatch never lands (a guard rejected it, or KWin dropped it).
+    // The desktop SET is global, so this is a GLOBAL behaviour: a shared coordinator (coordinator.js)
+    // elects ONE "writer" instance across all panels/monitors — only it creates/removes desktops, which
+    // kills the multi-monitor "flash" (two pagers double-adding then trimming) and keeps naming consistent.
+    // The name prefix is shared too, so configuring it on any panel applies everywhere. dynToken is this
+    // instance's coordinator handle.
     property bool dynBusy: false
+    property int dynToken: 0
     Timer {
         id: dynBusyTimer
         interval: 750
         onTriggered: root.dynBusy = false
+    }
+
+    // Join the coordinator and publish our initial config, then evaluate once (in case the last desktop is
+    // already occupied at startup). Leave on destruction so a removed panel stops counting in the election.
+    Component.onCompleted: {
+        root.dynToken = Coordinator.join();
+        root.syncDynamic();
+    }
+    Component.onDestruction: Coordinator.leave(root.dynToken)
+
+    // Publish our enabled/prefix to the coordinator (so the election + shared prefix stay current), then
+    // schedule an evaluation. Called on startup and whenever either setting changes. Guarded against the
+    // pre-join window: config bindings (and their onChanged handlers) evaluate BEFORE Component.onCompleted,
+    // so without this a publish with the sentinel token 0 would register a phantom "enabled" instance that
+    // wins the election (token 0 < every real token) and stalls the real writer. join() never returns 0.
+    function syncDynamic() {
+        if (root.dynToken === 0)
+            return;
+        Coordinator.configure(root.dynToken, root.dynamicWorkspaces, root.dynamicNamePrefix);
+        root.scheduleDynamic();
     }
 
     // Coalesce a burst of occupancy / desktop-set changes into ONE evaluation next tick (the aggregator's
@@ -384,24 +407,31 @@ PlasmoidItem {
         Qt.callLater(root.evaluateDynamic);
     }
 
-    // Compute and dispatch the single dynamic-workspace action for the FRESHEST state, or do nothing. The
-    // re-check here (post-debounce, synchronous) is what lets concurrent instances converge without a
-    // leader. The length guard inside dynamicWorkspacePlan makes a transient frame — where desktopOccupancy
-    // still lags a just-changed desktop set — a no-op until occupancy catches up.
+    // Compute and dispatch the single dynamic-workspace action for the FRESHEST state, or do nothing. Only
+    // the elected writer acts (Coordinator.isWriter) — so multiple panels never double-add. The length
+    // guard inside dynamicWorkspacePlan makes a transient frame — where desktopOccupancy still lags a
+    // just-changed desktop set — a no-op until occupancy catches up.
     function evaluateDynamic() {
         if (!root.dynamicWorkspaces || root.dynBusy)
             return;
+        if (!Coordinator.isWriter(root.dynToken))
+            return;                              // another panel instance is the single global writer
         const ids = vdi.desktopIds ?? [];
-        const plan = Logic.dynamicWorkspacePlan(root.desktopOccupancy, ids, root.dynamicRemoveMiddle);
+        const plan = Logic.dynamicWorkspacePlan(root.desktopOccupancy, ids);
         if (!plan)
             return;
         let spec = null;
-        if (plan.kind === "add")
-            // Non-empty name: KWin silently DROPS createDesktop when the name is empty (the call no-ops with
-            // no error). Reuse the proven manual-add name; the user can rename via the right-click menu.
-            spec = Logic.addSpec(vdi.numberOfDesktops ?? ids.length, i18n("New Desktop"));
-        else if (plan.kind === "remove")
+        if (plan.kind === "add") {
+            // Name auto-created desktops "<prefix> N" (prefix shared across panels via the coordinator,
+            // default the i18n "Desktop"). position == current count (append at end), so the new desktop's
+            // number is pos + 1. formatDynamicDesktopName guarantees a non-empty name: KWin silently drops
+            // createDesktop with an empty name. The i18n default base is passed IN (logic.js stays i18n-free).
+            const pos = vdi.numberOfDesktops ?? ids.length;
+            spec = Logic.addSpec(pos, Logic.formatDynamicDesktopName(Coordinator.prefix(), pos + 1,
+                i18nc("@info default base name for auto-created virtual desktops", "Desktop")));
+        } else if (plan.kind === "remove") {
             spec = Logic.removeSpec(plan.uuid, vdi.numberOfDesktops ?? ids.length);
+        }
         if (!spec)
             return;
         root.dynBusy = true;
@@ -409,11 +439,12 @@ PlasmoidItem {
         dynBusyTimer.restart();
     }
 
-    // Triggers, all routed through the debounced scheduleDynamic: occupancy flips (a window opened/closed/
-    // moved), the feature being switched on, and the desktop SET changing — the last is also the signal
-    // that OUR own add/remove landed, so it clears the busy-lock and re-evaluates for the next step.
+    // Triggers: occupancy flips (a window opened/closed/moved) and the desktop SET changing (also the
+    // signal that OUR own add/remove landed → clear the busy-lock and re-evaluate). Config changes go
+    // through syncDynamic so the coordinator's election + shared prefix are updated before we act.
     onDesktopOccupancyChanged: root.scheduleDynamic()
-    onDynamicWorkspacesChanged: if (root.dynamicWorkspaces) root.scheduleDynamic()
+    onDynamicWorkspacesChanged: root.syncDynamic()
+    onDynamicNamePrefixChanged: root.syncDynamic()
     Connections {
         target: vdi
         function onDesktopIdsChanged() {

@@ -57,9 +57,10 @@
         <entry name="dynamicWorkspaces" type="Bool">
             <default>false</default>
         </entry>
-        <!-- Also remove empty desktops in between, not just trailing ones (needs dynamicWorkspaces). -->
-        <entry name="dynamicRemoveMiddle" type="Bool">
-            <default>false</default>
+        <!-- Base name for desktops auto-created by dynamicWorkspaces; the desktop's number is appended
+             ("<prefix> N"). Empty = the localized default "Desktop". -->
+        <entry name="dynamicNamePrefix" type="String">
+            <default></default>
         </entry>
         <!-- Morph animation length in ms; 0 = follow the theme (Kirigami.Units.longDuration). -->
         <entry name="animationDuration" type="Int">
