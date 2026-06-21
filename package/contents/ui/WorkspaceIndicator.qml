@@ -204,20 +204,25 @@ Item {
     // Smallest legible dot we will shrink to: half the default dot, clamped to <= natural so a tiny
     // configured dot never scales UP (keeps the room-available common case byte-for-byte identical).
     readonly property real minDotSize: Math.min(naturalDotSize, Kirigami.Units.iconSizes.small / 4)
+    // The panel-allocated extent of each axis, read live from this Item's geometry. `vertical` swaps
+    // which physical dimension is the major (line) axis and which is the cross axis; naming the swap
+    // once keeps the two scale-to-fit reads below declarative and orientation-symmetric.
+    readonly property real availableMajor: vertical ? height : width
+    readonly property real availableCross: vertical ? width : height
     // Dot size that makes one full line exactly fill the panel-allocated MAJOR length (width when
     // horizontal, height when vertical): one capsule + the rest of that line's dots + uniform gaps.
     // The capsule's length in DOT units is pillThicknessRatio * pillWidthFactor (pill length =
     // pillSize * pillWidthFactor, and pillSize = dot * ratio) — the only change vs M6, and it reduces
     // to pillWidthFactor when the pill tracks the dots (ratio == 1).
     // Pure math (logic.js); +Infinity before layout / with no line, so it does not bind there.
-    readonly property real majorFitDotSize: Logic.fitDotSize(vertical ? height : width, perLine, pillThicknessRatio * pillWidthFactor, spacingFactor)
+    readonly property real majorFitDotSize: Logic.fitDotSize(availableMajor, perLine, pillThicknessRatio * pillWidthFactor, spacingFactor)
     // Dot size that makes the stacked lines exactly fill the panel-allocated CROSS thickness (height
     // when horizontal, width when vertical). Only the line holding the pill is max(dot, pill) thick;
     // every other line is one dot thick — so the cross "pill factor" is max(1, pillThicknessRatio)
     // (1 when the pill is no thicker than a dot, recovering the M6 inverse of naturalCrossThickness).
     // +Infinity on a single thick panel (room to spare) or before layout, so it does not bind in the
     // common case; it only bites for a multi-row grid (or a thick pill) on a thin panel.
-    readonly property real crossFitDotSize: Logic.fitDotSize(vertical ? width : height, lineCount, Math.max(1, pillThicknessRatio), spacingFactor)
+    readonly property real crossFitDotSize: Logic.fitDotSize(availableCross, lineCount, Math.max(1, pillThicknessRatio), spacingFactor)
     // A dot must fit BOTH axes, so the binding constraint is the smaller fit (the unconstrained axis
     // returns +Infinity, so min keeps the other). This generalises the M6 major-axis fit to the
     // multi-row + thin-panel case without ever overflowing the panel thickness (robustness.md).

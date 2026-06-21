@@ -211,11 +211,10 @@ TestCase {
     function test_exactlyOneCapsule() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator);
-        let capsules = 0, plain = 0;
+        const capsules = Elements.countCapsules(dots, indicator.pillWidth);
+        let plain = 0;
         for (let i = 0; i < dots.length; i++) {
-            if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5)
-                capsules++;
-            else if (Math.abs(dots[i].width - indicator.dotSize) <= 0.5)
+            if (Math.abs(dots[i].width - indicator.dotSize) <= 0.5)
                 plain++;
         }
         compare(capsules, 1, "exactly one capsule");
@@ -279,12 +278,12 @@ TestCase {
     function test_morphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
-        verify(Math.abs(dotByUuid(indicator, ids[0]).width - indicator.pillWidth) <= 0.5, "ids[0] starts as the capsule");
+        verify(Elements.isCapsule(dotByUuid(indicator, ids[0]), indicator.pillWidth), "ids[0] starts as the capsule");
 
         vdi.currentDesktop = ids[2];
 
         tryVerify(function () {
-            return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5
+            return Elements.isCapsule(dotByUuid(indicator, ids[2]), indicator.pillWidth)
                 && Math.abs(dotByUuid(indicator, ids[0]).width - indicator.dotSize) <= 0.5;
         }, 2000, "capsule morphs onto the newly current element; the old shrinks to a dot");
     }
@@ -317,7 +316,7 @@ TestCase {
         }, 2000, "a dot is removed");
         compare(indicator.activeIndex, 1, "the surviving current desktop is re-found at its new index");
         tryVerify(function () {
-            return Math.abs(dotByUuid(indicator, ids[2]).width - indicator.pillWidth) <= 0.5;
+            return Elements.isCapsule(dotByUuid(indicator, ids[2]), indicator.pillWidth);
         }, 2000, "the surviving current desktop is the capsule");
     }
 
@@ -484,7 +483,7 @@ TestCase {
         switchSpy.clear();
 
         const capsule = dotByUuid(indicator, currentUuid);
-        const p = capsule.mapToItem(indicator, capsule.width / 2, capsule.height / 2);
+        const p = Elements.centerOf(capsule, indicator);
         mouseClick(indicator, p.x, p.y);
 
         compare(switchSpy.count, 1, "clicking the active capsule emits a switch");
@@ -640,7 +639,7 @@ TestCase {
         switchSpy.clear();
 
         const dot = dotByUuid(indicator, ids[0]);
-        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        const c = Elements.centerOf(dot, indicator);
         mouseClick(indicator, c.x, c.y);
         compare(switchSpy.count, 1, "clicking a dot still works with the wheel layer present");
         compare(switchSpy.signalArguments[0][0], ids[0], "the clicked dot's UUID is forwarded");
@@ -1128,7 +1127,7 @@ TestCase {
         const circle = circleOf(dot);
         fuzzyCompare(circle.opacity, indicator.inactiveOpacity, 0.001, "inactive dot starts dim");
 
-        const c = dot.mapToItem(indicator, dot.width / 2, dot.height / 2);
+        const c = Elements.centerOf(dot, indicator);
         mouseMove(indicator, c.x, c.y);
         tryCompare(circle, "opacity", indicator.hoverOpacity, 2000, "hover brightens through the wheel layer");
 
@@ -1295,7 +1294,7 @@ TestCase {
                     caps++;
             return caps === 1;
         }, 2000, "exactly one capsule after the burst");
-        tryVerify(() => Math.abs(dotByUuid(indicator, fiveIds[3]).width - indicator.pillWidth) < 0.5,
+        tryVerify(() => Elements.isCapsule(dotByUuid(indicator, fiveIds[3]), indicator.pillWidth),
                   2000, "the final desktop morphs to the capsule width");
     }
 
@@ -1332,8 +1331,8 @@ TestCase {
         indicator.height = indicator.naturalCrossThickness * 2;
         const active = dotByUuid(indicator, currentUuid);
         const inactive = dotByUuid(indicator, ids[0]);
-        const activeCentreY = active.mapToItem(indicator, active.width / 2, active.height / 2).y;
-        const inactiveCentreY = inactive.mapToItem(indicator, inactive.width / 2, inactive.height / 2).y;
+        const activeCentreY = Elements.centerOf(active, indicator).y;
+        const inactiveCentreY = Elements.centerOf(inactive, indicator).y;
         fuzzyCompare(inactiveCentreY, activeCentreY, 0.5, "inactive dot is cross-centred against the thicker pill");
     }
 
@@ -1345,8 +1344,8 @@ TestCase {
         indicator.width = indicator.naturalCrossThickness * 2;
         const active = dotByUuid(indicator, currentUuid);
         const inactive = dotByUuid(indicator, ids[0]);
-        const activeCentreX = active.mapToItem(indicator, active.width / 2, active.height / 2).x;
-        const inactiveCentreX = inactive.mapToItem(indicator, inactive.width / 2, inactive.height / 2).x;
+        const activeCentreX = Elements.centerOf(active, indicator).x;
+        const inactiveCentreX = Elements.centerOf(inactive, indicator).x;
         fuzzyCompare(inactiveCentreX, activeCentreX, 0.5, "inactive dot is cross-centred against the thicker pill (vertical)");
     }
 
@@ -1409,13 +1408,8 @@ TestCase {
 
         vdi.desktopIds = ids;   // ids come back
         tryVerify(() => collectDots(indicator).length === 3, 2000, "dots return when ids repopulate");
-        tryVerify(() => {
-            const dots = collectDots(indicator);
-            let caps = 0;
-            for (let i = 0; i < dots.length; i++)
-                if (Math.abs(dots[i].width - indicator.pillWidth) <= 0.5) caps++;
-            return caps === 1;
-        }, 2000, "exactly one capsule after repopulation");
+        tryVerify(() => Elements.countCapsules(collectDots(indicator), indicator.pillWidth) === 1,
+                  2000, "exactly one capsule after repopulation");
     }
 
     // --- per-screen degrade paths -------------------------------------------------
@@ -1489,7 +1483,7 @@ TestCase {
         const circle = circleOf(capsule);
         fuzzyCompare(circle.opacity, 1.0, 0.001, "active capsule starts at full strength");
 
-        const c = capsule.mapToItem(indicator, capsule.width / 2, capsule.height / 2);
+        const c = Elements.centerOf(capsule, indicator);
         mouseMove(indicator, c.x, c.y);
         wait(Math.max(50, Kirigami.Units.longDuration * 2));
         fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule in the strip");

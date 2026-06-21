@@ -37,6 +37,10 @@ RowLayout {
     property string label: ""              // the row's Kirigami.FormData label
     property var format: (v) => String(v)  // value → read-out string (drives text AND reserved width)
 
+    // The fixed track length. Other field-column widths on a page (the ConfigGeneral TextField/hint)
+    // are pinned to the same metric via ConfigPageBase.fieldWidth so every row's field lines up.
+    readonly property int trackWidth: Kirigami.Units.gridUnit * 18
+
     Kirigami.FormData.label: root.label
 
     QQC2.Slider {
@@ -47,8 +51,8 @@ RowLayout {
         // Pinning the width keeps the two pages matched. A long track also makes precise dragging and
         // arrow-key stepping (focus the slider, then ←/→ moves by stepSize) easy. min == preferred so
         // it can't shrink below this; any extra column width is absorbed by the value label (below).
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 18
-        Layout.minimumWidth: Kirigami.Units.gridUnit * 18
+        Layout.preferredWidth: root.trackWidth
+        Layout.minimumWidth: root.trackWidth
         snapMode: QQC2.Slider.SnapAlways   // clean increments even when dragged (override via alias)
     }
 

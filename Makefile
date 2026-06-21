@@ -19,8 +19,11 @@ TESTS_DIR   := $(CURDIR)/tests
 # scans the given dir for every tst_*.qml. QT_LOGGING_RULES silences the benign QWARN
 # "kf.plasma.quick: Couldn't create KWindowShadow" that org.kde.plasma.core's ToolTipArea emits
 # under offscreen/headless (no compositor to host the shadow) — tests pass either way; this just
-# keeps `make check` output (and the CI log) clean. Shared by the per-tier check targets below.
-QMLTEST     := QT_QPA_PLATFORM=offscreen QT_LOGGING_RULES="kf.plasma.quick.warning=false" qmltestrunner-qt6 -input
+# keeps `make check` output (and the CI log) clean. QML_XHR_ALLOW_FILE_READ lets the defaults
+# cross-check test (tst_logic.qml) read contents/config/main.xml via XMLHttpRequest, which Qt
+# disables for local files by default; it affects only this test harness, never the widget.
+# Shared by the per-tier check targets below.
+QMLTEST     := QT_QPA_PLATFORM=offscreen QT_LOGGING_RULES="kf.plasma.quick.warning=false" QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input
 
 # --- Translations (i18n) -------------------------------------------------------------------------
 # The plasmoid runtime auto-binds the QML i18n() calls to the catalog domain plasma_applet_<Id>, so

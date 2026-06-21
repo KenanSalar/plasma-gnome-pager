@@ -708,6 +708,60 @@ TestCase {
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
+    // CROSS-CHECK the KConfigXT schema against the JS mirror: every contents/config/main.xml
+    // <default> must equal Logic.DEFAULTS[name]. The two are hand-synced (KConfigXT can't read a JS
+    // literal — CLAUDE.md), and nothing else verified they agree: editing one and not the other would
+    // pass test_defaults (which pins DEFAULTS against literals, not the schema) yet make a fresh
+    // install's schema default disagree with main.qml's `?? Logic.DEFAULTS` fallback for that frame.
+    // This reads main.xml and asserts the match per entry type; logic.js stays pure (the parse lives
+    // only here). wheelNotchDelta is the one DEFAULTS key with no main.xml entry (a non-config const).
+    function test_mainXmlDefaultsMatchLogicDefaults() {
+        // Relative URL — XMLHttpRequest resolves it against this test file's location, so no
+        // Qt.resolvedUrl (which qmllint can't resolve here, importing only QtTest + the .js).
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "../../package/contents/config/main.xml", false);
+        xhr.send();
+        var xml = xhr.responseText;
+        verify(xml && xml.length > 0, "main.xml is readable");
+
+        // Capture each entry's name + type + <default> body. Non-greedy across newlines, so each
+        // <entry …> pairs with its OWN immediately-following <default> (comments sit before entries,
+        // never between the open tag and its default); an empty <default></default> yields "".
+        var re = /<entry\s+name="([^"]+)"\s+type="([^"]+)"\s*>[\s\S]*?<default>([\s\S]*?)<\/default>/g;
+        var seen = 0;
+        var m;
+        while ((m = re.exec(xml)) !== null) {
+            var name = m[1], type = m[2], raw = m[3];
+            ++seen;
+            verify(Logic.DEFAULTS.hasOwnProperty(name), "main.xml entry '" + name + "' exists in Logic.DEFAULTS");
+            var expected = Logic.DEFAULTS[name];
+            switch (type) {
+            case "Bool":
+                compare(raw === "true", expected, name + " (Bool) default matches");
+                break;
+            case "Int":
+                compare(parseInt(raw, 10), expected, name + " (Int) default matches");
+                break;
+            case "Double":
+                // Tolerate a float ULP between the parsed schema literal and the JS literal.
+                verify(Math.abs(parseFloat(raw) - expected) <= 1e-9, name + " (Double) default matches");
+                break;
+            case "Color":
+                // QColor hex strings; compare case-insensitively (#3daee9 vs #3DAEE9).
+                compare(raw.toLowerCase(), String(expected).toLowerCase(), name + " (Color) default matches");
+                break;
+            case "String":
+                compare(raw, expected, name + " (String) default matches");
+                break;
+            default:
+                verify(false, "unhandled main.xml entry type '" + type + "' for '" + name + "'");
+            }
+        }
+        // Every schema entry was parsed (a regex miss would silently skip a key). The 19 entries are
+        // all of DEFAULTS except wheelNotchDelta, which has no main.xml entry.
+        compare(seen, Object.keys(Logic.DEFAULTS).length - 1, "every main.xml entry was checked (all but wheelNotchDelta)");
+    }
+
     // --- KWin DBus call SHAPES: pin the silently-failing strings/types -----------------
     // Each *Spec builds the exact { service, path, iface, member, args:[{t,v}] } main.qml dispatches,
     // or null when a guard trips. A wrong string or arg type is DROPPED by KWin with no QML error

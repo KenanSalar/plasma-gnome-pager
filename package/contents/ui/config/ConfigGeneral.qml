@@ -122,7 +122,7 @@ ConfigPageBase {
             opacity: 0.7
             font: Kirigami.Theme.smallFont
             Layout.fillWidth: true
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 18   // wrap within the field column
+            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
         }
         QQC2.TextField {
             id: dynamicNamePrefix
@@ -131,7 +131,7 @@ ConfigPageBase {
             // Empty falls back to the localized default shown as the placeholder. Only matters when dynamic is on.
             enabled: dynamicWorkspaces.checked
             placeholderText: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 18   // match the ConfigSlider track width
+            Layout.preferredWidth: root.fieldWidth   // match the slider track width (ConfigPageBase.fieldWidth)
         }
 
         ConfigSlider {
