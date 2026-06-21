@@ -26,10 +26,27 @@ TestCase {
         var b = Coordinator.join(function (en, pf) { bLast = { enabled: en, prefix: pf }; });
         verify(a !== b, "join() hands out unique tokens");
         verify(!Coordinator.haveGlobal(), "no global before the first publish");
+        // Initial pre-publish state: the global is off and the prefix empty until something publishes
+        // (this is the only point in the shared-state scenario where the pristine values are observable).
+        compare(Coordinator.globalEnabled(), false, "global disabled before the first publish");
+        compare(Coordinator.globalPrefix(), "", "global prefix empty before the first publish");
         verify(!Coordinator.isWriter(a), "no writer before anything is enabled");
+
+        // leave() with an unknown/never-joined token is a harmless no-op: it must not throw and must not
+        // disturb the present set (the delete on a non-present key is a guard for double-leave / stale ids).
+        Coordinator.leave(999999);
+        verify(!Coordinator.haveGlobal(), "leave(unknown) does not establish a global");
+        verify(a !== b, "leave(unknown) leaves the present instances intact");
+
+        // A throwing onSync callback (an instance torn down mid-iteration) must not abort the push loop:
+        // the other instances still receive the published value (coordinator.js publish() try/catch).
+        var throwingToken = Coordinator.join(function () { throw new Error("torn down"); });
 
         // publish() establishes the global AND pushes it to every instance (true global sync).
         Coordinator.publish(true, "Foo");
+        compare(JSON.stringify(aLast), JSON.stringify({ enabled: true, prefix: "Foo" }), "throwing peer did not block sync to a");
+        compare(JSON.stringify(bLast), JSON.stringify({ enabled: true, prefix: "Foo" }), "throwing peer did not block sync to b");
+        Coordinator.leave(throwingToken);   // drop the throwing instance before the rest of the scenario
         verify(Coordinator.haveGlobal(), "publish establishes the global");
         compare(Coordinator.globalEnabled(), true, "global enabled is recorded");
         compare(Coordinator.globalPrefix(), "Foo", "global prefix is recorded");

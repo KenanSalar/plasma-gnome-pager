@@ -15,9 +15,10 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
 | **integration** | Several first-party components composed + reactive wiring | `WorkspaceIndicator` + its real `WorkspaceDot` delegates + `Repeater` (each dot morphs dot⇄capsule) | the platform — a duck-typed `QtObject` stands in for `TaskManager.VirtualDesktopInfo` | `tests/integration/` |
 | **e2e / system** | The real plasmoid switching real desktops | plasmashell + KWin + session-bus DBus | nothing | *not automated* |
 
-- **unit** (`tests/unit/`) — `tst_workspacedot.qml` (one component, driven only by properties)
-  and `tst_logic.qml` (the pure-JS `logic.js` tier — imports the `.js` directly, no Plasma/Kirigami,
-  runs on bare qt6 + qttest).
+- **unit** (`tests/unit/`) — `tst_workspacedot.qml` and `tst_configslider.qml` (one component each,
+  driven only by properties), plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier) and
+  `tst_coordinator.qml` (the `coordinator.js` shared-state machine) — both import the `.js` directly,
+  no Plasma/Kirigami, so they run on bare qt6 + qttest.
 - **Plasma deps in tested components are OK *if* they load headless.** The goal is headless
   testability, not zero Plasma imports. `WorkspaceDot` imports `org.kde.plasma.core` for its
   per-dot `ToolTipArea` — that type loads and tracks hover under offscreen `qmltestrunner`, so the

@@ -478,6 +478,49 @@ TestCase {
         compare(Logic.windowIsOnDesktop(data.window, data.uuid), data.exp, data.tag);
     }
 
+    // --- windowOccupiesDesktop: per-window OCCUPANCY predicate (used by computeDesktopOccupancy) -----
+    // Deliberately DIFFERENT from windowIsOnDesktop (the tooltip membership above): for dynamic-workspace
+    // occupancy an on-all-desktops window does NOT count (it would pin every desktop, so none could ever be
+    // empty) and a skipPager window does NOT count, while a MINIMIZED window DOES (it still occupies its
+    // desktop). Real window only; a null/undefined window or missing `desktops` is false. Strict boolean.
+    function test_windowOccupiesDesktop_data() {
+        const occ = function (opts) {
+            opts = opts || {};
+            return {
+                isWindow: opts.isWindow !== false, onAll: opts.onAll === true,
+                skipPager: opts.skipPager === true, minimized: opts.minimized === true,
+                desktops: opts.desktops
+            };
+        };
+        return [
+            // null/undefined ELEMENT guard — the one branch computeDesktopOccupancy can't reach (it only
+            // nulls the whole array, which short-circuits before this predicate is ever called).
+            { tag: "null-window", window: null, uuid: "a", exp: false },
+            { tag: "undefined-window", window: undefined, uuid: "a", exp: false },
+            // a real window on its desktop occupies it; a miss / empty / missing list does not.
+            { tag: "desktops-match", window: occ({ desktops: ["a", "b"] }), uuid: "a", exp: true },
+            { tag: "desktops-miss", window: occ({ desktops: ["b"] }), uuid: "a", exp: false },
+            { tag: "desktops-undefined", window: occ({}), uuid: "a", exp: false },
+            { tag: "empty-desktops-array", window: occ({ desktops: [] }), uuid: "a", exp: false },
+            // non-window (launcher/panel) never occupies, even with a matching desktops list.
+            { tag: "non-window-excluded", window: occ({ isWindow: false, desktops: ["a"] }), uuid: "a", exp: false },
+            // KEY divergence from windowIsOnDesktop: on-all is EXCLUDED here (would pin every desktop).
+            { tag: "on-all-excluded", window: occ({ onAll: true, desktops: ["a"] }), uuid: "a", exp: false },
+            { tag: "on-all-excluded-no-desktops", window: occ({ onAll: true }), uuid: "a", exp: false },
+            // skipPager (hidden from the pager) is excluded too.
+            { tag: "skip-pager-excluded", window: occ({ skipPager: true, desktops: ["a"] }), uuid: "a", exp: false },
+            // KEY inclusion: a MINIMIZED window still occupies its desktop (no minimized check by design).
+            { tag: "minimized-still-counts", window: occ({ minimized: true, desktops: ["a"] }), uuid: "a", exp: true },
+            // isWindow entirely missing (a raw object) is falsy → excluded, even with a matching list.
+            { tag: "isWindow-missing", window: { desktops: ["a"] }, uuid: "a", exp: false }
+        ];
+    }
+    function test_windowOccupiesDesktop(data) {
+        var result = Logic.windowOccupiesDesktop(data.window, data.uuid);
+        compare(result, data.exp, data.tag);
+        compare(typeof result, "boolean", data.tag + " (strict boolean)");
+    }
+
     // --- groupWindowsByDesktop: per-desktop visible/minimized title lists --------------
     // Index-aligned with desktopIds. A window belongs to a desktop when it is a real window AND
     // (it is on all desktops OR its `desktops` list holds that id); minimized windows bucket apart;
