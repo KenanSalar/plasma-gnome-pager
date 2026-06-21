@@ -346,9 +346,11 @@ gated by the `showWindowList` key. The stock pager builds this from a **private*
 `WindowModel` (`org.kde.plasma.private.pager`) — forbidden (robustness.md, the #1 break cause). We
 reproduce the exact *presentation* from the public `org.kde.taskmanager` `TasksModel` + `ActivityInfo`
 instead. The split, following the project's data-source-vs-pure-logic rule:
-> - **`main.qml` (e2e boundary, not headless-testable)** owns the live model. A `Loader` gated by
+> - **`main.qml` (e2e boundary, not headless-testable)** owns the `Loader`, not the model itself: the
+>   live `TasksModel` lives in `WindowAggregator.qml` (the desktop set flows in as the **injected**
+>   `virtualDesktopInfo: vdi` property — not closure-captured `vdi`). The `Loader` is gated by
 >   `(showTooltips && showWindowList) || dynamicWorkspaces` (so the always-on model cost is **zero**
->   when neither the window list nor dynamic workspaces needs it — qml-performance.md) loads a
+>   when neither the window list nor dynamic workspaces needs it — qml-performance.md) and loads the
 >   `WindowAggregator` Item (shared by both features) holding ONE unfiltered
 >   `TasksModel { groupMode: GroupDisabled; filterByActivity: true }` (one row per window; current
 >   activity only). An `Instantiator` materialises the rows so role values can be read **by name**
@@ -356,7 +358,7 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   the model's `dataChanged` — **role-filtered** via `Logic.dataChangeAffectsRoles(roles, relevantRoles)`
 >   so the high-frequency `IsActive` focus churn KWin emits on every window-focus change never triggers a
 >   no-op regroup (an empty/absent roles list is Qt's "all changed" → still rebuilds) — plus the
->   Instantiator's `onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
+>   Instantiator's `onObjectAdded`/`onObjectRemoved` + `virtualDesktopInfo.desktopIdsChanged`) snapshots
 >   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
 >   `subText`. **`relevantRoles` is conditional on an injected `windowListActive` bool (`=
 >   showTooltips && showWindowList`):** the aggregator can be live purely for dynamic-workspace
@@ -392,10 +394,11 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > **Gotcha — `as`-cast dynamic `Loader.item`/`Instantiator.objectAt()` to a NAMED inline component, or
 > qmllint flags `missing-property`.** `Loader.item` and `Instantiator.objectAt(i)` are typed `QObject`,
 > so reading a dynamic property off them (`tooltipLoader.item.desktopTooltips`, `o.display`) warns. Fix
-> exactly like the stock pager's `itemAt(i) as WindowDelegate`: declare the loaded item and the row as
-> named inline components (`component WindowAggregator: Item {…}`, `component WindowRow: QtObject {…}`)
-> and cast — `(tooltipLoader.item as WindowAggregator).desktopTooltips`,
-> `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
+> exactly like the stock pager's `itemAt(i) as WindowDelegate`: cast to a named type. The loaded item
+> is the **file-based** `WindowAggregator` type (`package/contents/ui/WindowAggregator.qml`, a top-level
+> `Item`), so `main.qml` casts `(tooltipLoader.item as WindowAggregator).desktopTooltips`; the row is a
+> named inline `component WindowRow: QtObject {…}` declared **inside `WindowAggregator.qml`**, cast there
+> as `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
 > `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`, `SkipPager`) aren't valid lowercase identifiers, so they can't
 > be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
 > `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
@@ -482,7 +485,9 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 > test_formatDynamicDesktopName,test_electDynamicWriter}` + `tst_coordinator.qml` (the coordinator
 > state machine). The controller, the live occupancy model, and the cross-instance SHARING are
 > **e2e-only** (verify in-shell). New files: `package/contents/ui/coordinator.js`,
-> `tests/unit/tst_coordinator.qml`.
+> `package/contents/ui/WindowAggregator.qml` (the shared `TasksModel`, extracted out of `main.qml`;
+> feeds both the window-list tooltip and dynamic-workspace occupancy),
+> `tests/unit/tst_coordinator.qml`, `tests/unit/tst_configslider.qml`.
 
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
@@ -516,9 +521,11 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
   integer keys) uses the shared `ConfigSlider.qml`; only the colours use `org.kde.kquickcontrols`
   `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
   **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
-  always-on widget), so a break there cannot kill the running pager. The config pages + `config.qml`
-  are **e2e-only** (the dialog needs `org.kde.plasma.configuration`), so they are not in the headless
-  test harness — `make lint` covers them, but verify behaviour in-shell.
+  always-on widget), so a break there cannot kill the running pager. The config **pages**
+  (`ConfigGeneral`/`ConfigAppearance`/`config.qml`) are **e2e-only** (the dialog needs
+  `org.kde.plasma.configuration`), so they are not in the headless test harness — `make lint` covers
+  them, but verify behaviour in-shell. The shared `ConfigSlider` control is the exception: being
+  Kirigami-only it **is** headless-unit-tested by `tests/unit/tst_configslider.qml`.
 - **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
   **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
   `root.isModified`, firing `root.defaultsRequested()`); each derived page fulfils that contract by
@@ -540,7 +547,9 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
 > here is monotonic in string width with magnitude AND the sentinel sliders put their special text at
 > `from` (`0 → "Default"`), reserving over the two extremes bounds every value between them (no
 > separate `widestText` to keep in sync). **(2) Fix the track width**: the `Slider` is a FIXED
-> `Layout.preferredWidth == Layout.minimumWidth == gridUnit*18` — it is the value **`Label`** that is
+> `Layout.preferredWidth == Layout.minimumWidth == ConfigSlider.trackWidth` (the named constant
+> `Kirigami.Units.gridUnit * 18`; `ConfigPageBase.fieldWidth` is pinned to the same metric so non-slider
+> fields line up) — it is the value **`Label`** that is
 > `Layout.fillWidth` (and right-aligned), NOT the track. A `fillWidth` track stretches to its
 > `FormLayout` field column, which the Behavior page's long checkbox labels widen well beyond the
 > slider-only Appearance page — so the sliders rendered *different lengths* across the two pages.

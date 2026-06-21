@@ -40,7 +40,7 @@ the same widget, transposed:
 - **Reactive** — bound to `VirtualDesktopInfo`, so switches made from the keyboard, another
   pager, or KWin settings update the widget immediately (state is never cached).
 - **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
-  wrap-around); hi-res/touchpad sub-notches are accumulated.
+  wrap-around and optional inverted direction); hi-res/touchpad sub-notches are accumulated.
 - **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
   and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
   (sourced from the public `TasksModel`).
@@ -173,6 +173,9 @@ plasma-gnome-pager/
 ├── LICENSE                  # GPL-3.0-or-later (full text)
 ├── .gitignore
 ├── .contextProperties.ini   # declares i18n/Plasmoid globals so qmllint stays clean
+├── eslint.config.mjs        # strict ESLint flat config for the pure-JS tier
+├── package.json             # dev-only Node deps for ESLint (package-lock.json committed; not shipped)
+├── tools/                   # eslint-qml-js-parser.mjs — lets ESLint parse the .pragma library JS
 ├── .github/                 # CI workflows (PR validation, PR-source guard, publish) + CODEOWNERS
 ├── screenshots/             # README media (not shipped in the package)
 ├── po/                      # translation source: per-language *.po (the *.pot template is generated)
@@ -192,6 +195,7 @@ plasma-gnome-pager/
             ├── main.qml              # PlasmoidItem root: data source, DBus helpers, actions
             ├── WorkspaceIndicator.qml # the dot strip (row / column / grid + reflow)
             ├── WorkspaceDot.qml       # one element (dot ⇄ capsule morph + tooltip)
+            ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace occupancy
             ├── logic.js               # pure, unit-tested branching logic (no Plasma deps)
             ├── coordinator.js         # shared cross-panel state: dynamic-workspaces global sync + writer election
             └── config/                # settings pages (ConfigGeneral, ConfigAppearance, …)
@@ -207,16 +211,22 @@ make check              # run all headless QML tests — unit + integration (see
 make check-unit         # run only the unit tier (tests/unit)
 make check-integration  # run only the integration tier (tests/integration)
 make lint               # qmllint the widget UI + config pages + tests
+make lint-js            # ESLint the pure-JS tier (logic.js/coordinator.js + tests/shared/*.js)
+make verify             # all static + headless gates in one go: lint + lint-js + check
 make package            # build a distributable .plasmoid into dist/
 make messages           # extract translatable strings into po/ (.pot + merge .po files)
 make i18n               # compile po/*.po into the package (contents/locale/.../*.mo)
 make dev-undev          # remove the dev symlink
 ```
 
+`make lint-js` and `make verify` lint the pure-JS tier with ESLint, which is a dev-only Node
+dependency — run `npm install` (or `npm ci`) once first. None of this is shipped in the `.plasmoid`.
+
 The tests cover the Kirigami-only components (`WorkspaceDot`, `WorkspaceIndicator` driven by a
-mock `VirtualDesktopInfo`, the pure `logic.js`, and the `coordinator.js` state machine); `main.qml`
-— and the cross-panel coordination it relies on — needs a live plasmashell + KWin session, so it is
-verified by the manual `make dev` → `make test` → `make restart` loop.
+mock `VirtualDesktopInfo`, the shared `ConfigSlider` control, the pure `logic.js`, and the
+`coordinator.js` state machine); `main.qml` — and the cross-panel coordination it relies on — needs
+a live plasmashell + KWin session, so it is verified by the manual
+`make dev` → `make test` → `make restart` loop.
 
 ## Translations
 
