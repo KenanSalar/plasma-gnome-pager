@@ -158,6 +158,9 @@ PlasmoidItem {
         id: aggregatorComponent
         WindowAggregator {
             virtualDesktopInfo: vdi   // inject the read source (the aggregator is otherwise data-source-agnostic)
+            // Whether the user actually wants the per-dot window list. When false the aggregator is
+            // live ONLY for dynamic-workspace occupancy, so it skips all the (discarded) tooltip work.
+            windowListActive: root.showTooltips && root.showWindowList
         }
     }
 

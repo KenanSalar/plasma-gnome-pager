@@ -358,8 +358,21 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   no-op regroup (an empty/absent roles list is Qt's "all changed" → still rebuilds) — plus the
 >   Instantiator's `onObjectAdded`/`onObjectRemoved` + `vdi.desktopIdsChanged`) snapshots
 >   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
->   `subText`. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` for
->   the dynamic-workspaces controller (see "Dynamic workspaces" below) — one model, two outputs. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
+>   `subText`. **`relevantRoles` is conditional on an injected `windowListActive` bool (`=
+>   showTooltips && showWindowList`):** the aggregator can be live purely for dynamic-workspace
+>   occupancy, and occupancy reads none of the title/minimised state, so when the window list is off
+>   the set drops `Qt.DisplayRole` + `IsMinimized` (leaving the four occupancy roles `VirtualDesktops`/
+>   `IsOnAllVirtualDesktops`/`IsWindow`/`SkipPager`) — title-rename and minimise-toggle churn then no
+>   longer wakes a rebuild whose tooltip output `main.qml` would discard, and `rebuild()` skips building
+>   the HTML `<ul>`s entirely (leaves `desktopTooltips` `[]`). Toggling the list at runtime flips
+>   `windowListActive`, and `onWindowListActiveChanged` forces the one rebuild that repopulates/clears
+>   the tooltips. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` for
+>   the dynamic-workspaces controller (see "Dynamic workspaces" below) — one model, two outputs. Both
+>   outputs are reassigned **compare-before-assign** (`Logic.arraysShallowEqual`): a QML `var`/object
+>   property notifies on every reassignment to a fresh reference (which each freshly-built array is —
+>   no contents compare), so keeping the old reference when contents match is what stops an identical
+>   occupancy snapshot waking the dynamic controller (or an identical tooltip array re-firing every
+>   dot's binding) on unrelated window churn. The per-desktop strings flow DOWN as a plain `desktopTooltips` array, index-aligned
 >   with `desktopIds` (exactly parallel to `desktopNames`): `main.qml` → `WorkspaceIndicator`
 >   (`desktopTooltips`) → each `WorkspaceDot.tooltipText` by `globalIndex` → `ToolTipArea.subText`
 >   (with `textFormat: Text.RichText`). The sub-components never touch `TasksModel`, so they stay
@@ -370,7 +383,10 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   `windowListMaximum(count)` (the stock rule: 4, but all 5 when exactly 5); `sanitizeHtml` (escapes
 >   `<>&'"` and the no-break space ` ` — **not** the ordinary space, which must still wrap);
 >   `dataChangeAffectsRoles(changedRoles, relevantRoles)` (the rebuild gate above — true when a read role
->   changed OR `changedRoles` is empty/absent = Qt's "all changed", false for pure focus/stacking churn).
+>   changed OR `changedRoles` is empty/absent = Qt's "all changed", false for pure focus/stacking churn);
+>   `arraysShallowEqual(a, b)` (flat-primitive element-wise compare, identity/null/length guarded — the
+>   compare-before-assign guard the aggregator uses so an unchanged occupancy/tooltip array skips its
+>   `var` reassignment and the downstream notification it would otherwise always fire).
 >   i18n formatting stays in `main.qml` because `i18n*` is a plasmoid global, absent under `qmltestrunner`.
 >
 > **Gotcha — `as`-cast dynamic `Loader.item`/`Instantiator.objectAt()` to a NAMED inline component, or
@@ -384,10 +400,11 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
 > `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
 > before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings).
-> Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop,test_dataChangeAffectsRoles}` +
+> Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop,test_dataChangeAffectsRoles,test_arraysShallowEqual}` +
 > `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
 > `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
-> itself is e2e-only (verify in-shell).
+> itself — including the `windowListActive` role/format gating and the compare-before-assign — is
+> e2e-only (verify in-shell).
 
 **Dynamic workspaces (GNOME-style) — auto-maintain ONE empty trailing desktop; default OFF; one
 GLOBAL behaviour across panels.** When enabled, the widget keeps exactly one empty desktop at the

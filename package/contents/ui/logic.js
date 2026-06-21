@@ -194,6 +194,27 @@ function chunk(arr, size) {
 }
 
 /**
+ * Shallow element-wise equality for arrays of primitives (booleans, strings). Lets a caller skip a
+ * `var` property reassignment whose contents are byte-identical: in QML a `var`/object property
+ * notifies on EVERY reassignment to a fresh object reference (which each rebuild's freshly-built
+ * array is) — there is no contents compare — so the aggregator uses this to keep the OLD reference
+ * when contents match and avoid waking downstream bindings/handlers (the dynamic controller, each
+ * dot's tooltip) on an unchanged occupancy/tooltip snapshot. Identity- and null/length-guarded;
+ * two empty arrays compare equal. Strict `!==` compare, so it does NOT recurse into nested arrays
+ * (the inputs here are flat primitive arrays).
+ */
+function arraysShallowEqual(a, b) {
+    if (a === b)
+        return true;
+    if (!a || !b || a.length !== b.length)
+        return false;
+    for (var i = 0; i < a.length; i++)
+        if (a[i] !== b[i])
+            return false;
+    return true;
+}
+
+/**
  * Total extent of one reflow line of `count` slots laid end to end with a uniform `gap` between
  * every adjacent pair: ONE slot is the active capsule (`activeExtent`), the rest are dots
  * (`dotSize`). The length is position-independent — it does not matter which slot holds the

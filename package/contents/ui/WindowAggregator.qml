@@ -33,6 +33,16 @@ Item {
     // throughout: it can be transiently absent during a desktop add/remove or shell reload.
     property var virtualDesktopInfo: null
 
+    // Does the user actually want the per-dot window-list tooltip? Injected by main.qml as
+    // (showTooltips && showWindowList). The aggregator can be loaded purely for dynamic workspaces
+    // (which needs only desktopOccupancy), so when this is false we skip ALL the tooltip work —
+    // both the rebuild TRIGGERS (relevantRoles below drops the title/minimise roles occupancy never
+    // reads) and the per-rebuild HTML formatting (rebuild() leaves desktopTooltips empty). main.qml
+    // already discards the formatted strings in that case (its desktopTooltips binding is gated the
+    // same way), so this only removes wasted work — never changes behaviour. Defaults true so the
+    // aggregator is self-contained if a caller forgets to set it.
+    property bool windowListActive: true
+
     property var desktopTooltips: []
     property var desktopOccupancy: []
 
@@ -61,18 +71,31 @@ Item {
         activity: activityInfo.currentActivity
     }
 
-    // The exact role ints rebuild() reads — title + the five taskmanager roles below — built from
-    // the PUBLIC org.kde.taskmanager enum (already imported; robustness.md). dataChanged for any
-    // OTHER role leaves desktopTooltips byte-identical, so we skip the rebuild — most importantly
-    // IsActive, which KWin emits on EVERY window-focus change (the losing AND gaining window), plus
-    // StackingOrder/Geometry/IsDemandingAttention/icon. Qt::DisplayRole (== 0) is the window title.
-    readonly property var relevantRoles: [
+    // The role ints rebuild() reads, built from the PUBLIC org.kde.taskmanager enum (already
+    // imported; robustness.md). dataChanged for any OTHER role leaves our output byte-identical, so
+    // we skip the rebuild — most importantly IsActive, which KWin emits on EVERY window-focus change
+    // (the losing AND gaining window), plus StackingOrder/Geometry/IsDemandingAttention/icon.
+    //
+    // The set is CONDITIONAL on windowListActive. Occupancy (computeDesktopOccupancy, the only output
+    // when the window list is off) reads four roles — VirtualDesktops, IsOnAllVirtualDesktops,
+    // IsWindow, SkipPager — and never the title or minimised state (a minimised window still occupies
+    // its desktop, so windowOccupiesDesktop has no minimised check). The window LIST additionally
+    // needs the title (Qt::DisplayRole == 0) and IsMinimized (the separate "minimised" tooltip
+    // section). So when the list is off we drop those two, and the high-frequency title-rename /
+    // minimise-toggle churn no longer wakes a (discarded) rebuild. relevantRoles re-evaluates when
+    // windowListActive flips; onWindowListActiveChanged forces the one rebuild that flip needs.
+    readonly property var relevantRoles: aggregator.windowListActive ? [
         Qt.DisplayRole,
         TaskManager.AbstractTasksModel.VirtualDesktops,
         TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
         TaskManager.AbstractTasksModel.IsMinimized,
         TaskManager.AbstractTasksModel.IsWindow,
-        TaskManager.AbstractTasksModel.SkipPager     // occupancy ignores pager-hidden windows
+        TaskManager.AbstractTasksModel.SkipPager
+    ] : [
+        TaskManager.AbstractTasksModel.VirtualDesktops,
+        TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
+        TaskManager.AbstractTasksModel.IsWindow,
+        TaskManager.AbstractTasksModel.SkipPager     // occupancy-only: ignores title/minimised
     ]
 
     // Materialise the rows so objectAt(i) can read role values by name (a C++ QAbstractItemModel has
@@ -134,11 +157,23 @@ Item {
             });
         }
         const ids = aggregator.virtualDesktopInfo?.desktopIds ?? [];
-        // Two pure reductions of the SAME snapshot: the tooltip window list (includes on-all windows,
-        // the stock-pager look) and dynamic-workspace occupancy (excludes on-all/skipPager). Set both
-        // so the feature works even when the window-list tooltip is off (the Loader gate is the OR).
-        aggregator.desktopTooltips = Logic.groupWindowsByDesktop(windows, ids).map(aggregator.formatSubText);
-        aggregator.desktopOccupancy = Logic.computeDesktopOccupancy(windows, ids);
+        // Two pure reductions of the SAME snapshot. Occupancy (excludes on-all/skipPager) ALWAYS
+        // feeds dynamic workspaces; the tooltip window list (includes on-all windows, the stock-pager
+        // look) is built ONLY when the user wants it (windowListActive) — when the list is off main.qml
+        // discards it, so building the N HTML <ul> strings would be pure waste on an always-on widget.
+        // Compare-before-assign on BOTH: a `var`/object property notifies on every reassignment to a
+        // fresh reference (which each freshly-built array is) — no contents compare — so re-assigning
+        // an identical array would needlessly wake the dynamic controller (occupancy) or every dot's
+        // tooltip binding (tooltips) on unrelated window churn. arraysShallowEqual keeps the old ref.
+        const tooltips = aggregator.windowListActive
+            ? Logic.groupWindowsByDesktop(windows, ids).map(aggregator.formatSubText)
+            : [];
+        if (!Logic.arraysShallowEqual(tooltips, aggregator.desktopTooltips))
+            aggregator.desktopTooltips = tooltips;
+
+        const occupancy = Logic.computeDesktopOccupancy(windows, ids);
+        if (!Logic.arraysShallowEqual(occupancy, aggregator.desktopOccupancy))
+            aggregator.desktopOccupancy = occupancy;
     }
 
     // One window title as escaped rich text, falling back to a localized "Untitled Window" for a
@@ -174,6 +209,11 @@ Item {
             t += i18ncp("@info:tooltip", "%1 Minimized Window:", "%1 Minimized Windows:", s.minimized.length) + aggregator.formatList(s.minimized);
         return t.length ? "<style>ul { margin: 0; }</style>" + t : "";
     }
+
+    // Toggling the window list at runtime changes BOTH what rebuild() produces (tooltips ⇄ []) and
+    // which roles trigger it (relevantRoles), so force one rebuild on the flip: ON repopulates the
+    // per-dot tooltips that were left empty, OFF clears them to []. Debounced like every other trigger.
+    onWindowListActiveChanged: aggregator.scheduleRebuild()
 
     Component.onCompleted: aggregator.rebuild()
 }

@@ -245,6 +245,38 @@ TestCase {
         compare(JSON.stringify(Logic.chunk(data.arr, data.size)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- arraysShallowEqual: skip a `var` reassignment whose flat-primitive contents are identical -
+    // The aggregator uses this to avoid notifying on an unchanged occupancy/tooltip snapshot (a QML
+    // `var` write always fires its change signal). Element-wise strict compare; identity/null/length
+    // guarded; two empty arrays are equal. NOT recursive — nested arrays compare by reference only.
+    function test_arraysShallowEqual_data() {
+        var same = [true, false, true];
+        var nested = [["a"]];
+        return [
+            { tag: "identical-bools", a: [true, false, true], b: [true, false, true], exp: true },
+            { tag: "identical-strings", a: ["x", "y"], b: ["x", "y"], exp: true },
+            { tag: "same-reference", a: same, b: same, exp: true },
+            { tag: "both-empty", a: [], b: [], exp: true },
+            { tag: "differ-element", a: [true, false], b: [true, true], exp: false },
+            { tag: "differ-length-shorter", a: [true], b: [true, false], exp: false },
+            { tag: "differ-length-longer", a: [true, false, false], b: [true, false], exp: false },
+            { tag: "string-vs-empty", a: ["a"], b: [], exp: false },
+            { tag: "null-a", a: null, b: [], exp: false },
+            { tag: "null-b", a: [], b: null, exp: false },
+            { tag: "both-null-identity", a: null, b: null, exp: true },
+            { tag: "undefined-a", a: undefined, b: [true], exp: false },
+            // strict !== compare: distinct nested arrays are unequal even with equal contents.
+            { tag: "nested-distinct-refs-unequal", a: [["a"]], b: [["a"]], exp: false },
+            { tag: "nested-same-ref-equal", a: nested, b: nested, exp: true },
+            // type-strictness: 1 !== true, "1" !== 1 (no coercion).
+            { tag: "no-bool-number-coercion", a: [1], b: [true], exp: false },
+            { tag: "no-string-number-coercion", a: ["1"], b: [1], exp: false }
+        ];
+    }
+    function test_arraysShallowEqual(data) {
+        compare(Logic.arraysShallowEqual(data.a, data.b), data.exp, data.tag);
+    }
+
     // --- lineExtent: one capsule + the rest dots, uniform gaps; transient -> one dot ---
     // Two callers: the major axis passes the pill as activeExtent (a real capsule); the cross
     // axis passes dotSize (the all-dots degenerate case, n*dot + (n-1)*gap).
