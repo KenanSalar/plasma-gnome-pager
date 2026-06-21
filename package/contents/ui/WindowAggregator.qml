@@ -61,7 +61,7 @@ Item {
         activity: activityInfo.currentActivity
     }
 
-    // The exact role ints rebuild() reads — title + the four taskmanager roles below — built from
+    // The exact role ints rebuild() reads — title + the five taskmanager roles below — built from
     // the PUBLIC org.kde.taskmanager enum (already imported; robustness.md). dataChanged for any
     // OTHER role leaves desktopTooltips byte-identical, so we skip the rebuild — most importantly
     // IsActive, which KWin emits on EVERY window-focus change (the losing AND gaining window), plus
