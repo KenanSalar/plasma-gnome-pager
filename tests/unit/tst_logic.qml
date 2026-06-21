@@ -515,6 +515,77 @@ TestCase {
         compare(JSON.stringify(Logic.groupWindowsByDesktop(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- computeDesktopOccupancy: per-desktop "has a window" boolean[] for dynamic workspaces -------
+    // Index-aligned with desktopIds. A desktop is occupied by a REAL window that is NOT on-all and NOT
+    // skipPager; minimized windows DO count (unlike a tooltip, an on-all window does NOT pin a desktop).
+    function test_computeDesktopOccupancy_data() {
+        const occ = function (desktops, opts) {
+            opts = opts || {};
+            return { isWindow: opts.isWindow !== false, onAll: opts.onAll === true, skipPager: opts.skipPager === true, minimized: opts.minimized === true, desktops: desktops };
+        };
+        return [
+            // transient/degenerate inputs degrade to [] or all-false, never throw.
+            { tag: "empty-ids", windows: [occ(["a"])], ids: [], exp: [] },
+            { tag: "null-ids", windows: [occ(["a"])], ids: null, exp: [] },
+            { tag: "undefined-ids", windows: [occ(["a"])], ids: undefined, exp: [] },
+            { tag: "null-windows-all-false", windows: null, ids: ["a", "b"], exp: [false, false] },
+            { tag: "empty-windows-all-false", windows: [], ids: ["a", "b"], exp: [false, false] },
+            // a window pins exactly its desktop; alignment is by index.
+            { tag: "membership-and-alignment", windows: [occ(["a"]), occ(["b"])], ids: ["a", "b"], exp: [true, true] },
+            { tag: "not-on-this-desktop", windows: [occ(["b"])], ids: ["a"], exp: [false] },
+            { tag: "empty-desktops-array", windows: [occ([])], ids: ["a"], exp: [false] },
+            // the three exclusions: on-all (would pin everything), skipPager (hidden), non-window (launcher).
+            { tag: "on-all-excluded", windows: [occ([], { onAll: true })], ids: ["a", "b"], exp: [false, false] },
+            { tag: "skip-pager-excluded", windows: [occ(["a"], { skipPager: true })], ids: ["a"], exp: [false] },
+            { tag: "non-window-excluded", windows: [occ(["a"], { isWindow: false })], ids: ["a"], exp: [false] },
+            // the one inclusion that differs from the exclusions: a minimized window still occupies.
+            { tag: "minimized-counts", windows: [occ(["a"], { minimized: true })], ids: ["a"], exp: [true] },
+            // a window on two desktops pins both, not a third.
+            { tag: "window-on-multiple-desktops", windows: [occ(["a", "b"])], ids: ["a", "b", "c"], exp: [true, true, false] },
+            // mixed: one visible, one minimized, a trailing empty.
+            { tag: "mixed", windows: [occ(["a"]), occ(["b"], { minimized: true })], ids: ["a", "b", "c"], exp: [true, true, false] }
+        ];
+    }
+    function test_computeDesktopOccupancy(data) {
+        compare(JSON.stringify(Logic.computeDesktopOccupancy(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
+    // One action per call; reactive re-triggering converges to exactly one trailing empty. Trailing-trim
+    // takes priority over middle removal; transient/length-mismatch frames are no-ops (null).
+    function test_dynamicWorkspacePlan_data() {
+        return [
+            // guards: absent arrays, empty set, or an occupancy snapshot that lags the desktop set.
+            { tag: "null-occupancy", occ: null, ids: ["a"], mid: false, exp: null },
+            { tag: "null-ids", occ: [false], ids: null, mid: false, exp: null },
+            { tag: "empty-ids", occ: [], ids: [], mid: false, exp: null },
+            { tag: "length-mismatch", occ: [false], ids: ["a", "b"], mid: false, exp: null },
+            // n==1: keep the single empty (never remove the last); add when it fills.
+            { tag: "single-empty-noop", occ: [false], ids: ["a"], mid: false, exp: null },
+            { tag: "single-occupied-add", occ: [true], ids: ["a"], mid: false, exp: { kind: "add" } },
+            // 0 trailing empties -> add (the last desktop is occupied), regardless of a leading empty.
+            { tag: "last-occupied-add", occ: [true, true], ids: ["a", "b"], mid: false, exp: { kind: "add" } },
+            { tag: "no-trailing-empty-add", occ: [false, true], ids: ["a", "b"], mid: false, exp: { kind: "add" } },
+            // exactly one trailing empty is the fixpoint (middle off) -> no-op.
+            { tag: "one-trailing-empty-noop", occ: [true, false], ids: ["a", "b"], mid: false, exp: null },
+            // >=2 trailing empties -> trim the LAST one (re-trigger trims the rest).
+            { tag: "two-trailing-trim-last", occ: [true, false, false], ids: ["a", "b", "c"], mid: false, exp: { kind: "remove", uuid: "c" } },
+            { tag: "all-empty-trim-last", occ: [false, false], ids: ["a", "b"], mid: false, exp: { kind: "remove", uuid: "b" } },
+            // middle removal OFF leaves an empty middle alone.
+            { tag: "middle-empty-off-noop", occ: [false, true, false], ids: ["a", "b", "c"], mid: false, exp: null },
+            { tag: "middle-empty-off-undefined-noop", occ: [false, true, false], ids: ["a", "b", "c"], mid: undefined, exp: null },
+            // middle removal ON purges the FIRST empty middle desktop (excludes the trailing empty).
+            { tag: "middle-empty-on-removes-first", occ: [false, true, false], ids: ["a", "b", "c"], mid: true, exp: { kind: "remove", uuid: "a" } },
+            { tag: "middle-empty-on-skips-occupied", occ: [true, false, true, false], ids: ["a", "b", "c", "d"], mid: true, exp: { kind: "remove", uuid: "b" } },
+            { tag: "middle-on-no-middle-empty-noop", occ: [true, true, false], ids: ["a", "b", "c"], mid: true, exp: null },
+            // trailing-trim wins over middle removal even when both apply.
+            { tag: "trailing-trim-beats-middle", occ: [false, true, false, false], ids: ["a", "b", "c", "d"], mid: true, exp: { kind: "remove", uuid: "d" } }
+        ];
+    }
+    function test_dynamicWorkspacePlan(data) {
+        compare(JSON.stringify(Logic.dynamicWorkspacePlan(data.occ, data.ids, data.mid)), JSON.stringify(data.exp), data.tag);
+    }
+
     // --- dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed ----
     // Skips the high-frequency churn (IsActive on focus, StackingOrder, …) the aggregator never reads.
     // Qt semantics: an EMPTY (or null/undefined) roles list means "all roles changed" -> must rebuild.
@@ -556,6 +627,8 @@ TestCase {
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
             { tag: "enableRename", key: "enableRename", exp: true },
+            { tag: "dynamicWorkspaces", key: "dynamicWorkspaces", exp: false },
+            { tag: "dynamicRemoveMiddle", key: "dynamicRemoveMiddle", exp: false },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
@@ -587,11 +660,12 @@ TestCase {
     // or REMOVED key). A new config key must be added here and to main.xml together, or this fails.
     function test_defaultsKeySet() {
         var keys = Object.keys(Logic.DEFAULTS).sort();
-        var expected = ["activeColor", "animationDuration", "dotSize", "enableAddRemove", "enableRename",
+        var expected = ["activeColor", "animationDuration", "dotSize", "dynamicRemoveMiddle",
+                        "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
                         "inactiveOpacity", "invertScroll", "pillSize", "pillWidthFactor", "scrollWrap",
                         "showTooltips", "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 18, "DEFAULTS has exactly 18 keys");
+        compare(keys.length, 20, "DEFAULTS has exactly 20 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 

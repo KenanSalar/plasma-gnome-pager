@@ -53,6 +53,14 @@
         <entry name="enableRename" type="Bool">
             <default>true</default>
         </entry>
+        <!-- GNOME-style dynamic workspaces: auto-keep exactly one empty trailing desktop. -->
+        <entry name="dynamicWorkspaces" type="Bool">
+            <default>false</default>
+        </entry>
+        <!-- Also remove empty desktops in between, not just trailing ones (needs dynamicWorkspaces). -->
+        <entry name="dynamicRemoveMiddle" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- Morph animation length in ms; 0 = follow the theme (Kirigami.Units.longDuration). -->
         <entry name="animationDuration" type="Int">
             <default>0</default>

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-21 02:27+0200\n"
+"POT-Creation-Date: 2026-06-21 12:35+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Italian\n"
@@ -31,7 +31,7 @@ msgstr "Aspetto"
 msgid "Dot size:"
 msgstr "Dimensione dei punti:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:107
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:125
 #, kde-format
 msgid "Default"
 msgstr "Predefinito"
@@ -103,62 +103,77 @@ msgstr "Desktop attivo:"
 msgid "Inactive desktop:"
 msgstr "Desktop inattivo:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:67
+#: package/contents/ui/config/ConfigGeneral.qml:75
 #, kde-format
 msgid "Mouse:"
 msgstr "Mouse:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:68
+#: package/contents/ui/config/ConfigGeneral.qml:76
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Scorri sul pager per cambiare desktop"
 
-#: package/contents/ui/config/ConfigGeneral.qml:72
+#: package/contents/ui/config/ConfigGeneral.qml:80
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "Cicla tra il primo e l'ultimo desktop"
 
-#: package/contents/ui/config/ConfigGeneral.qml:77
+#: package/contents/ui/config/ConfigGeneral.qml:85
 #, kde-format
 msgid "Invert the scroll direction"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:82
+#: package/contents/ui/config/ConfigGeneral.qml:90
 #, kde-format
 msgid "Tooltips:"
 msgstr "Suggerimenti:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:83
+#: package/contents/ui/config/ConfigGeneral.qml:91
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Mostra il nome del desktop al passaggio del mouse"
 
-#: package/contents/ui/config/ConfigGeneral.qml:87
+#: package/contents/ui/config/ConfigGeneral.qml:95
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Elenca le finestre aperte nel suggerimento"
 
-#: package/contents/ui/config/ConfigGeneral.qml:92
+#: package/contents/ui/config/ConfigGeneral.qml:100
 #, kde-format
 msgid "Menu:"
 msgstr "Menu:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:93
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Aggiungi e rimuovi desktop dal menu contestuale"
 
-#: package/contents/ui/config/ConfigGeneral.qml:97
+#: package/contents/ui/config/ConfigGeneral.qml:105
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Rinomina il desktop attuale dal menu contestuale"
 
-#: package/contents/ui/config/ConfigGeneral.qml:102
+#: package/contents/ui/config/ConfigGeneral.qml:109
+#, fuzzy, kde-format
+msgid "Dynamic desktops:"
+msgstr "Rinomina desktop:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:110
+#, kde-format
+msgid "Automatically add and remove desktops (GNOME-style)"
+msgstr ""
+
+#: package/contents/ui/config/ConfigGeneral.qml:114
+#, kde-format
+msgid "Also remove empty desktops in between"
+msgstr ""
+
+#: package/contents/ui/config/ConfigGeneral.qml:120
 #, kde-format
 msgid "Animation duration:"
 msgstr "Durata dell'animazione:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:107
+#: package/contents/ui/config/ConfigGeneral.qml:125
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -170,13 +185,13 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Valori predefiniti"
 
-#: package/contents/ui/main.qml:254 package/contents/ui/main.qml:267
+#: package/contents/ui/main.qml:276 package/contents/ui/main.qml:289
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Finestra senza titolo"
 
-#: package/contents/ui/main.qml:256
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -184,7 +199,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… e %1 altra finestra"
 msgstr[1] "… e %1 altre finestre"
 
-#: package/contents/ui/main.qml:269
+#: package/contents/ui/main.qml:291
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -192,7 +207,7 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 finestra:"
 msgstr[1] "%1 finestre:"
 
-#: package/contents/ui/main.qml:273
+#: package/contents/ui/main.qml:295
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
@@ -200,37 +215,37 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 finestra minimizzata:"
 msgstr[1] "%1 finestre minimizzate:"
 
-#: package/contents/ui/main.qml:326
+#: package/contents/ui/main.qml:348
 #, kde-format
 msgid "New Desktop"
 msgstr "Nuovo desktop"
 
-#: package/contents/ui/main.qml:361
+#: package/contents/ui/main.qml:446
 #, kde-format
 msgid "Add Desktop"
 msgstr "Aggiungi desktop"
 
-#: package/contents/ui/main.qml:369
+#: package/contents/ui/main.qml:454
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Rimuovi l'ultimo desktop"
 
-#: package/contents/ui/main.qml:377
+#: package/contents/ui/main.qml:462
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Rinomina il desktop attuale…"
 
-#: package/contents/ui/main.qml:427
+#: package/contents/ui/main.qml:512
 #, kde-format
 msgid "Rename desktop:"
 msgstr "Rinomina desktop:"
 
-#: package/contents/ui/main.qml:441
+#: package/contents/ui/main.qml:526
 #, kde-format
 msgid "Cancel"
 msgstr "Annulla"
 
-#: package/contents/ui/main.qml:446
+#: package/contents/ui/main.qml:531
 #, kde-format
 msgid "Rename"
 msgstr "Rinomina"

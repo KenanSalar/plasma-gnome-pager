@@ -58,6 +58,10 @@ PlasmoidItem {
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
     readonly property bool enableRename: Plasmoid.configuration.enableRename ?? Logic.DEFAULTS.enableRename
+    // Dynamic workspaces (GNOME-style, default OFF): auto-keep exactly one empty trailing desktop, and —
+    // when dynamicRemoveMiddle is on — also purge empty desktops in between. Drives the controller below.
+    readonly property bool dynamicWorkspaces: Plasmoid.configuration.dynamicWorkspaces ?? Logic.DEFAULTS.dynamicWorkspaces
+    readonly property bool dynamicRemoveMiddle: Plasmoid.configuration.dynamicRemoveMiddle ?? Logic.DEFAULTS.dynamicRemoveMiddle
 
     // Appearance + animation settings, read the same way and passed down to the indicator as plain
     // values (it forwards them per-dot). dotSize/animationDuration use a `0 = auto` sentinel: the
@@ -124,19 +128,26 @@ PlasmoidItem {
     // each dot falls back to a name-only tooltip. Mirrors the stock KDE pager's tooltip text, but sourced
     // from the PUBLIC TaskManager.TasksModel instead of the private PagerModel (robustness.md). The `as`
     // cast gives qmllint a typed read of the loaded item's property (no missing-property on Loader.item).
-    readonly property var desktopTooltips: tooltipLoader.item ? (tooltipLoader.item as TooltipAggregator).desktopTooltips : []
+    readonly property var desktopTooltips: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopTooltips : []
+
+    // Per-desktop occupancy boolean[] (does each desktop hold a window?), index-aligned with vdi.desktopIds.
+    // Produced from the SAME window snapshot as desktopTooltips (one shared TasksModel) and consumed by the
+    // dynamic-workspaces controller below. Empty [] when the aggregator Loader is inactive (feature + window
+    // list both off) — the controller then no-ops via the length guard in Logic.dynamicWorkspacePlan.
+    readonly property var desktopOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopOccupancy : []
 
     // The whole window-list machinery (a TasksModel + ActivityInfo + the row Instantiator) lives behind a
-    // Loader gated by showTooltips && showWindowList, so when the window list is off it — and its always-on
-    // model cost — simply does not exist (qml-performance.md: this widget is always on screen).
+    // Loader, so when nothing needs it the always-on model cost simply does not exist (qml-performance.md:
+    // this widget is always on screen). It's needed for the tooltip window list (showTooltips && showWindowList)
+    // AND for dynamic workspaces (which reads per-desktop occupancy) — so the gate is the OR of the two.
     Loader {
         id: tooltipLoader
-        active: root.showTooltips && root.showWindowList
+        active: (root.showTooltips && root.showWindowList) || root.dynamicWorkspaces
         sourceComponent: aggregatorComponent
     }
     Component {
         id: aggregatorComponent
-        TooltipAggregator {}
+        WindowAggregator {}
     }
 
     // One materialised TasksModel row, as a NAMED inline component so objectAt(i) can be `as`-cast to it
@@ -150,17 +161,21 @@ PlasmoidItem {
         readonly property bool onAllDesktops: model.IsOnAllVirtualDesktops
         readonly property bool minimized: model.IsMinimized
         readonly property bool isWindow: model.IsWindow   // false for launchers / startup tasks
+        readonly property bool skipPager: model.SkipPager // hidden from pagers — never counts as occupying a desktop
     }
 
-    // The window-list aggregator — a NAMED inline component (so tooltipLoader.item can be `as`-cast to it
+    // The window aggregator — a NAMED inline component (so tooltipLoader.item can be `as`-cast to it
     // above). Non-visual zero-size Item: Loader.item must be a QQuickItem, not a bare QtObject. ONE
-    // unfiltered public TasksModel + grouping in pure JS (Logic.groupWindowsByDesktop), not N filtered
-    // models, so the grouping/truncation stays headless-unit-tested. GroupDisabled → one row per window
-    // (an accurate per-desktop count); filterByActivity keeps other activities' windows out of the lists.
-    component TooltipAggregator: Item {
+    // unfiltered public TasksModel feeds BOTH features from a single snapshot via pure JS
+    // (Logic.groupWindowsByDesktop for the tooltip list, Logic.computeDesktopOccupancy for dynamic
+    // workspaces), not N filtered models, so the grouping stays headless-unit-tested. GroupDisabled →
+    // one row per window (an accurate per-desktop count); filterByActivity keeps other activities'
+    // windows out of the lists (so occupancy is current-activity — see CLAUDE.md / the plan's trade-off).
+    component WindowAggregator: Item {
         id: aggregator
 
         property var desktopTooltips: []
+        property var desktopOccupancy: []
 
         TaskManager.ActivityInfo {
             id: activityInfo
@@ -183,7 +198,8 @@ PlasmoidItem {
             TaskManager.AbstractTasksModel.VirtualDesktops,
             TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
             TaskManager.AbstractTasksModel.IsMinimized,
-            TaskManager.AbstractTasksModel.IsWindow
+            TaskManager.AbstractTasksModel.IsWindow,
+            TaskManager.AbstractTasksModel.SkipPager     // occupancy ignores pager-hidden windows
         ]
 
         // Materialise the rows so objectAt(i) can read role values by name (a C++ QAbstractItemModel has
@@ -240,10 +256,16 @@ PlasmoidItem {
                     minimized: o.minimized,
                     onAll: o.onAllDesktops,
                     isWindow: o.isWindow,
+                    skipPager: o.skipPager,
                     desktops: (o.windowDesktops || []).map(x => String(x))
                 });
             }
-            aggregator.desktopTooltips = Logic.groupWindowsByDesktop(windows, vdi.desktopIds ?? []).map(aggregator.formatSubText);
+            const ids = vdi.desktopIds ?? [];
+            // Two pure reductions of the SAME snapshot: the tooltip window list (includes on-all windows,
+            // the stock-pager look) and dynamic-workspace occupancy (excludes on-all/skipPager). Set both
+            // so the feature works even when the window-list tooltip is off (the Loader gate is the OR).
+            aggregator.desktopTooltips = Logic.groupWindowsByDesktop(windows, ids).map(aggregator.formatSubText);
+            aggregator.desktopOccupancy = Logic.computeDesktopOccupancy(windows, ids);
         }
 
         // Build one desktop's window list as a rich-text <ul> capped at Logic.windowListMaximum, with an
@@ -334,6 +356,70 @@ PlasmoidItem {
     // "Remove" targets the last desktop (the one addDesktop appended).
     function removeLastDesktop() {
         root.removeDesktop(Logic.lastDesktopId(vdi.desktopIds));
+    }
+
+    // ── Dynamic workspaces (GNOME-style) ──────────────────────────────────────────────────────────
+    // When enabled, keep exactly one empty trailing desktop (and, with dynamicRemoveMiddle, no empty
+    // desktops between occupied ones) by issuing ONE KWin add/remove per cycle and letting `vdi` report
+    // the result (the read/write split). The decision is the pure Logic.dynamicWorkspacePlan; here we only
+    // debounce, RE-CHECK against the freshest state right before dispatching, and hold a short busy-lock.
+    //
+    // Robust under multiple pager instances (multi-monitor): every instance reads the same reactive global
+    // state, so if another instance already acted, this one's synchronous re-check in evaluateDynamic sees
+    // the new desktop set/occupancy and the plan returns null. The busy-lock stops THIS instance from
+    // re-firing before its own change reflects; dynBusyTimer is the fallback unlock for the case where a
+    // dispatch never lands (a guard rejected it, or KWin dropped it).
+    property bool dynBusy: false
+    Timer {
+        id: dynBusyTimer
+        interval: 750
+        onTriggered: root.dynBusy = false
+    }
+
+    // Coalesce a burst of occupancy / desktop-set changes into ONE evaluation next tick (the aggregator's
+    // scheduleRebuild idiom). A cheap no-op when the feature is off.
+    function scheduleDynamic() {
+        if (!root.dynamicWorkspaces)
+            return;
+        Qt.callLater(root.evaluateDynamic);
+    }
+
+    // Compute and dispatch the single dynamic-workspace action for the FRESHEST state, or do nothing. The
+    // re-check here (post-debounce, synchronous) is what lets concurrent instances converge without a
+    // leader. The length guard inside dynamicWorkspacePlan makes a transient frame — where desktopOccupancy
+    // still lags a just-changed desktop set — a no-op until occupancy catches up.
+    function evaluateDynamic() {
+        if (!root.dynamicWorkspaces || root.dynBusy)
+            return;
+        const ids = vdi.desktopIds ?? [];
+        const plan = Logic.dynamicWorkspacePlan(root.desktopOccupancy, ids, root.dynamicRemoveMiddle);
+        if (!plan)
+            return;
+        let spec = null;
+        if (plan.kind === "add")
+            // Non-empty name: KWin silently DROPS createDesktop when the name is empty (the call no-ops with
+            // no error). Reuse the proven manual-add name; the user can rename via the right-click menu.
+            spec = Logic.addSpec(vdi.numberOfDesktops ?? ids.length, i18n("New Desktop"));
+        else if (plan.kind === "remove")
+            spec = Logic.removeSpec(plan.uuid, vdi.numberOfDesktops ?? ids.length);
+        if (!spec)
+            return;
+        root.dynBusy = true;
+        root.dispatch(spec);
+        dynBusyTimer.restart();
+    }
+
+    // Triggers, all routed through the debounced scheduleDynamic: occupancy flips (a window opened/closed/
+    // moved), the feature being switched on, and the desktop SET changing — the last is also the signal
+    // that OUR own add/remove landed, so it clears the busy-lock and re-evaluates for the next step.
+    onDesktopOccupancyChanged: root.scheduleDynamic()
+    onDynamicWorkspacesChanged: if (root.dynamicWorkspaces) root.scheduleDynamic()
+    Connections {
+        target: vdi
+        function onDesktopIdsChanged() {
+            root.dynBusy = false;
+            root.scheduleDynamic();
+        }
     }
 
     // Rename a desktop by UUID via KWin's setDesktopName(id, name). renameSpec trims/sanitizes and

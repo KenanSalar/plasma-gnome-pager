@@ -37,6 +37,8 @@ var DEFAULTS = Object.freeze({
     showWindowList: true,        // list the windows open on a desktop in its tooltip
     enableAddRemove: true,
     enableRename: true,          // offer "Rename Current Desktop…" in the right-click menu
+    dynamicWorkspaces: false,    // GNOME-style: auto-keep exactly one empty trailing desktop
+    dynamicRemoveMiddle: false,  // also remove empty desktops in the MIDDLE (only with dynamicWorkspaces)
     animationDuration: 0,        // ms; 0 = follow the theme (Kirigami.Units.longDuration)
     // Appearance group
     dotSize: 0,                  // px; 0 = auto (HiDPI themed size, resolved in the indicator)
@@ -318,6 +320,103 @@ function groupWindowsByDesktop(windows, desktopIds) {
         out.push({ visible: visible, minimized: minimized });
     }
     return out;
+}
+
+/*
+ * Dynamic workspaces (GNOME-style).
+ *
+ * GNOME keeps exactly one empty workspace at the end: populate the last one and a new empty appears;
+ * empty the others and they collapse away. The functions below are the PURE decision layer for that
+ * (no Plasma deps) — main.qml feeds them a window snapshot + the live desktop ids and dispatches the
+ * single add/remove they return, letting `vdi` report the resulting state (the read/write split).
+ * Default OFF; see DEFAULTS.dynamicWorkspaces / dynamicRemoveMiddle.
+ */
+
+/**
+ * Does `window` make a desktop NON-EMPTY for dynamic-workspace purposes? Real window only, and —
+ * unlike windowIsOnDesktop (the tooltip's membership) — an on-all-desktops window does NOT count
+ * (it would pin every desktop as occupied, so nothing could ever be empty), nor does a window
+ * hidden from the pager (`skipPager`, matching the KWin "Dynamic Workspaces" scripts). MINIMIZED
+ * windows DO count (a minimized window still occupies its desktop — GNOME + the KWin scripts agree),
+ * so there is intentionally no minimized check here. Returns a strict boolean.
+ */
+function windowOccupiesDesktop(window, uuid) {
+    if (!window || !window.isWindow)
+        return false;
+    if (window.onAll || window.skipPager)
+        return false;
+    return !!(window.desktops && window.desktops.indexOf(uuid) !== -1);
+}
+
+/**
+ * Reduce a flat window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`
+ * (parallel to desktopNames / the tooltip array). `windows` elements are the same shape main.qml
+ * materialises from TasksModel — { isWindow, onAll, skipPager, minimized, desktops:[uuid…] } (title is
+ * unused here). out[i] is true iff some window windowOccupiesDesktop(w, desktopIds[i]). Guards the
+ * transient states exactly like groupWindowsByDesktop: null/empty `desktopIds` → [] (desktopIds can be
+ * [] for a frame — robustness.md); null/empty `windows` → all-false, one entry per desktop.
+ */
+function computeDesktopOccupancy(windows, desktopIds) {
+    if (!desktopIds || desktopIds.length === 0)
+        return [];
+    var wins = windows || [];
+    var out = [];
+    for (var d = 0; d < desktopIds.length; d++) {
+        var uuid = desktopIds[d];
+        var occupied = false;
+        for (var i = 0; i < wins.length; i++) {
+            if (windowOccupiesDesktop(wins[i], uuid)) {
+                occupied = true;
+                break;
+            }
+        }
+        out.push(occupied);
+    }
+    return out;
+}
+
+/**
+ * Decide the SINGLE dynamic-workspace action for the current state, or null for "leave it alone".
+ * `occupancy` is computeDesktopOccupancy(...) aligned with `desktopIds`; `removeMiddle` is the
+ * optional config for purging empty desktops between occupied ones (full GNOME fidelity).
+ *
+ * Returns one of:
+ *   { kind: "add" }                  — append an empty desktop at the end
+ *   { kind: "remove", uuid: <id> }   — remove that desktop (main.qml issues removeSpec)
+ *   null                             — no change
+ *
+ * The rule, computing ONE action per call so reactive re-triggering converges to a stable fixpoint
+ * (always exactly one trailing empty):
+ *   - 0 trailing empties        → add (the last desktop is occupied)
+ *   - >=2 trailing empties      → remove the LAST (trims one; re-trigger trims the rest)
+ *   - 1 trailing empty + middle → remove the first empty MIDDLE desktop (only when removeMiddle)
+ *   - otherwise                 → null (one empty desktop is exactly right; never touch the last one)
+ *
+ * Guards (every transient frame is a no-op): null arrays, an empty desktop set, or a length mismatch
+ * between `occupancy` and `desktopIds` (the occupancy snapshot lags a desktop add/remove by a frame)
+ * all return null. Removal reuses canRemoveDesktop so the never-remove-last rule is one source of truth.
+ */
+function dynamicWorkspacePlan(occupancy, desktopIds, removeMiddle) {
+    if (!occupancy || !desktopIds)
+        return null;
+    var n = desktopIds.length;
+    if (n === 0 || occupancy.length !== n)
+        return null;
+
+    var trailing = 0;
+    for (var i = n - 1; i >= 0 && !occupancy[i]; i--)
+        trailing++;
+
+    if (trailing === 0)
+        return { kind: "add" };                                  // last desktop occupied → grow
+    if (trailing >= 2 && canRemoveDesktop(n))
+        return { kind: "remove", uuid: desktopIds[n - 1] };      // too many trailing empties → trim tail
+    if (trailing === 1 && removeMiddle) {
+        for (var j = 0; j < n - 1; j++)
+            if (!occupancy[j] && canRemoveDesktop(n))
+                return { kind: "remove", uuid: desktopIds[j] };  // an empty desktop between occupied ones
+    }
+    return null;
 }
 
 /**

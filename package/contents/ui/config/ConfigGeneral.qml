@@ -28,6 +28,8 @@ ConfigPageBase {
     property alias cfg_showWindowList: showWindowList.checked
     property alias cfg_enableAddRemove: enableAddRemove.checked
     property alias cfg_enableRename: enableRename.checked
+    property alias cfg_dynamicWorkspaces: dynamicWorkspaces.checked
+    property alias cfg_dynamicRemoveMiddle: dynamicRemoveMiddle.checked
     property alias cfg_animationDuration: animationDuration.value
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
@@ -38,6 +40,8 @@ ConfigPageBase {
     property bool cfg_showWindowListDefault
     property bool cfg_enableAddRemoveDefault
     property bool cfg_enableRenameDefault
+    property bool cfg_dynamicWorkspacesDefault
+    property bool cfg_dynamicRemoveMiddleDefault
     property int cfg_animationDurationDefault
 
     // True when any key on this page differs from its default (gates the base's Defaults action).
@@ -48,6 +52,8 @@ ConfigPageBase {
         || cfg_showWindowList !== cfg_showWindowListDefault
         || cfg_enableAddRemove !== cfg_enableAddRemoveDefault
         || cfg_enableRename !== cfg_enableRenameDefault
+        || cfg_dynamicWorkspaces !== cfg_dynamicWorkspacesDefault
+        || cfg_dynamicRemoveMiddle !== cfg_dynamicRemoveMiddleDefault
         || cfg_animationDuration !== cfg_animationDurationDefault
 
     onDefaultsRequested: {
@@ -58,6 +64,8 @@ ConfigPageBase {
         cfg_showWindowList = cfg_showWindowListDefault;
         cfg_enableAddRemove = cfg_enableAddRemoveDefault;
         cfg_enableRename = cfg_enableRenameDefault;
+        cfg_dynamicWorkspaces = cfg_dynamicWorkspacesDefault;
+        cfg_dynamicRemoveMiddle = cfg_dynamicRemoveMiddleDefault;
         cfg_animationDuration = cfg_animationDurationDefault;
     }
 
@@ -95,6 +103,16 @@ ConfigPageBase {
         QQC2.CheckBox {
             id: enableRename
             text: i18n("Rename the current desktop from the right-click menu")
+        }
+        QQC2.CheckBox {
+            id: dynamicWorkspaces
+            Kirigami.FormData.label: i18n("Dynamic desktops:")
+            text: i18n("Automatically add and remove desktops (GNOME-style)")
+        }
+        QQC2.CheckBox {
+            id: dynamicRemoveMiddle
+            text: i18n("Also remove empty desktops in between")
+            enabled: dynamicWorkspaces.checked   // middle removal only matters when dynamic is on
         }
 
         ConfigSlider {
