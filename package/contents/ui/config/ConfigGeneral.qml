@@ -23,6 +23,7 @@ ConfigPageBase {
 
     property alias cfg_enableScroll: enableScroll.checked
     property alias cfg_scrollWrap: scrollWrap.checked
+    property alias cfg_invertScroll: invertScroll.checked
     property alias cfg_showTooltips: showTooltips.checked
     property alias cfg_showWindowList: showWindowList.checked
     property alias cfg_enableAddRemove: enableAddRemove.checked
@@ -32,6 +33,7 @@ ConfigPageBase {
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property bool cfg_enableScrollDefault
     property bool cfg_scrollWrapDefault
+    property bool cfg_invertScrollDefault
     property bool cfg_showTooltipsDefault
     property bool cfg_showWindowListDefault
     property bool cfg_enableAddRemoveDefault
@@ -41,6 +43,7 @@ ConfigPageBase {
     // True when any key on this page differs from its default (gates the base's Defaults action).
     isModified: cfg_enableScroll !== cfg_enableScrollDefault
         || cfg_scrollWrap !== cfg_scrollWrapDefault
+        || cfg_invertScroll !== cfg_invertScrollDefault
         || cfg_showTooltips !== cfg_showTooltipsDefault
         || cfg_showWindowList !== cfg_showWindowListDefault
         || cfg_enableAddRemove !== cfg_enableAddRemoveDefault
@@ -50,6 +53,7 @@ ConfigPageBase {
     onDefaultsRequested: {
         cfg_enableScroll = cfg_enableScrollDefault;
         cfg_scrollWrap = cfg_scrollWrapDefault;
+        cfg_invertScroll = cfg_invertScrollDefault;
         cfg_showTooltips = cfg_showTooltipsDefault;
         cfg_showWindowList = cfg_showWindowListDefault;
         cfg_enableAddRemove = cfg_enableAddRemoveDefault;
@@ -67,6 +71,11 @@ ConfigPageBase {
             id: scrollWrap
             text: i18n("Wrap around at the first and last desktop")
             enabled: enableScroll.checked   // wrap only matters when scrolling is on
+        }
+        QQC2.CheckBox {
+            id: invertScroll
+            text: i18n("Invert the scroll direction")
+            enabled: enableScroll.checked   // inversion only matters when scrolling is on
         }
         QQC2.CheckBox {
             id: showTooltips

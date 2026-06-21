@@ -131,6 +131,7 @@ Item {
     // schema so the indicator behaves sensibly standalone (and under qmltestrunner).
     property bool enableScroll: Logic.DEFAULTS.enableScroll
     property bool scrollWrap: Logic.DEFAULTS.scrollWrap
+    property bool invertScroll: Logic.DEFAULTS.invertScroll   // flip the wheel-sign → direction mapping
     property bool showTooltips: Logic.DEFAULTS.showTooltips   // passed down to each dot's tooltip
 
     // Panel orientation, supplied by main.qml from Plasmoid.formFactor. false = horizontal row
@@ -278,8 +279,10 @@ Item {
         indicator.wheelAccumulator = acc.remainder;
         if (acc.steps === 0)
             return;   // sub-notch motion accumulated; nothing to do yet
-        // Wheel up (+angleDelta) → previous desktop; wheel down (−) → next. Negate to map.
-        const next = Logic.stepIndex(indicator.activeIndex, indicator.desktopIds.length, -acc.steps, indicator.scrollWrap);
+        // Default: wheel up (+angleDelta) → previous desktop; wheel down (−) → next, so negate to
+        // map. With invertScroll on, keep the sign so up → next / down → previous.
+        const dir = indicator.invertScroll ? acc.steps : -acc.steps;
+        const next = Logic.stepIndex(indicator.activeIndex, indicator.desktopIds.length, dir, indicator.scrollWrap);
         if (next < 0 || next === indicator.activeIndex)
             return;   // empty/unknown source, or a clamped no-op at an end
         const uuid = indicator.desktopIds[next];

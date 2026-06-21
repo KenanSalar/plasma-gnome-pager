@@ -33,6 +33,10 @@
         <entry name="scrollWrap" type="Bool">
             <default>false</default>
         </entry>
+        <!-- Invert the scroll direction (wheel up → next desktop instead of previous). -->
+        <entry name="invertScroll" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- Show the desktop name in a tooltip on hover. -->
         <entry name="showTooltips" type="Bool">
             <default>true</default>

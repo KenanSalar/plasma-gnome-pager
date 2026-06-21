@@ -551,6 +551,7 @@ TestCase {
         return [
             { tag: "enableScroll", key: "enableScroll", exp: true },
             { tag: "scrollWrap", key: "scrollWrap", exp: false },
+            { tag: "invertScroll", key: "invertScroll", exp: false },
             { tag: "showTooltips", key: "showTooltips", exp: true },
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
@@ -588,9 +589,9 @@ TestCase {
         var keys = Object.keys(Logic.DEFAULTS).sort();
         var expected = ["activeColor", "animationDuration", "dotSize", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
-                        "inactiveOpacity", "pillSize", "pillWidthFactor", "scrollWrap", "showTooltips",
-                        "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 17, "DEFAULTS has exactly 17 keys");
+                        "inactiveOpacity", "invertScroll", "pillSize", "pillWidthFactor", "scrollWrap",
+                        "showTooltips", "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
+        compare(keys.length, 18, "DEFAULTS has exactly 18 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 

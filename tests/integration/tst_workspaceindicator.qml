@@ -517,6 +517,28 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "scroll up moves to the previous desktop");
     }
 
+    // invertScroll flips the wheel-sign → direction mapping: wheel DOWN → previous, wheel UP → next
+    // (the opposite of the two tests above). Default is off, so every other test stays valid.
+    function test_invertScrollDownStepsPrevious() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(-120);
+        compare(switchSpy.count, 1, "one switch on a full notch down");
+        compare(switchSpy.signalArguments[0][0], ids[0], "inverted scroll down moves to the previous desktop");
+    }
+
+    function test_invertScrollUpStepsNext() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, invertScroll: true });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        indicator.handleWheel(120);
+        compare(switchSpy.count, 1, "one switch on a full notch up");
+        compare(switchSpy.signalArguments[0][0], ids[1], "inverted scroll up moves to the next desktop");
+    }
+
     function test_scrollClampAtStartIsNoOp() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, scrollWrap: false });
         switchSpy.target = indicator;
@@ -589,6 +611,16 @@ TestCase {
         mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);   // wheel down over the strip
         compare(switchSpy.count, 1, "a real wheel event switches");
         compare(switchSpy.signalArguments[0][0], ids[1], "wheel down moves to the next desktop");
+    }
+
+    function test_wheelEventInvertedStepsPrevious() {
+        const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: true, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);   // wheel down over the strip
+        compare(switchSpy.count, 1, "a real wheel event switches when inverted");
+        compare(switchSpy.signalArguments[0][0], ids[0], "inverted wheel down moves to the previous desktop");
     }
 
     function test_wheelEventDisabledIsNoOp() {

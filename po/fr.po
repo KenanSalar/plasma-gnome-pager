@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-19 16:02+0200\n"
+"POT-Creation-Date: 2026-06-21 02:27+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: French\n"
@@ -31,7 +31,7 @@ msgstr "Apparence"
 msgid "Dot size:"
 msgstr "Taille des points :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:107
 #, kde-format
 msgid "Default"
 msgstr "Par défaut"
@@ -103,57 +103,62 @@ msgstr "Bureau actif :"
 msgid "Inactive desktop:"
 msgstr "Bureau inactif :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:63
+#: package/contents/ui/config/ConfigGeneral.qml:67
 #, kde-format
 msgid "Mouse:"
 msgstr "Souris :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:64
+#: package/contents/ui/config/ConfigGeneral.qml:68
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Faire défiler sur le sélecteur pour changer de bureau"
 
-#: package/contents/ui/config/ConfigGeneral.qml:68
+#: package/contents/ui/config/ConfigGeneral.qml:72
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "Boucler au premier et au dernier bureau"
 
-#: package/contents/ui/config/ConfigGeneral.qml:73
+#: package/contents/ui/config/ConfigGeneral.qml:77
+#, kde-format
+msgid "Invert the scroll direction"
+msgstr ""
+
+#: package/contents/ui/config/ConfigGeneral.qml:82
 #, kde-format
 msgid "Tooltips:"
 msgstr "Infobulles :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:74
+#: package/contents/ui/config/ConfigGeneral.qml:83
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Afficher le nom du bureau au survol"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:87
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Lister les fenêtres ouvertes dans l'infobulle"
 
-#: package/contents/ui/config/ConfigGeneral.qml:83
+#: package/contents/ui/config/ConfigGeneral.qml:92
 #, kde-format
 msgid "Menu:"
 msgstr "Menu :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:84
+#: package/contents/ui/config/ConfigGeneral.qml:93
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Ajouter et supprimer des bureaux depuis le menu contextuel"
 
-#: package/contents/ui/config/ConfigGeneral.qml:88
+#: package/contents/ui/config/ConfigGeneral.qml:97
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Renommer le bureau actuel depuis le menu contextuel"
 
-#: package/contents/ui/config/ConfigGeneral.qml:93
+#: package/contents/ui/config/ConfigGeneral.qml:102
 #, kde-format
 msgid "Animation duration:"
 msgstr "Durée de l'animation :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:98
+#: package/contents/ui/config/ConfigGeneral.qml:107
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -165,13 +170,13 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Par défaut"
 
-#: package/contents/ui/main.qml:236 package/contents/ui/main.qml:249
+#: package/contents/ui/main.qml:254 package/contents/ui/main.qml:267
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Fenêtre sans titre"
 
-#: package/contents/ui/main.qml:238
+#: package/contents/ui/main.qml:256
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -179,7 +184,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… et %1 autre fenêtre"
 msgstr[1] "… et %1 autres fenêtres"
 
-#: package/contents/ui/main.qml:251
+#: package/contents/ui/main.qml:269
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -187,7 +192,7 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 fenêtre :"
 msgstr[1] "%1 fenêtres :"
 
-#: package/contents/ui/main.qml:255
+#: package/contents/ui/main.qml:273
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
@@ -195,37 +200,37 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 fenêtre minimisée :"
 msgstr[1] "%1 fenêtres minimisées :"
 
-#: package/contents/ui/main.qml:290
+#: package/contents/ui/main.qml:326
 #, kde-format
 msgid "New Desktop"
 msgstr "Nouveau bureau"
 
-#: package/contents/ui/main.qml:333
+#: package/contents/ui/main.qml:361
 #, kde-format
 msgid "Add Desktop"
 msgstr "Ajouter un bureau"
 
-#: package/contents/ui/main.qml:341
+#: package/contents/ui/main.qml:369
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Supprimer le dernier bureau"
 
-#: package/contents/ui/main.qml:349
+#: package/contents/ui/main.qml:377
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Renommer le bureau actuel…"
 
-#: package/contents/ui/main.qml:399
+#: package/contents/ui/main.qml:427
 #, kde-format
 msgid "Rename desktop:"
 msgstr "Renommer le bureau :"
 
-#: package/contents/ui/main.qml:413
+#: package/contents/ui/main.qml:441
 #, kde-format
 msgid "Cancel"
 msgstr "Annuler"
 
-#: package/contents/ui/main.qml:418
+#: package/contents/ui/main.qml:446
 #, kde-format
 msgid "Rename"
 msgstr "Renommer"

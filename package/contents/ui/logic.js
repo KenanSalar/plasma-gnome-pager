@@ -32,6 +32,7 @@ var DEFAULTS = Object.freeze({
     // Behaviour (General group)
     enableScroll: true,
     scrollWrap: false,
+    invertScroll: false,         // wheel up → next desktop instead of previous
     showTooltips: true,
     showWindowList: true,        // list the windows open on a desktop in its tooltip
     enableAddRemove: true,

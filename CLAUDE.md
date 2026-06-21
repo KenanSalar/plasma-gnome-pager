@@ -395,7 +395,8 @@ defaults, so the same literal is no longer written three times and cannot drift.
 the SCHEMA source; `Logic.DEFAULTS` mirrors it. (Theme/HiDPI render fallbacks — the auto `dotSize`,
 the `Kirigami.Theme.*` colours — are NOT in `DEFAULTS`; they live in the components, see the sentinel
 gotcha below.) The keys:
-behaviour — `enableScroll`, `scrollWrap`, `showTooltips`, `showWindowList` (the window list in the
+behaviour — `enableScroll`, `scrollWrap`, `invertScroll` (flip the wheel-direction → desktop
+mapping), `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
 `enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `animationDuration`;
 appearance — `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =

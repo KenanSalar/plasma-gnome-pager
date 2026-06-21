@@ -130,6 +130,7 @@ restart; the defaults give the intended GNOME look out of the box.
 |---|---|---|
 | `enableScroll` | `true` | Scroll over the strip to switch desktops. |
 | `scrollWrap` | `false` | When scrolling past the first/last desktop, wrap around (else clamp). |
+| `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
 | `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
 | `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. |

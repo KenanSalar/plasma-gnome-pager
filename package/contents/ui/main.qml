@@ -53,6 +53,7 @@ PlasmoidItem {
     // defaults regardless, while still honouring a real saved value (false ?? true === false).
     readonly property bool enableScroll: Plasmoid.configuration.enableScroll ?? Logic.DEFAULTS.enableScroll
     readonly property bool scrollWrap: Plasmoid.configuration.scrollWrap ?? Logic.DEFAULTS.scrollWrap
+    readonly property bool invertScroll: Plasmoid.configuration.invertScroll ?? Logic.DEFAULTS.invertScroll
     readonly property bool showTooltips: Plasmoid.configuration.showTooltips ?? Logic.DEFAULTS.showTooltips
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
@@ -89,6 +90,7 @@ PlasmoidItem {
         virtualDesktopInfo: vdi
         enableScroll: root.enableScroll
         scrollWrap: root.scrollWrap
+        invertScroll: root.invertScroll
         showTooltips: root.showTooltips
         desktopTooltips: root.desktopTooltips
 
