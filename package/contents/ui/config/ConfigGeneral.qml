@@ -100,6 +100,10 @@ ConfigPageBase {
             id: enableAddRemove
             Kirigami.FormData.label: i18n("Menu:")
             text: i18n("Add and remove desktops from the right-click menu")
+            // Greyed out while dynamic workspaces is on — the two are mutually exclusive (dynamic manages
+            // desktops automatically). Non-destructive: the stored value is kept and returns when dynamic
+            // is turned off. The right-click entries are hidden at runtime by the same condition in main.qml.
+            enabled: !dynamicWorkspaces.checked
         }
         QQC2.CheckBox {
             id: enableRename
@@ -109,6 +113,16 @@ ConfigPageBase {
             id: dynamicWorkspaces
             Kirigami.FormData.label: i18n("Dynamic desktops:")
             text: i18n("Automatically add and remove desktops (GNOME-style)")
+        }
+        QQC2.Label {
+            // Hint explaining the exclusivity above, so a new user sees why Add/Remove greys out.
+            text: i18n("While on, desktops are managed automatically — the menu Add/Remove options are disabled.")
+            visible: dynamicWorkspaces.checked
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+            Layout.fillWidth: true
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 18   // wrap within the field column
         }
         QQC2.TextField {
             id: dynamicNamePrefix

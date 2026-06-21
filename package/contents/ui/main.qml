@@ -126,11 +126,14 @@ PlasmoidItem {
     // Per-desktop tooltip subText (a rich-text <ul> of the windows open on each desktop), index-aligned
     // with vdi.desktopIds and passed DOWN to the indicator/dots as plain strings (so those sub-components
     // stay free of Plasma data types and headless-testable). Built here — the e2e boundary that may touch
-    // live Plasma models + i18n. Empty [] when the window list is off (the Loader is then inactive), so
-    // each dot falls back to a name-only tooltip. Mirrors the stock KDE pager's tooltip text, but sourced
-    // from the PUBLIC TaskManager.TasksModel instead of the private PagerModel (robustness.md). The `as`
-    // cast gives qmllint a typed read of the loaded item's property (no missing-property on Loader.item).
-    readonly property var desktopTooltips: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopTooltips : []
+    // live Plasma models + i18n. Explicitly gated by showTooltips && showWindowList: the aggregator Loader
+    // can now also be active purely for dynamic workspaces (occupancy below), so the Loader being live no
+    // longer implies the user wants the window list — without this gate, turning on dynamic workspaces would
+    // resurface the window list the user disabled. Empty [] → each dot falls back to a name-only tooltip.
+    // Mirrors the stock KDE pager's tooltip text, but sourced from the PUBLIC TaskManager.TasksModel instead
+    // of the private PagerModel (robustness.md). The `as` cast gives qmllint a typed read of Loader.item.
+    readonly property var desktopTooltips: (root.showTooltips && root.showWindowList && tooltipLoader.item)
+        ? (tooltipLoader.item as WindowAggregator).desktopTooltips : []
 
     // Per-desktop occupancy boolean[] (does each desktop hold a window?), index-aligned with vdi.desktopIds.
     // Produced from the SAME window snapshot as desktopTooltips (one shared TasksModel) and consumed by the
@@ -490,23 +493,27 @@ PlasmoidItem {
         renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
     }
 
-    // Right-click menu. Gated by enableAddRemove; Remove also disables at the last desktop.
+    // Right-click menu. Add/Remove are gated by enableAddRemove AND hidden while dynamicWorkspaces is on
+    // (the two conflict: the controller would immediately trim a manually-added empty / re-add a removed
+    // trailing empty — so manual editing must yield to the auto-manager). dynamicWorkspaces is globally
+    // synced, so this hides the entries on every panel; enableAddRemove's own value is left untouched and
+    // returns when dynamic is turned off. Remove also disables at the last desktop. Rename never conflicts.
     // (The "Configure…" entry is added automatically by Plasma once a config schema exists.)
     Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: i18n("Add Desktop")
             icon.name: "list-add"
             priority: Plasmoid.LowPriorityAction
-            visible: root.enableAddRemove
-            enabled: root.enableAddRemove
+            visible: root.enableAddRemove && !root.dynamicWorkspaces
+            enabled: root.enableAddRemove && !root.dynamicWorkspaces
             onTriggered: root.addDesktop()
         },
         PlasmaCore.Action {
             text: i18n("Remove Last Desktop")
             icon.name: "list-remove"
             priority: Plasmoid.LowPriorityAction
-            visible: root.enableAddRemove
-            enabled: root.enableAddRemove && Logic.canRemoveDesktop(vdi.numberOfDesktops)
+            visible: root.enableAddRemove && !root.dynamicWorkspaces
+            enabled: root.enableAddRemove && !root.dynamicWorkspaces && Logic.canRemoveDesktop(vdi.numberOfDesktops)
             onTriggered: root.removeLastDesktop()
         },
         PlasmaCore.Action {

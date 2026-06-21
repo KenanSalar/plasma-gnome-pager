@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-21 13:15+0200\n"
+"POT-Creation-Date: 2026-06-21 14:47+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: French\n"
@@ -31,7 +31,7 @@ msgstr "Apparence"
 msgid "Dot size:"
 msgstr "Taille des points :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:130
+#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:144
 #, kde-format
 msgid "Default"
 msgstr "Par défaut"
@@ -148,38 +148,43 @@ msgstr "Menu :"
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Ajouter et supprimer des bureaux depuis le menu contextuel"
 
-#: package/contents/ui/config/ConfigGeneral.qml:106
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Renommer le bureau actuel depuis le menu contextuel"
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
-#, fuzzy, kde-format
-msgid "Dynamic desktops:"
-msgstr "Renommer le bureau :"
-
-#: package/contents/ui/config/ConfigGeneral.qml:111
+#: package/contents/ui/config/ConfigGeneral.qml:114
 #, kde-format
-msgid "Automatically add and remove desktops (GNOME-style)"
-msgstr ""
+msgid "Dynamic desktops:"
+msgstr "Bureaux dynamiques :"
 
 #: package/contents/ui/config/ConfigGeneral.qml:115
-#, fuzzy, kde-format
-msgid "New desktop name:"
-msgstr "Nouveau bureau"
+#, kde-format
+msgid "Automatically add and remove desktops (GNOME-style)"
+msgstr "Ajouter et supprimer automatiquement des bureaux (style GNOME)"
 
-#: package/contents/ui/config/ConfigGeneral.qml:119 package/contents/ui/main.qml:407
-#, fuzzy, kde-format
+#: package/contents/ui/config/ConfigGeneral.qml:119
+#, kde-format
+msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
+msgstr "Lorsque cette option est activée, les bureaux sont gérés automatiquement — les options Ajouter/Supprimer du menu sont désactivées."
+
+#: package/contents/ui/config/ConfigGeneral.qml:129
+#, kde-format
+msgid "New desktop name:"
+msgstr "Nom des nouveaux bureaux :"
+
+#: package/contents/ui/config/ConfigGeneral.qml:133 package/contents/ui/main.qml:453
+#, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
-msgstr "Nouveau bureau"
+msgstr "Bureau"
 
-#: package/contents/ui/config/ConfigGeneral.qml:125
+#: package/contents/ui/config/ConfigGeneral.qml:139
 #, kde-format
 msgid "Animation duration:"
 msgstr "Durée de l'animation :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:130
+#: package/contents/ui/config/ConfigGeneral.qml:144
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -191,13 +196,13 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Par défaut"
 
-#: package/contents/ui/main.qml:277 package/contents/ui/main.qml:290
+#: package/contents/ui/main.qml:281 package/contents/ui/main.qml:294
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Fenêtre sans titre"
 
-#: package/contents/ui/main.qml:279
+#: package/contents/ui/main.qml:283
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -205,7 +210,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… et %1 autre fenêtre"
 msgstr[1] "… et %1 autres fenêtres"
 
-#: package/contents/ui/main.qml:292
+#: package/contents/ui/main.qml:296
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -213,7 +218,7 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 fenêtre :"
 msgstr[1] "%1 fenêtres :"
 
-#: package/contents/ui/main.qml:296
+#: package/contents/ui/main.qml:300
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
@@ -221,37 +226,37 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 fenêtre minimisée :"
 msgstr[1] "%1 fenêtres minimisées :"
 
-#: package/contents/ui/main.qml:349
+#: package/contents/ui/main.qml:353
 #, kde-format
 msgid "New Desktop"
 msgstr "Nouveau bureau"
 
-#: package/contents/ui/main.qml:453
+#: package/contents/ui/main.qml:504
 #, kde-format
 msgid "Add Desktop"
 msgstr "Ajouter un bureau"
 
-#: package/contents/ui/main.qml:461
+#: package/contents/ui/main.qml:512
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Supprimer le dernier bureau"
 
-#: package/contents/ui/main.qml:469
+#: package/contents/ui/main.qml:520
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Renommer le bureau actuel…"
 
-#: package/contents/ui/main.qml:519
+#: package/contents/ui/main.qml:570
 #, kde-format
 msgid "Rename desktop:"
 msgstr "Renommer le bureau :"
 
-#: package/contents/ui/main.qml:533
+#: package/contents/ui/main.qml:584
 #, kde-format
 msgid "Cancel"
 msgstr "Annuler"
 
-#: package/contents/ui/main.qml:538
+#: package/contents/ui/main.qml:589
 #, kde-format
 msgid "Rename"
 msgstr "Renommer"

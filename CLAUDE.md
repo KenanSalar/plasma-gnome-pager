@@ -396,6 +396,20 @@ one. It reuses the **same** shared `WindowAggregator` `TasksModel` as the window
 Loader gate is the OR of the two features), which now also emits a per-desktop occupancy `bool[]`
 (`desktopOccupancy`, index-aligned with `desktopIds`). The split mirrors the rest of the project —
 pure decision in `logic.js`, e2e wiring in `main.qml`:
+
+> **Gotcha — the Loader-OR means "aggregator live" no longer implies "show the window list".** Since
+> the aggregator can now be loaded purely for dynamic workspaces, `main.qml`'s `desktopTooltips` MUST
+> be gated by `showTooltips && showWindowList` independently of the Loader being active — otherwise
+> enabling dynamic workspaces resurfaces the window-list tooltip the user turned off. `desktopOccupancy`
+> stays ungated (it's what dynamic workspaces consumes).
+>
+> **Mutually exclusive with manual add/remove.** Dynamic workspaces and the `enableAddRemove`
+> right-click entries manage desktops in conflicting ways (the controller instantly trims a
+> manually-added empty / re-adds a removed trailing empty), so the Add/Remove `contextualActions` are
+> gated `enableAddRemove && !dynamicWorkspaces` (hidden on EVERY panel — `dynamicWorkspaces` is global,
+> `enableAddRemove` per-panel) and the `ConfigGeneral` checkbox is `enabled: !dynamicWorkspaces.checked`
+> (greyed, value preserved — non-destructive, returns when dynamic is off), with a hint label. Rename
+> is untouched (it doesn't conflict).
 > - **`logic.js` (pure, unit-tested)**: `windowOccupiesDesktop(window, uuid)` — occupancy membership
 >   that, UNLIKE the tooltip's `windowIsOnDesktop`, **excludes** on-all-desktops AND `skipPager`
 >   windows (an on-all window would pin every desktop as non-empty, so nothing could ever be empty)

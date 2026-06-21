@@ -139,7 +139,7 @@ restart; the defaults give the intended GNOME look out of the box.
 | `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
 | `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
-| `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. |
+| `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. Disabled (greyed out, entries hidden) while `dynamicWorkspaces` is on, since the two manage desktops in conflicting ways. |
 | `enableRename` | `true` | Offer a "Rename Current Desktop…" entry in the right-click menu. |
 | `dynamicWorkspaces` | `false` | GNOME-style dynamic workspaces: automatically keep exactly one empty desktop at the end (add when the last fills, trim surplus trailing empties). A single **global** setting — synced across all panels/monitors. |
 | `dynamicNamePrefix` | _(empty)_ | Base name for desktops created by dynamic workspaces; the desktop's number is appended (e.g. "Desktop 2"). Empty = the localized default "Desktop". Also synced across panels. |
