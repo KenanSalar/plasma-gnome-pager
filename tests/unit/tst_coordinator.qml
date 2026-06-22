@@ -72,6 +72,22 @@ TestCase {
         verify(Coordinator.isWriter(b), "b takes over once a leaves");
         verify(!Coordinator.isWriter(a), "a no longer writes after leaving");
 
+        // ── Multi-instance election + handoff chain ──────────────────────────────────────────────
+        // With more than two present instances (still globally enabled), the single writer is always
+        // the lowest-token PRESENT one; as each writer leaves, the next-lowest is promoted in turn —
+        // the multi-monitor case where panels come and go. (Present now: b; global enabled, prefix "Bar".)
+        var c = Coordinator.join(function () {});
+        var d = Coordinator.join(function () {});
+        verify(b < c && c < d, "tokens are handed out monotonically (first-joined is lowest)");
+        verify(Coordinator.isWriter(b), "lowest of three present instances writes");
+        verify(!Coordinator.isWriter(c), "a higher-token instance defers (c)");
+        verify(!Coordinator.isWriter(d), "a higher-token instance defers (d)");
         Coordinator.leave(b);
+        verify(Coordinator.isWriter(c), "c is promoted once b leaves");
+        verify(!Coordinator.isWriter(d), "d still defers to c");
+        Coordinator.leave(c);
+        verify(Coordinator.isWriter(d), "d is promoted once c leaves — last instance standing writes");
+        Coordinator.leave(d);
+        verify(!Coordinator.isWriter(d), "nobody writes once every instance has left");
     }
 }

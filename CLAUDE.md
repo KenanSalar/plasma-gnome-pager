@@ -442,11 +442,16 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 >   frame is a no-op: `null` on absent arrays, an empty set, or `occupancy.length !== desktopIds.length`
 >   (occupancy lags a just-changed desktop set by a frame). `formatDynamicDesktopName(prefix, number,
 >   fallback)` → `"<prefix> N"`, **never empty**. Removal reuses `canRemoveDesktop`.
-> - **`main.qml` controller (e2e-only)**: a debounced `scheduleDynamic` → `evaluateDynamic` that, when
->   this instance is the elected writer (below), runs the pure plan and `dispatch`es the single
->   `addSpec`/`removeSpec`; a per-instance `dynBusy` lock (cleared on `vdi.desktopIdsChanged` — the
->   signal our own write landed — with a 750 ms `Timer` fallback) stops it re-firing before its change
->   reflects. Triggered by `onDesktopOccupancyChanged`, `vdi.desktopIdsChanged`, and config changes.
+> - **`DynamicWorkspacesController.qml` (its own non-visual component, headless-tested)**: a debounced
+>   `scheduleDynamic` → `evaluateDynamic` that, when this instance is the elected writer (below), runs the
+>   pure plan and emits `dispatchRequested(spec)` — the single `addSpec`/`removeSpec`, which `main.qml`
+>   feeds to `dispatch`; a per-instance `dynBusy` lock (cleared on the injected vdi's `desktopIdsChanged`
+>   — the signal our own write landed — with a named `busyFallbackMs` (750 ms) `Timer` fallback) stops it
+>   re-firing before its change reflects. Triggered by `onDesktopOccupancyChanged`, the vdi's
+>   `desktopIdsChanged`, and its own setting changes. Inputs (`dynamicEnabled`/`namePrefix`/
+>   `defaultPrefix`/`virtualDesktopInfo`/`desktopOccupancy`) flow IN as plain values and side effects flow
+>   OUT as the two signals `dispatchRequested`/`syncConfigRequested`, so the controller is Plasma-free —
+>   extracted out of `main.qml` for exactly that (single responsibility + headless testability).
 >
 > **Gotcha — the desktop SET is GLOBAL, so this must be a SINGLE global behaviour: `coordinator.js`
 > (`.pragma library`, shared ONCE per plasmashell engine).** Two panels (multi-monitor) both see the
@@ -458,7 +463,8 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 > (pure, tested) picks the lowest-token present instance; only it issues add/remove, killing the flash;
 > (2) **GLOBAL setting SYNC** — `dynamicWorkspaces` AND `dynamicNamePrefix` are ONE global value:
 > `publish()` records it and pushes it to every instance (the `onSync` callback each passed to `join`),
-> which `applyDynamicSync` mirrors into its OWN `Plasmoid.configuration` — so toggling/renaming on ANY
+> which the controller re-emits as `syncConfigRequested` for `main.qml` to mirror into its OWN
+> `Plasmoid.configuration` (the one Plasma write kept at the e2e boundary) — so toggling/renaming on ANY
 > panel applies everywhere and every settings dialog agrees (a true global toggle; the writer election
 > is STILL needed because all panels are then enabled). If the shared-engine assumption ever failed,
 > each instance would seed/own its global and elect itself — the per-instance behaviour — degraded,
@@ -474,20 +480,27 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 > coordinator write during binding setup would use the sentinel token `0` (not joined yet) and register
 > a phantom "enabled" instance that wins the election (`0 < every real token`) and stalls the real
 > writer — the bug that made the feature "do nothing". Guard every coordinator write until
-> `dynToken !== 0` (`join()` never returns 0); `Component.onCompleted` joins first, then adopts the
-> global (if a sibling seeded it) or seeds it from this instance's stored config. `applyDynamicSync` is
-> value-guarded and `publishDynamicConfig` only republishes a value that DIFFERS from the coordinator's
-> authoritative global, so the apply→`onChanged`→publish path can't loop. Writing
+> `dynToken !== 0` (`join()` never returns 0); the controller's `Component.onCompleted` joins first, then
+> adopts the global (if a sibling seeded it) or seeds it from this instance's stored config. `main.qml`'s
+> `syncConfigRequested` handler is value-guarded and the controller's `publishDynamicConfig` only
+> republishes a value that DIFFERS from the coordinator's authoritative global, so the
+> sync→`onChanged`→publish path can't loop. Writing
 > `Plasmoid.configuration.<key>` from the applet (not just the config dialog) is what persists + mirrors
 > the synced value.
 >
 > Guarded by `tst_logic.qml::{test_computeDesktopOccupancy,test_dynamicWorkspacePlan,
 > test_formatDynamicDesktopName,test_electDynamicWriter}` + `tst_coordinator.qml` (the coordinator
-> state machine). The controller, the live occupancy model, and the cross-instance SHARING are
-> **e2e-only** (verify in-shell). New files: `package/contents/ui/coordinator.js`,
+> state machine, incl. the multi-instance election + writer-handoff chain) +
+> `tst_dynamicworkspacescontroller.qml` (the controller's reactive state machine — add/remove specs,
+> busy-lock, convergence over re-evaluations, single-writer election, setting sync — driven headless via a
+> `VdiMock` + injected occupancy, the controller emitting its specs as signals). The live occupancy model
+> and the cross-instance SHARING (one `.pragma library` per real plasmashell engine) remain **e2e-only**
+> (verify in-shell). New files: `package/contents/ui/coordinator.js`,
 > `package/contents/ui/WindowAggregator.qml` (the shared `TasksModel`, extracted out of `main.qml`;
 > feeds both the window-list tooltip and dynamic-workspace occupancy),
-> `tests/unit/tst_coordinator.qml`, `tests/unit/tst_configslider.qml`.
+> `package/contents/ui/DynamicWorkspacesController.qml` (the dynamic-workspaces controller, extracted out
+> of `main.qml`), `tests/unit/tst_coordinator.qml`, `tests/unit/tst_configslider.qml`,
+> `tests/integration/tst_dynamicworkspacescontroller.qml`.
 
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`

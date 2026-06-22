@@ -196,6 +196,7 @@ plasma-gnome-pager/
             ├── WorkspaceIndicator.qml # the dot strip (row / column / grid + reflow)
             ├── WorkspaceDot.qml       # one element (dot ⇄ capsule morph + tooltip)
             ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace occupancy
+            ├── DynamicWorkspacesController.qml # GNOME-style auto add/remove of one empty trailing desktop
             ├── logic.js               # pure, unit-tested branching logic (no Plasma deps)
             ├── coordinator.js         # shared cross-panel state: dynamic-workspaces global sync + writer election
             └── config/                # settings pages (ConfigGeneral, ConfigAppearance, …)
@@ -223,10 +224,11 @@ make dev-undev          # remove the dev symlink
 dependency — run `npm install` (or `npm ci`) once first. None of this is shipped in the `.plasmoid`.
 
 The tests cover the Kirigami-only components (`WorkspaceDot`, `WorkspaceIndicator` driven by a
-mock `VirtualDesktopInfo`, the shared `ConfigSlider` control, the pure `logic.js`, and the
-`coordinator.js` state machine); `main.qml` — and the cross-panel coordination it relies on — needs
-a live plasmashell + KWin session, so it is verified by the manual
-`make dev` → `make test` → `make restart` loop.
+mock `VirtualDesktopInfo`, the shared `ConfigSlider` control, the pure `logic.js`, the
+`coordinator.js` state machine, and the `DynamicWorkspacesController` reactive state machine driven
+by a mock `VirtualDesktopInfo` + injected occupancy); `main.qml` itself — and the live window/desktop
+models + the real cross-panel coordination — needs a live plasmashell + KWin session, so it is
+verified by the manual `make dev` → `make test` → `make restart` loop.
 
 ## Translations
 
