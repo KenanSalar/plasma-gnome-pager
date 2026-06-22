@@ -4,10 +4,8 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The settings dialog's category list. Each ConfigCategory.source is resolved relative to
- * contents/ui/ — so the pages live in contents/ui/config/ while this file and the KConfigXT
- * schema (main.xml) live in contents/config/ (mixing this up yields an empty dialog; see
- * plasmoid.md). Plasma adds the "Configure…" entry and the page chrome automatically.
+ * The settings dialog's category list. ConfigCategory.source resolves relative to contents/ui/, so the
+ * pages live in contents/ui/config/ while this file + main.xml live in contents/config/ (plasmoid.md).
  */
 import org.kde.plasma.configuration
 

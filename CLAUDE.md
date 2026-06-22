@@ -19,7 +19,7 @@ the windows open on that desktop), add/remove/rename desktops, GNOME-style dynam
 independently-sized active pill, screen-reader accessibility, form-factor (vertical-panel) handling,
 the settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
 guards) are built. This file and
-`.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
+`.claude/rules/*` describe how the code is built, not the schedule or roadmap (that
 history lives in git history and the GitHub Releases).
 
 ## The rules are the law — read them first
@@ -56,7 +56,8 @@ only *which* desktop is "current" can differ **per output**. So each pager must 
 monitor's current — using `vdi.currentDesktop` (the global/active-output current) makes every
 pager follow whichever monitor switched, the exact symptom this feature breaks. `WorkspaceIndicator`
 therefore resolves its own current: it reads its panel's output name from the QtQuick `Screen.name`
-attached property (KWin connector name, e.g. `DP-1`) and calls
+attached property (KWin connector name, e.g. `DP-1`) and injects it into **`ScreenCurrentDesktop.qml`**
+(a non-visual resolver extracted from the indicator), which calls
 `vdi.currentDesktopByScreenName(screenName)` (public, in `org.kde.taskmanager`). The
 perScreen-vs-global decision is the pure `Logic.resolveCurrentDesktop(perScreen, global)` —
 **prefer the per-screen value, fall back to the global** — so it degrades to single-desktop
@@ -72,13 +73,14 @@ monitors are on different desktops.)
 > per-screen current as a method (`currentDesktopByScreenName(name)`) plus a
 > `currentDesktopForScreenChanged(screenName)` signal (and the global `currentDesktopChanged`). A
 > binding like `currentDesktop: vdi.currentDesktopByScreenName(screenName)` would evaluate **once**
-> and never refresh — there is no property to depend on. So `WorkspaceIndicator.currentDesktop` is a
-> mutable source-of-truth property recomputed in `updateCurrentDesktop()`, driven by a
-> `Connections { target: virtualDesktopInfo }` on those signals (plus `onScreenNameChanged` /
-> `onVirtualDesktopInfoChanged` / `Component.onCompleted`); `activeIndex` and each dot's `active`
-> bind off it, staying declarative. The integration mock duck-types the same method+signal (the
-> default models the feature OFF: per-screen == global, so every pre-existing test stays valid), and
-> `tst_logic.qml` covers `resolveCurrentDesktop`.
+> and never refresh — there is no property to depend on. So `ScreenCurrentDesktop.currentDesktop` (the
+> extracted resolver) is a mutable source-of-truth property recomputed in `updateCurrentDesktop()`,
+> driven by a `Connections { target: virtualDesktopInfo }` on those signals (plus `onScreenNameChanged` /
+> `onVirtualDesktopInfoChanged` / `Component.onCompleted`); the indicator forwards it as its own
+> `currentDesktop`, and `activeIndex` and each dot's `active` bind off it, staying declarative. The
+> integration mock duck-types the same method+signal (the default models the feature OFF: per-screen ==
+> global, so every pre-existing test stays valid); `tst_logic.qml` covers `resolveCurrentDesktop` and
+> `tst_screencurrentdesktop.qml` covers the resolver's reactive recompute + the typeof degrade.
 
 > **Gotcha — DBus typed-arg constructors are lowercase, and `variant` takes a _plain_ value.**
 > The `org.kde.plasma.workspace.dbus` module exports `new DBus.string(s)`, `new DBus.int32(n)`,
@@ -102,9 +104,11 @@ monitors are on different desktops.)
 `preferredRepresentation: fullRepresentation` and `fullRepresentation: WorkspaceIndicator {}`.
 `main.qml` (root `PlasmoidItem`) owns the data sources, DBus helpers, and contextual actions;
 `WorkspaceIndicator.qml` lays out the dot strip — a row or column per `Plasmoid.formFactor` (passed
-down as a plain `vertical` bool), and a multi-row grid mirroring KWin's `desktopLayoutRows`;
-`WorkspaceDot.qml` is one element (a dot that morphs into the highlighted capsule when active — see
-the Visual model below).
+down as a plain `vertical` bool), and a multi-row grid mirroring KWin's `desktopLayoutRows` — and is
+layout + scroll + wiring only: it delegates the size math to **`IndicatorMetrics.qml`** (the sizing
+engine) and the per-screen current to **`ScreenCurrentDesktop.qml`**, both non-visual units extracted
+from it and each independently unit-tested. `WorkspaceDot.qml` is one element (a dot that morphs into
+the highlighted capsule when active — see the Visual model below).
 
 > **Gotcha (learned the hard way) — advertise width via `Layout.*`, not `implicitWidth` alone.**
 > An inline full-representation that sets *only* `implicitWidth`/`implicitHeight` gets a **default
@@ -115,7 +119,7 @@ the Visual model below).
 > on **both** axes (needs `import QtQuick.Layouts`). The MAJOR (line) axis — width on a horizontal
 > panel, height on a vertical one (`vertical`) — pins `preferred == max == naturalStripLength` but
 > drops `min` to a smaller `floorStripLength` so the panel can **compress** the strip; when it does,
-> the dots scale down to fill the allocation (scale-to-fit, M6 — see the scale-to-fit gotcha below).
+> the dots scale down to fill the allocation (scale-to-fit — see the scale-to-fit gotcha below).
 > The CROSS axis carries the line(s) (`min == preferred == naturalCrossThickness`) with its
 > **maximum reset to `-1`** (Qt's unconstrained `+∞`) so the panel stretches it to the panel
 > thickness and the centred grid sits in the middle. Asserted by
@@ -132,13 +136,13 @@ below): its cross-axis *thickness* is the effective `pillSize` (config key `pill
 match the dots`) and its *length* is `pillSize * pillWidthFactor`, so a thick pill can sit over tiny
 dots (or vice versa). By default `pillSize` tracks `dotSize`, recovering the original look exactly.
 There is **no** separate overlay. Switching morphs two elements at once (old capsule → dot, new dot
-→ capsule) and the line reflows between them. **Form factor (M4):** the major axis is horizontal on
+→ capsule) and the line reflows between them. **Form factor:** the major axis is horizontal on
 a horizontal panel and vertical on a vertical one (`vertical`, from `Plasmoid.formFactor`); the dot
 morphs `width` or `height` accordingly (`radius` is `min(width,height)/2` — half the shorter, cross
 axis — so the ends keep stadium-round in both orientations and at any pill thickness).
 When KWin's grid has more than one row, the strip is several such reflow lines stacked along the
 cross axis (mirroring `VirtualDesktopInfo.desktopLayoutRows`) — see the multi-row gotcha below.
-Hover brighten (M3) is a *separate* inactive-only state driven by
+Hover brighten is a *separate* inactive-only state driven by
 `containsMouse`; `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)` returns
 `1.0` for the active capsule and `hovered ? hoverOpacity : inactiveOpacity` otherwise (so hovering
 the active capsule does nothing). This replaced an earlier *sliding overlay pill* — which could not
@@ -158,13 +162,13 @@ how GNOME and the KDE `compact_pager` actually work.
 > (`naturalCrossThickness = lineCount*max(dotSize,pillSize) + (lineCount-1)*dotSpacing`),
 > not the live positioner extent, so the panel cell stays put during the morph and when no element
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
-> single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
+> single line `perLine == desktopCount` and `lineCount == 1`, recovering the 1-D width formula.
 > Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
 > test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
 > (`dotSize`, `pillSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match
 > the `main.xml` settings keys exactly (see "Config flow" below).
 >
-> **Scale-to-fit (M6 major axis; cross axis post-M6) — shrink the dots to the allocation on BOTH axes,
+> **Scale-to-fit (major axis, with the cross axis added later) — shrink the dots to the allocation on BOTH axes,
 > never overflow; NATURAL vs EFFECTIVE size.** When the natural strip would exceed the panel-allocated
 > length on **either** axis (many desktops on a crowded panel; a multi-row grid on a thin panel), the
 > dots/pill **shrink** to fill the allocation instead of drawing over the neighbours or past the panel
@@ -192,7 +196,11 @@ how GNOME and the KDE `compact_pager` actually work.
 > pillThicknessRatio`, so dots AND an independently-sized pill scale in lockstep (the configured
 > dot:pill proportion is preserved under shrink). Common case (room
 > available on both axes): `fitDotSize >= naturalDotSize`, so effective == natural and the look is
-> byte-for-byte unchanged. Guarded by `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
+> byte-for-byte unchanged. **All of this size math lives in the non-visual `IndicatorMetrics.qml`** —
+> the indicator feeds it the requests + grid shape + live `availableMajor`/`availableCross` geometry and
+> forwards its outputs unchanged — so it is now **directly** unit-tested (`tst_indicatormetrics.qml`) as
+> well as through the indicator. Guarded by `tst_indicatormetrics.qml` +
+> `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
 > test_scaleDotsUnchangedWhenAmple,test_scaleDotsShrinkOnShortHeightVertical,
 > test_scaleDotsShrinkOnThinCrossMultiRow,test_scaleDotsCrossUnchangedWhenAmpleThickness,
 > test_scaleDotsShrinkOnThinCrossVertical,test_advertisesWidthViaLayout,
@@ -202,7 +210,7 @@ how GNOME and the KDE `compact_pager` actually work.
 > **Independent pill thickness — `pillSize` is decoupled from `dotSize` via ONE ratio; reuse the fit
 > math, don't fork it.** The pill's cross-axis *thickness* is its own config key `pillSize` (`Int`, `0
 > = auto = match the dots`); the dots keep `dotSize`. The decoupling is carried entirely by **one**
-> derived quantity in `WorkspaceIndicator`: `pillThicknessRatio = naturalPillSize / naturalDotSize`
+> derived quantity in `IndicatorMetrics`: `pillThicknessRatio = naturalPillSize / naturalDotSize`
 > (`1` when auto, because `naturalPillSize` falls back to `naturalDotSize`). With it, the existing pure
 > `Logic.fitDotSize`/`Logic.lineExtent` are reused **unchanged** — only their *factor arguments*
 > change: the capsule length in dot units becomes `pillThicknessRatio * pillWidthFactor` (major fit /
@@ -225,7 +233,7 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_independentThickerPill,test_pillThicknessAdvertisedOnCrossAxis,test_pillScalesWithFitShrink}` +
 > `tst_workspacedot.qml::test_independentPillThickness` + `tst_logic.qml` defaults (the `pillSize` key).
 >
-> **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
+> **Multi-row grid — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
 > desktops into that many **lines** via `Logic.gridColumns(count, rows)` (= `ceil(count/rows)`,
 > the per-line count) + `Logic.chunk(ids, perLine)`. Each line is an **independent single-line
@@ -442,11 +450,16 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 >   frame is a no-op: `null` on absent arrays, an empty set, or `occupancy.length !== desktopIds.length`
 >   (occupancy lags a just-changed desktop set by a frame). `formatDynamicDesktopName(prefix, number,
 >   fallback)` → `"<prefix> N"`, **never empty**. Removal reuses `canRemoveDesktop`.
-> - **`main.qml` controller (e2e-only)**: a debounced `scheduleDynamic` → `evaluateDynamic` that, when
->   this instance is the elected writer (below), runs the pure plan and `dispatch`es the single
->   `addSpec`/`removeSpec`; a per-instance `dynBusy` lock (cleared on `vdi.desktopIdsChanged` — the
->   signal our own write landed — with a 750 ms `Timer` fallback) stops it re-firing before its change
->   reflects. Triggered by `onDesktopOccupancyChanged`, `vdi.desktopIdsChanged`, and config changes.
+> - **`DynamicWorkspacesController.qml` (its own non-visual component, headless-tested)**: a debounced
+>   `scheduleDynamic` → `evaluateDynamic` that, when this instance is the elected writer (below), runs the
+>   pure plan and emits `dispatchRequested(spec)` — the single `addSpec`/`removeSpec`, which `main.qml`
+>   feeds to `dispatch`; a per-instance `dynBusy` lock (cleared on the injected vdi's `desktopIdsChanged`
+>   — the signal our own write landed — with a named `busyFallbackMs` (750 ms) `Timer` fallback) stops it
+>   re-firing before its change reflects. Triggered by `onDesktopOccupancyChanged`, the vdi's
+>   `desktopIdsChanged`, and its own setting changes. Inputs (`dynamicEnabled`/`namePrefix`/
+>   `defaultPrefix`/`virtualDesktopInfo`/`desktopOccupancy`) flow IN as plain values and side effects flow
+>   OUT as the two signals `dispatchRequested`/`syncConfigRequested`, so the controller is Plasma-free —
+>   extracted out of `main.qml` for exactly that (single responsibility + headless testability).
 >
 > **Gotcha — the desktop SET is GLOBAL, so this must be a SINGLE global behaviour: `coordinator.js`
 > (`.pragma library`, shared ONCE per plasmashell engine).** Two panels (multi-monitor) both see the
@@ -458,7 +471,8 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 > (pure, tested) picks the lowest-token present instance; only it issues add/remove, killing the flash;
 > (2) **GLOBAL setting SYNC** — `dynamicWorkspaces` AND `dynamicNamePrefix` are ONE global value:
 > `publish()` records it and pushes it to every instance (the `onSync` callback each passed to `join`),
-> which `applyDynamicSync` mirrors into its OWN `Plasmoid.configuration` — so toggling/renaming on ANY
+> which the controller re-emits as `syncConfigRequested` for `main.qml` to mirror into its OWN
+> `Plasmoid.configuration` (the one Plasma write kept at the e2e boundary) — so toggling/renaming on ANY
 > panel applies everywhere and every settings dialog agrees (a true global toggle; the writer election
 > is STILL needed because all panels are then enabled). If the shared-engine assumption ever failed,
 > each instance would seed/own its global and elect itself — the per-instance behaviour — degraded,
@@ -474,20 +488,27 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 > coordinator write during binding setup would use the sentinel token `0` (not joined yet) and register
 > a phantom "enabled" instance that wins the election (`0 < every real token`) and stalls the real
 > writer — the bug that made the feature "do nothing". Guard every coordinator write until
-> `dynToken !== 0` (`join()` never returns 0); `Component.onCompleted` joins first, then adopts the
-> global (if a sibling seeded it) or seeds it from this instance's stored config. `applyDynamicSync` is
-> value-guarded and `publishDynamicConfig` only republishes a value that DIFFERS from the coordinator's
-> authoritative global, so the apply→`onChanged`→publish path can't loop. Writing
+> `dynToken !== 0` (`join()` never returns 0); the controller's `Component.onCompleted` joins first, then
+> adopts the global (if a sibling seeded it) or seeds it from this instance's stored config. `main.qml`'s
+> `syncConfigRequested` handler is value-guarded and the controller's `publishDynamicConfig` only
+> republishes a value that DIFFERS from the coordinator's authoritative global, so the
+> sync→`onChanged`→publish path can't loop. Writing
 > `Plasmoid.configuration.<key>` from the applet (not just the config dialog) is what persists + mirrors
 > the synced value.
 >
 > Guarded by `tst_logic.qml::{test_computeDesktopOccupancy,test_dynamicWorkspacePlan,
 > test_formatDynamicDesktopName,test_electDynamicWriter}` + `tst_coordinator.qml` (the coordinator
-> state machine). The controller, the live occupancy model, and the cross-instance SHARING are
-> **e2e-only** (verify in-shell). New files: `package/contents/ui/coordinator.js`,
+> state machine, incl. the multi-instance election + writer-handoff chain) +
+> `tst_dynamicworkspacescontroller.qml` (the controller's reactive state machine — add/remove specs,
+> busy-lock, convergence over re-evaluations, single-writer election, setting sync — driven headless via a
+> `VdiMock` + injected occupancy, the controller emitting its specs as signals). The live occupancy model
+> and the cross-instance SHARING (one `.pragma library` per real plasmashell engine) remain **e2e-only**
+> (verify in-shell). New files: `package/contents/ui/coordinator.js`,
 > `package/contents/ui/WindowAggregator.qml` (the shared `TasksModel`, extracted out of `main.qml`;
 > feeds both the window-list tooltip and dynamic-workspace occupancy),
-> `tests/unit/tst_coordinator.qml`, `tests/unit/tst_configslider.qml`.
+> `package/contents/ui/DynamicWorkspacesController.qml` (the dynamic-workspaces controller, extracted out
+> of `main.qml`), `tests/unit/tst_coordinator.qml`, `tests/unit/tst_configslider.qml`,
+> `tests/integration/tst_dynamicworkspacescontroller.qml`.
 
 **Config flow.** Every key lives in `package/contents/config/main.xml` (KConfigXT) and is read
 **live** in `main.qml`, then passed DOWN as plain values: `main.xml` → `main.qml`
@@ -563,8 +584,8 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
 > — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize`, `pillSize`
 > (`0 = match the dots` → the effective `dotSize`, via `pillThicknessRatio == 1`), and
 > `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
-> components** (the indicator's `dotSize`/`pillSize`, and `Logic.effectiveDuration` for the morph) — NOT in
-> `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
+> components** (`IndicatorMetrics`'s `dotSize`/`pillSize`, and `Logic.effectiveDuration` for the morph) —
+> NOT in `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
 > Kirigami, but only for the rename dialog's spacing, and is not itself headless-testable).
 > `effectiveDuration` also
 > folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),
@@ -584,6 +605,33 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
 > the widget.
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
+
+> **Gotcha (learned the hard way) — `metadata.json` `Icon` must be an icon-theme NAME, NOT a
+> bundled file.** The "Add Widgets" chooser (and `Plasmoid.icon`) resolve `Icon` only via the icon
+> theme — a relative/bundled path like `../icons/pager.svg` (or any `contents/icons/*.svg`) renders
+> the broken-image `?` placeholder, **never** the file. This is a confirmed Plasma limitation, not a
+> path-syntax mistake: KDE has **no** mechanism to resolve a plasmoid's bundled icon for the chooser
+> (a KDE dev's words: *"That does seem bad. Might be worth formally supporting this"*). A bundled SVG
+> only shows in the chooser if it's installed into the icon **theme** (e.g.
+> `~/.local/share/icons/hicolor/scalable/apps/<name>.svg`) — which `kpackagetool6`, the `.plasmoid`
+> zip, and the KDE Store's "Get New Widgets" (KNewStuff) do **not** do; only distro packaging (AUR/RPM
+> `make install`-style steps) or a manual copy would. So a *custom* chooser icon **cannot** work for
+> Store users (chicken-and-egg: the chooser needs the icon **before** the widget ever runs, so no
+> first-run self-install can fix the first impression). The popular widgets all sidestep this by
+> naming a stock icon (`plasma-panel-colorizer` → `desktop`, the weather widget → `weather-clear`)
+> and shipping their custom SVG only for *in-widget* / KDE-Store-product-page use.
+>
+> We therefore ship **`Icon: "virtual-desktops"`** — a standard Breeze icon (a desktop grid with one
+> cell highlighted; semantically a pager) that is **safe on any theme + any install method, Store
+> included**. It is **monochrome**, so it recolors to the scheme/accent; many themes (Papirus, etc.)
+> ship their **own** `virtual-desktops` so it renders native to the active theme, and the ones that
+> don't (pure Adwaita/HighContrast — they inherit only `hicolor` and lack the name) still resolve it
+> via **KDE's always-present Breeze fallback** (KDE's icon loader injects Breeze regardless of the
+> active theme — the same backstop that keeps Plasma's own UI from ever showing broken icons). Note
+> `virtual-desktops` is a KDE/Breeze name, **not** a freedesktop-spec-standard name, so the guarantee
+> rests on that Breeze fallback — which can only be absent if the Breeze icon set is uninstalled, at
+> which point Plasma itself is broken. (Verified live across Breeze, Fedora, and Catppuccin global
+> themes and the Breeze icon set.)
 
 ## Internationalization (i18n)
 

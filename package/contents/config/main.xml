@@ -5,18 +5,10 @@
   SPDX-FileCopyrightText: 2026 Kenan Salar
   SPDX-License-Identifier: GPL-3.0-or-later
 
-  Each <entry name="X"> becomes plasmoid.configuration.X, read live and reactive in the
-  widget. These defaults apply whether or not the settings UI is open: main.qml reads each
-  key (with a matching `?? <default>` guard) and passes a plain value down to the indicator/dot,
-  keeping those sub-components free of plasmoid.configuration (and so headless-testable).
-
-  Three keys use a `0 = auto` sentinel because their natural default is theme/HiDPI-derived and
-  a KConfigXT default can only be a fixed literal (baking a px/ms value would lose HiDPI
-  scaling — see kirigami.md/robustness.md): dotSize 0 → Kirigami.Units.iconSizes.small/2,
-  pillSize 0 → the (effective) dot size so the pill tracks the dots by default, and
-  animationDuration 0 → Kirigami.Units.longDuration (which also inherits "reduce animations").
-  The dimensionless ratios (spacingFactor/pillWidthFactor/inactiveOpacity/hoverOpacity) are
-  plain literals. activeColor/inactiveColor apply only when followThemeColors is false.
+  Each <entry name="X"> becomes plasmoid.configuration.X, read live in main.qml (with a `?? <default>`
+  guard) and passed down as a plain value. Three keys use a `0 = auto` sentinel — their natural default is
+  theme/HiDPI-derived, which a fixed KConfigXT literal can't hold, so it's resolved in the widget: dotSize,
+  pillSize (→ match the dots), animationDuration (→ Kirigami.Units.longDuration). See CLAUDE.md "Config flow".
 -->
 <kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -57,8 +49,7 @@
         <entry name="dynamicWorkspaces" type="Bool">
             <default>false</default>
         </entry>
-        <!-- Base name for desktops auto-created by dynamicWorkspaces; the desktop's number is appended
-             ("<prefix> N"). Empty = the localized default "Desktop". -->
+        <!-- Base name for auto-created desktops ("<prefix> N"); empty = the localized default "Desktop". -->
         <entry name="dynamicNamePrefix" type="String">
             <default></default>
         </entry>
@@ -73,9 +64,7 @@
         <entry name="dotSize" type="Int">
             <default>0</default>
         </entry>
-        <!-- Active-pill thickness in px; 0 = auto (match the dot size). Sized independently of the
-             dots so a thick pill can sit over tiny dots (and vice versa); the pill length is then
-             pillSize × pillWidthFactor. -->
+        <!-- Active-pill thickness in px; 0 = auto (match the dot size). Sized independently of the dots. -->
         <entry name="pillSize" type="Int">
             <default>0</default>
         </entry>
@@ -95,8 +84,7 @@
         <entry name="hoverOpacity" type="Double">
             <default>0.8</default>
         </entry>
-        <!-- Follow the color scheme (active = highlight, inactive = text colour). When false,
-             use the activeColor / inactiveColor below instead. -->
+        <!-- Follow the color scheme; when false, use activeColor / inactiveColor below. -->
         <entry name="followThemeColors" type="Bool">
             <default>true</default>
         </entry>

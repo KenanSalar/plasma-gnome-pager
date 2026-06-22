@@ -4,13 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * UNIT tests for the pure-JS logic tier (package/contents/ui/logic.js). This file imports
- * the `.js` directly and has NO Plasma/Kirigami dependency, so it runs on a bare qt6 +
- * qttest with no Plasma session — the cheapest, most exhaustive tier for branching logic
- * (clamp/wrap, wheel accumulation, never-remove-last, hover-suppress). The QML callers
- * (WorkspaceDot / WorkspaceIndicator / main.qml) stay thin wrappers around these functions.
- *
- * Run with `make check-unit` (or `make check`).
+ * UNIT tests for the pure-JS logic tier (package/contents/ui/logic.js), imported directly with NO
+ * Plasma/Kirigami dependency — the cheapest, most exhaustive tier for the branching logic (clamp/wrap,
+ * wheel accumulation, never-remove-last, …). Run with `make check-unit`.
  */
 import QtTest
 import "../../package/contents/ui/logic.js" as Logic
@@ -47,8 +43,7 @@ TestCase {
             { tag: "unknown-current-clamp", cur: -1, count: 3, delta: 1, wrap: false, exp: -1 },
             { tag: "unknown-current-wrap", cur: -1, count: 3, delta: 1, wrap: true, exp: -1 },
             { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, wrap: false, exp: -1 },
-            // the count/current guards run BEFORE the wrap branch, so an out-of-range current is -1
-            // even with wrap on; a negative count is the empty-list guard.
+            // the count/current guards run BEFORE the wrap branch, so OOB current is -1 even with wrap.
             { tag: "out-of-range-current-wrap", cur: 5, count: 3, delta: 1, wrap: true, exp: -1 },
             { tag: "negative-count", cur: 0, count: -2, delta: 1, wrap: false, exp: -1 },
 
@@ -91,10 +86,8 @@ TestCase {
         compare(Logic.lastDesktopId(data.ids), data.exp, data.tag);
     }
 
-    // --- resolveCurrentDesktop: per-screen current, else the global current ----------
-    // Plasma 6.7 per-output desktops: prefer the per-screen value when present; fall back to the
-    // global current when it's missing — undefined/null (no per-screen API or unknown screen) or ""
-    // (transient). Both empty -> "" (the no-source state the indicator treats as no capsule).
+    // resolveCurrentDesktop: prefer the per-screen value (Plasma 6.7), else fall back to the global
+    // current when it's missing (undefined/null/"" ). Both empty → "" (the no-source state).
     function test_resolveCurrentDesktop_data() {
         return [
             { tag: "per-screen-wins", perScreen: "uuid-screen", global: "uuid-global", exp: "uuid-screen" },
@@ -125,9 +118,8 @@ TestCase {
             { tag: "double-notch", acc: 0, d: 240, t: 120, steps: 2, rem: 0 },
             { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 },
 
-            // negative deltas (wheel up / upward touchpad): (total / t) | 0 truncates TOWARD
-            // zero, so the step and the carried remainder are both negative — the path the
-            // indicator relies on for upward scroll (only positive overshoot was covered before).
+            // negative deltas (wheel up): (total / t) | 0 truncates TOWARD zero, so step and remainder are
+            // both negative — the upward-scroll path.
             { tag: "negative-overshoot-carries", acc: 0, d: -200, t: 120, steps: -1, rem: -80 },
             { tag: "negative-double-notch", acc: 0, d: -240, t: 120, steps: -2, rem: 0 },
             { tag: "negative-remainder-feeds-back", acc: -80, d: -60, t: 120, steps: -1, rem: -20 },
@@ -700,11 +692,9 @@ TestCase {
         compare(Logic.electDynamicWriter(data.reg), data.exp, data.tag);
     }
 
-    // --- dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed ----
-    // Skips the high-frequency churn (IsActive on focus, StackingOrder, …) the aggregator never reads.
-    // Qt semantics: an EMPTY (or null/undefined) roles list means "all roles changed" -> must rebuild.
-    // The role ints are synthetic here (the function is int-agnostic; main.qml supplies the real public
-    // taskmanager enum ints — Qt::DisplayRole + VirtualDesktops/IsOnAllVirtualDesktops/IsMinimized/IsWindow).
+    // dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed (skips the
+    // IsActive focus churn etc.). An EMPTY/null roles list is Qt's "all changed" → rebuild. The role ints
+    // are synthetic here (main.qml supplies the real taskmanager enum ints).
     function test_dataChangeAffectsRoles_data() {
         var relevant = [0, 5, 6, 7, 8];          // e.g. DisplayRole(0) + the four taskmanager roles read
         return [
@@ -728,10 +718,8 @@ TestCase {
         compare(Logic.dataChangeAffectsRoles(data.changed, data.relevant), data.exp, data.tag);
     }
 
-    // --- DEFAULTS: the single source of truth for the QML-side config defaults --------
-    // A change-detector + contract doc: every value mirrors a contents/config/main.xml <default>
-    // and is referenced by main.qml's `?? Logic.DEFAULTS.X` and the component property defaults,
-    // so accidental drift here (or a missing key) fails loudly instead of silently desyncing.
+    // DEFAULTS: the single source of truth for the QML-side config defaults. Every value mirrors a
+    // main.xml <default> and is referenced by main.qml's `?? Logic.DEFAULTS.X`, so drift fails loudly.
     function test_defaults_data() {
         return [
             { tag: "enableScroll", key: "enableScroll", exp: true },
@@ -760,18 +748,15 @@ TestCase {
         compare(Logic.DEFAULTS[data.key], data.exp, data.tag);
     }
 
-    // DEFAULTS is shared (.pragma library) and must stay immutable — a stray write would corrupt
-    // every importer for the session. Object.freeze makes the assignment a no-op (silent in
-    // non-strict JS, a TypeError under "use strict"); tolerate either so the test asserts the
-    // value stays put, not which JS mode the engine happens to run.
+    // DEFAULTS is shared (.pragma library) and must stay immutable. Object.freeze makes the write a no-op
+    // (silent, or a TypeError under "use strict"); tolerate either and assert the value stays put.
     function test_defaultsAreFrozen() {
         verify(Object.isFrozen(Logic.DEFAULTS), "Logic.DEFAULTS must be frozen");
         try { Logic.DEFAULTS.dotSize = 999; } catch (e) { /* strict-mode TypeError is expected */ }
         compare(Logic.DEFAULTS.dotSize, 0, "a frozen DEFAULTS ignores writes");
     }
 
-    // The exact key SET is pinned (test_defaults above only checks values, so it can't catch an ADDED
-    // or REMOVED key). A new config key must be added here and to main.xml together, or this fails.
+    // The exact key SET is pinned (test_defaults checks only values). A new key must be added here too.
     function test_defaultsKeySet() {
         var keys = Object.keys(Logic.DEFAULTS).sort();
         var expected = ["activeColor", "animationDuration", "dotSize", "dynamicNamePrefix",
@@ -783,25 +768,19 @@ TestCase {
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
-    // CROSS-CHECK the KConfigXT schema against the JS mirror: every contents/config/main.xml
-    // <default> must equal Logic.DEFAULTS[name]. The two are hand-synced (KConfigXT can't read a JS
-    // literal — CLAUDE.md), and nothing else verified they agree: editing one and not the other would
-    // pass test_defaults (which pins DEFAULTS against literals, not the schema) yet make a fresh
-    // install's schema default disagree with main.qml's `?? Logic.DEFAULTS` fallback for that frame.
-    // This reads main.xml and asserts the match per entry type; logic.js stays pure (the parse lives
-    // only here). wheelNotchDelta is the one DEFAULTS key with no main.xml entry (a non-config const).
+    // CROSS-CHECK the KConfigXT schema against the JS mirror: every main.xml <default> must equal
+    // Logic.DEFAULTS[name] (the two are hand-synced — KConfigXT can't read a JS literal). Nothing else
+    // verified they agree. wheelNotchDelta is the one DEFAULTS key with no main.xml entry.
     function test_mainXmlDefaultsMatchLogicDefaults() {
-        // Relative URL — XMLHttpRequest resolves it against this test file's location, so no
-        // Qt.resolvedUrl (which qmllint can't resolve here, importing only QtTest + the .js).
+        // Relative URL — XMLHttpRequest resolves it against this test file's location (no Qt.resolvedUrl).
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "../../package/contents/config/main.xml", false);
         xhr.send();
         var xml = xhr.responseText;
         verify(xml && xml.length > 0, "main.xml is readable");
 
-        // Capture each entry's name + type + <default> body. Non-greedy across newlines, so each
-        // <entry …> pairs with its OWN immediately-following <default> (comments sit before entries,
-        // never between the open tag and its default); an empty <default></default> yields "".
+        // Capture each entry's name + type + <default> body; non-greedy so each <entry> pairs with its
+        // OWN following <default> (an empty <default></default> yields "").
         var re = /<entry\s+name="([^"]+)"\s+type="([^"]+)"\s*>[\s\S]*?<default>([\s\S]*?)<\/default>/g;
         var seen = 0;
         var m;
@@ -832,16 +811,13 @@ TestCase {
                 verify(false, "unhandled main.xml entry type '" + type + "' for '" + name + "'");
             }
         }
-        // Every schema entry was parsed (a regex miss would silently skip a key). The 19 entries are
-        // all of DEFAULTS except wheelNotchDelta, which has no main.xml entry.
+        // Every schema entry was parsed (a regex miss would silently skip a key) — all of DEFAULTS but wheelNotchDelta.
         compare(seen, Object.keys(Logic.DEFAULTS).length - 1, "every main.xml entry was checked (all but wheelNotchDelta)");
     }
 
-    // --- KWin DBus call SHAPES: pin the silently-failing strings/types -----------------
-    // Each *Spec builds the exact { service, path, iface, member, args:[{t,v}] } main.qml dispatches,
-    // or null when a guard trips. A wrong string or arg type is DROPPED by KWin with no QML error
-    // (CLAUDE.md DBus gotcha) and is the most upgrade-fragile part — so JSON-compare pins the whole
-    // shape by value. The literals mirror the verified working calls in virtual-desktops.md / CLAUDE.md.
+    // KWin DBus call SHAPES: pin the silently-failing strings/types. Each *Spec builds the exact
+    // { service, path, iface, member, args:[{t,v}] } main.qml dispatches, or null when a guard trips. A
+    // wrong string/type is DROPPED by KWin with no error (CLAUDE.md) — so JSON-compare pins it by value.
     function test_switchSpec_data() {
         return [
             // desktopIds/currentDesktop can be transiently empty (robustness.md) -> guarded to null.

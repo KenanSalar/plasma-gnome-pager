@@ -4,22 +4,12 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * A FormLayout row of a Slider + a right-hand value read-out. A call site supplies one `format`
- * closure (value → display string); this component uses it for BOTH the live read-out and the
- * reserved label width, so the format is declared once instead of being repeated across a
- * value/widest pair that must be kept in sync by hand.
- *
- * The read-out's width is RESERVED for the widest string it can show, otherwise the label's
- * implicit width changes with the value and reflows the RowLayout, making the slider
- * track/handle/ticks appear to jump while you drag. The widest is `format` applied to the slider's
- * extremes (`from`/`to`): the formatters used here are monotonic in string width with value
- * magnitude, and the sentinel sliders put their special text at `from` (0 → "Default"), so
- * reserving over {from, to} bounds every value in between.
- *
- * `snapMode` defaults to SnapAlways (every metric here wants clean increments); override via the
- * alias if a continuous slider is ever needed. Config-page only (lazy-loaded with the settings
- * dialog), so the Layouts/TextMetrics use never touches the always-on widget. Two-way bound via the
- * parent page's `property alias cfg_<key>: <id>.value`.
+ * A FormLayout row of a Slider + a right-hand value read-out. The call site supplies one `format` closure
+ * (value → display string), used for BOTH the live read-out AND the reserved label width — the read-out's
+ * width is RESERVED for the widest string (format applied to from/to) or the label reflows and the slider
+ * appears to jump while dragging. The track is a FIXED width (NOT fillWidth) so every slider matches across
+ * both config pages; the value label absorbs any extra column width. Config-page only (lazy-loaded), so the
+ * Layouts/TextMetrics use never touches the always-on widget. See CLAUDE.md "ConfigSlider".
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -37,20 +27,15 @@ RowLayout {
     property string label: ""              // the row's Kirigami.FormData label
     property var format: (v) => String(v)  // value → read-out string (drives text AND reserved width)
 
-    // The fixed track length. Other field-column widths on a page (the ConfigGeneral TextField/hint)
-    // are pinned to the same metric via ConfigPageBase.fieldWidth so every row's field lines up.
+    // Fixed track length, matched to ConfigPageBase.fieldWidth so every row's field column lines up.
     readonly property int trackWidth: Kirigami.Units.gridUnit * 18
 
     Kirigami.FormData.label: root.label
 
     QQC2.Slider {
         id: slider
-        // Fixed track length (NOT fillWidth) so every slider is identical across BOTH config pages.
-        // The Behavior page's long checkbox labels stretch its FormLayout field column wider than the
-        // slider-only Appearance page; a fillWidth track would follow that and render longer there.
-        // Pinning the width keeps the two pages matched. A long track also makes precise dragging and
-        // arrow-key stepping (focus the slider, then ←/→ moves by stepSize) easy. min == preferred so
-        // it can't shrink below this; any extra column width is absorbed by the value label (below).
+        // Fixed track length (NOT fillWidth): the Behavior page's long checkbox labels would stretch a
+        // fillWidth track wider than the slider-only Appearance page. min == preferred so it can't shrink.
         Layout.preferredWidth: root.trackWidth
         Layout.minimumWidth: root.trackWidth
         snapMode: QQC2.Slider.SnapAlways   // clean increments even when dragged (override via alias)
@@ -60,11 +45,10 @@ RowLayout {
         id: valueLabel
         text: root.format(slider.value)
         horizontalAlignment: Text.AlignRight
-        // fillWidth so a field column made wider by a sibling row (a long checkbox on the Behavior
-        // page) is absorbed here — the right-aligned read-out stays pinned to the column's right edge
-        // and the fixed-width slider keeps its length — rather than stretching the slider.
+        // fillWidth so extra column width (from a long checkbox on a sibling row) is absorbed here — the
+        // right-aligned read-out pins to the column's right edge and the slider keeps its length.
         Layout.fillWidth: true
-        // Reserve the widest the read-out can get (+ a buffer) so the cell never resizes mid-drag.
+        // Reserve the widest the read-out can get (+ buffer) so the cell never resizes mid-drag.
         Layout.minimumWidth: Math.max(valueMetricsFrom.advanceWidth, valueMetricsTo.advanceWidth) + Kirigami.Units.smallSpacing
         Layout.preferredWidth: Layout.minimumWidth
 

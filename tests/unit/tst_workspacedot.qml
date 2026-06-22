@@ -4,18 +4,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * UNIT test for WorkspaceDot in isolation — a single first-party component driven only by
- * plain properties (dotSize / pillWidthFactor / inactiveOpacity / hoverOpacity / active /
- * animate), with no data source to mock. It guards the dot's own contract: inactive it is a
- * dim themed circle; active it MORPHS into a wider highlighted capsule (the pill — there is
- * no overlay); hover brightens inactive dots only; and its whole footprint is the click target.
- * Tests use the default `animate: false`, so morphs are instant and assertions can be synchronous.
- *
- * Composition of dots into the strip (Repeater, reflow, reactivity) is the INTEGRATION tier —
- * see tests/integration/tst_workspaceindicator.qml. See tests/README.md for the taxonomy.
- *
- * Run with `make check-unit` (or `make check`), which sets QT_QPA_PLATFORM=offscreen so
- * Kirigami initialises without a display.
+ * UNIT test for WorkspaceDot in isolation — driven only by plain properties (no data source). Guards the
+ * dot's contract: inactive = dim themed circle; active MORPHS into a wider highlighted capsule (no
+ * overlay); hover brightens inactive only; the whole footprint is the click target. Tests default to
+ * `animate: false` so morphs are instant. Composition into the strip is the INTEGRATION tier (see
+ * tst_workspaceindicator.qml + tests/README.md). Run with `make check-unit` (offscreen).
  */
 import QtQuick
 import QtTest
@@ -47,10 +40,8 @@ TestCase {
         return createTemporaryObject(dotComponent, testCase, props || {});
     }
 
-    // The circle and the tooltip are nested inside the per-dot ToolTipArea, so a flat children
-    // scan would miss them — the element locators (subtree walk + duck-type predicates) are shared
-    // with the integration tier; see tests/shared/elements.js. Thin local aliases keep the call
-    // sites below readable.
+    // The circle/tooltip are nested in the per-dot ToolTipArea; locators are shared with the integration
+    // tier (tests/shared/elements.js). Thin local aliases keep the call sites readable.
     function circleOf(dot) {
         return Elements.circleOf(dot);
     }
@@ -80,8 +71,7 @@ TestCase {
         fuzzyCompare(circle.width, dot.dotSize, 0.5, "inactive is a dot-sized circle");
     }
 
-    // Reflow model: `active` DOES morph the element — into a wider, full-strength, highlight-
-    // coloured capsule. (Inverts the old M2 invariant. animate defaults false → instant.)
+    // Reflow model: `active` morphs the element into a wider, full-strength, highlight capsule.
     function test_activeChangesAppearance() {
         const dot = makeDot({ active: false, inactiveOpacity: 0.45 });
         const circle = circleOf(dot);
@@ -117,10 +107,7 @@ TestCase {
         compare(activatedSpy.count, 1, "the whole capsule is the click target");
     }
 
-    // --- Milestone 4: vertical form factor -----------------------------------------
-    // On a vertical panel the dot morphs along the OTHER axis: the capsule grows TALL
-    // (height → pillWidth) while the width stays a dot. `vertical` defaults false, so every
-    // test above exercises the horizontal axis; these cover the vertical one.
+    // Vertical form factor: the dot morphs along the OTHER axis (capsule grows TALL, width stays a dot).
 
     // Active + vertical: the capsule grows along height; width stays a dot. The footprint
     // (implicitWidth/Height) tracks both axes so the column reflows.
@@ -143,10 +130,8 @@ TestCase {
         fuzzyCompare(dot.implicitHeight, dot.dotSize, 0.5, "implicitHeight is a dot");
     }
 
-    // Regression guard: radius is half the SHORTER side (min(width, height) / 2) — the cross axis,
-    // since the capsule's long axis is always >= its cross axis — so the ends stay stadium-round and a
-    // tall vertical capsule never rounds into a lozenge. With the default pill (== dotSize) that is
-    // dotSize/2 in both orientations.
+    // Regression: radius is min(width,height)/2 (the cross axis), so the ends stay stadium-round and a
+    // tall capsule never rounds into a lozenge. With the default pill (== dotSize) that is dotSize/2.
     function test_verticalRadiusStaysStadium() {
         const dot = makeDot({ vertical: true, active: true });
         const circle = circleOf(dot);
@@ -161,9 +146,8 @@ TestCase {
         fuzzyCompare(circle.radius, dot.dotSize / 2, 0.5, "horizontal capsule radius is dotSize/2");
     }
 
-    // Independent pill thickness: an active dot given a pillSize thicker than its dotSize renders a
-    // capsule that is pillSize across (not dotSize), pillWidth long (pillSize * pillWidthFactor), with
-    // stadium ends at pillSize/2; an inactive dot is unaffected and stays a dotSize circle.
+    // Independent pill thickness: an active dot with pillSize > dotSize renders a capsule pillSize across,
+    // pillWidth long, stadium ends at pillSize/2; an inactive dot stays a dotSize circle.
     function test_independentPillThickness() {
         const active = makeDot({ active: true, dotSize: 8, pillSize: 24, pillWidthFactor: 3 });
         const circle = circleOf(active);
@@ -179,7 +163,7 @@ TestCase {
         fuzzyCompare(inactiveCircle.radius, 4, 0.5, "inactive radius is dotSize/2");
     }
 
-    // --- Milestone 3: hover --------------------------------------------------------
+    // hover
 
     // A fresh dot is not hovered and exposes a numeric hoverOpacity (the brighten target).
     function test_hoverDefaults() {
@@ -188,10 +172,8 @@ TestCase {
         compare(typeof dot.hoverOpacity, "number", "hoverOpacity is a number");
     }
 
-    // Hovering an INACTIVE dot brightens the circle to hoverOpacity; leaving restores the
-    // dim inactiveOpacity. (The brighten/suppress branches are covered exhaustively and
-    // deterministically by tst_logic::test_dotOpacity; this proves the dot wires the
-    // pointer through to that binding.)
+    // Hovering an INACTIVE dot brightens to hoverOpacity; leaving restores inactiveOpacity (the branch
+    // logic is covered by tst_logic::test_dotOpacity; this proves the dot wires the pointer through).
     function test_hoverBrightensInactiveDot() {
         const dot = makeDot({ active: false, inactiveOpacity: 0.45, hoverOpacity: 0.8 });
         const circle = circleOf(dot);
@@ -217,7 +199,7 @@ TestCase {
         fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule");
     }
 
-    // --- Milestone 3: tooltip ------------------------------------------------------
+    // tooltip
 
     // The dot carries a tooltip whose text is the desktop name it was given.
     function test_tooltipShowsDesktopName() {
@@ -227,9 +209,8 @@ TestCase {
         compare(tip.mainText, "Web", "tooltip text is the desktop name");
     }
 
-    // --- accessibility: the dot is exposed to assistive technology (screen readers) ------
-    // A screen reader (Orca) must announce each dot as a named button, and be able to activate it.
-    // The accessible name is the desktop name (the same string the tooltip shows) and tracks it.
+    // accessibility: a screen reader (Orca) announces each dot as a named button it can activate; the
+    // accessible name is the desktop name and tracks it.
     function test_accessibleExposesButtonRole() {
         const dot = makeDot({ desktopName: "Web" });
         compare(dot.Accessible.role, Accessible.Button, "dot exposes a Button role to assistive tech");
@@ -274,7 +255,7 @@ TestCase {
         verify(!tip.active, "tooltip is inactive for an empty name");
     }
 
-    // --- window-list tooltip: the dot renders tooltipText as rich-text subText ----------
+    // window-list tooltip: the dot renders tooltipText as rich-text subText
 
     // The window-list HTML is wired into the tooltip's subText.
     function test_tooltipShowsSubText() {
@@ -292,18 +273,15 @@ TestCase {
         compare(tip.textFormat, Text.RichText, "tooltip renders as rich text");
     }
 
-    // The tooltip is still gated on the NAME: a window list with no name (the transient state where
-    // names lag ids) does not show a tooltip, matching the desktopName gate.
+    // Still gated on the NAME: a window list with no name (transient: names lag ids) shows no tooltip.
     function test_subTextDoesNotActivateWithoutName() {
         const dot = makeDot({ desktopName: "", tooltipText: "<ul><li>Foo</li></ul>", showTooltips: true });
         const tip = tooltipOf(dot);
         verify(!tip.active, "no name → no tooltip even when a window list is present");
     }
 
-    // --- Milestone 5: configurable colours -----------------------------------------
-    // With followThemeColors false the dot uses the configured activeColor/inactiveColor instead
-    // of the colour scheme. (The 2×2 branch is covered exhaustively by tst_logic::test_dotColor;
-    // this proves the dot wires its colour props through to the binding.)
+    // configurable colours: followThemeColors false uses activeColor/inactiveColor (the 2×2 branch is
+    // covered by tst_logic::test_dotColor; this proves the dot wires its colour props through).
     function test_customColorsWhenNotFollowingTheme() {
         const dot = makeDot({ followThemeColors: false, activeColor: "#ff0000", inactiveColor: "#00ff00", active: false });
         const circle = circleOf(dot);
@@ -313,8 +291,7 @@ TestCase {
         compare(circle.color, dot.activeColor, "active uses the custom active colour");
     }
 
-    // followThemeColors true (the default) keeps the colour-scheme binding — a regression guard
-    // that the M5 colour props did not break theme-following. Asserted against theme tokens.
+    // followThemeColors true (default) keeps the colour-scheme binding (regression guard).
     function test_followThemeColorsUsesTheme() {
         const dot = makeDot({ followThemeColors: true, active: false });
         const circle = circleOf(dot);
@@ -324,10 +301,8 @@ TestCase {
         compare(circle.color, Kirigami.Theme.highlightColor, "active follows the theme highlight colour");
     }
 
-    // --- Milestone 5: configurable animation duration ------------------------------
-    // animationDuration 0 = auto (the themed longDuration); a positive value overrides it. The
-    // reduce-animations branch (longDuration 0 → instant) cannot be toggled headlessly and is
-    // covered by tst_logic::test_effectiveDuration; here we prove the dot resolves the sentinel.
+    // configurable animation duration: 0 = auto (themed longDuration), a positive value overrides. The
+    // reduce-animations branch is covered by tst_logic::test_effectiveDuration; here we resolve the sentinel.
     function test_effectiveDurationSentinelAndOverride() {
         const auto = makeDot({ animationDuration: 0 });
         compare(auto.effectiveDuration, Kirigami.Units.longDuration, "0 resolves to the themed default");
@@ -336,11 +311,8 @@ TestCase {
         compare(overridden.effectiveDuration, 250, "a positive value overrides the themed default");
     }
 
-    // --- morph gating: the FIRST placement is instant, later switches animate -------
-    // morphEnabled (= animate && effectiveDuration > 0) is the single gate on the four morph
-    // Behaviors. Every other dot test runs with animate:false (the instant first-placement
-    // path, also the gate-off path), so these are the only cases that assert the gate value
-    // and the only ones that actually fire a Behavior.
+    // morph gating: the FIRST placement is instant, later switches animate. morphEnabled (= animate &&
+    // effectiveDuration > 0) is the single gate on the four Behaviors; every other test runs animate:false.
 
     // The gate combines the animate latch with the resolved duration: off until BOTH hold.
     function test_morphGateReflectsAnimateAndDuration() {
@@ -351,10 +323,8 @@ TestCase {
         compare(latched.morphEnabled, true, "gate is on once latched with a positive duration");
     }
 
-    // With the latch on, toggling `active` MORPHS the width over effectiveDuration rather than
-    // jumping — i.e. a Behavior fires. Contrast test_activeChangesAppearance (animate:false),
-    // where the same toggle changes width instantly. Guarded against a reduce-animations headless
-    // theme (longDuration == 0 → effectiveDuration 0 → morphEnabled false → no Behavior to observe).
+    // With the latch on, toggling `active` MORPHS the width over effectiveDuration (a Behavior fires),
+    // vs test_activeChangesAppearance (animate:false, instant). Guarded against reduce-animations.
     function test_morphAnimatesWhenLatched() {
         const dot = makeDot({ active: false, animate: true, animationDuration: 200 });
         if (!dot.morphEnabled)
@@ -369,9 +339,8 @@ TestCase {
         tryCompare(circle, "width", dot.pillWidth, 2000, "the morph settles at the capsule width");
     }
 
-    // The COLOUR morph fires when latched too: toggling `active` eases the circle from the theme text
-    // colour to the highlight rather than snapping. Same gate as the width morph (skip under
-    // reduce-animations). Companion to test_morphAnimatesWhenLatched, which only observes width.
+    // The COLOUR morph fires when latched too: `active` eases text → highlight rather than snapping
+    // (companion to test_morphAnimatesWhenLatched; skip under reduce-animations).
     function test_colorMorphAnimatesWhenLatched() {
         const dot = makeDot({ active: false, animate: true, animationDuration: 200 });
         if (!dot.morphEnabled)
@@ -385,8 +354,7 @@ TestCase {
         tryVerify(() => Qt.colorEqual(circle.color, Kirigami.Theme.highlightColor), 2000, "the colour settles at the highlight");
     }
 
-    // The OPACITY morph fires too: an inactive dot at inactiveOpacity eases up to full strength (1.0)
-    // when it becomes the active capsule, rather than snapping.
+    // The OPACITY morph fires too: inactiveOpacity eases up to full strength when the dot becomes active.
     function test_opacityMorphAnimatesWhenLatched() {
         const dot = makeDot({ active: false, inactiveOpacity: 0.45, animate: true, animationDuration: 200 });
         if (!dot.morphEnabled)
@@ -415,17 +383,15 @@ TestCase {
         tryCompare(circle, "height", dot.pillWidth, 2000, "the morph settles at the capsule height");
     }
 
-    // First placement is instant EVEN with the latch already on: an element born active is a capsule on
-    // frame 0 (initial property values never animate), so there is no grow-in despite a positive
-    // duration. The indicator-level analogue is test_firstPlacementIsImmediate.
+    // First placement is instant EVEN with the latch on: a born-active element is a capsule on frame 0
+    // (initial values never animate), so no grow-in despite a positive duration.
     function test_bornActiveWithLatchIsInstant() {
         const dot = makeDot({ active: true, animate: true, animationDuration: 200 });
         const circle = circleOf(dot);
         fuzzyCompare(circle.width, dot.pillWidth, 0.5, "born-active is already a capsule (no grow-in from a dot)");
     }
 
-    // The `hovered` alias (mouseArea.containsMouse) flips true while the pointer is over the element and
-    // false when it leaves — the pointer state behind the hover-brighten (otherwise asserted via opacity).
+    // The `hovered` alias (mouseArea.containsMouse) flips true under the pointer, false when it leaves.
     function test_hoveredAliasFlipsTrue() {
         const dot = makeDot({});
         compare(dot.hovered, false, "not hovered at rest");

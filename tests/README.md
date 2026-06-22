@@ -15,10 +15,12 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
 | **integration** | Several first-party components composed + reactive wiring | `WorkspaceIndicator` + its real `WorkspaceDot` delegates + `Repeater` (each dot morphs dot⇄capsule) | the platform — a duck-typed `QtObject` stands in for `TaskManager.VirtualDesktopInfo` | `tests/integration/` |
 | **e2e / system** | The real plasmoid switching real desktops | plasmashell + KWin + session-bus DBus | nothing | *not automated* |
 
-- **unit** (`tests/unit/`) — `tst_workspacedot.qml` and `tst_configslider.qml` (one component each,
-  driven only by properties), plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier) and
-  `tst_coordinator.qml` (the `coordinator.js` shared-state machine) — both import the `.js` directly,
-  no Plasma/Kirigami, so they run on bare qt6 + qttest.
+- **unit** (`tests/unit/`) — `tst_workspacedot.qml`, `tst_configslider.qml`, `tst_indicatormetrics.qml`
+  (the dot-strip sizing engine extracted from the indicator), and `tst_screencurrentdesktop.qml` (the
+  per-screen current-desktop resolver, driven by the shared `VdiMock`) — one component each, driven only
+  by properties — plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier) and `tst_coordinator.qml`
+  (the `coordinator.js` shared-state machine), which import the `.js` directly, no Plasma/Kirigami, so
+  they run on bare qt6 + qttest.
 - **Plasma deps in tested components are OK *if* they load headless.** The goal is headless
   testability, not zero Plasma imports. `WorkspaceDot` imports `org.kde.plasma.core` for its
   per-dot `ToolTipArea` — that type loads and tracks hover under offscreen `qmltestrunner`, so the
@@ -119,13 +121,13 @@ Conventions:
 
 ## Roadmap note
 
-The zero-dependency **pure-JS logic tier** landed in **Milestone 3**: the branching logic (scroll
-index clamp/wrap, hi-res wheel accumulation, "never remove the last desktop", hover-suppress) lives
-in `package/contents/ui/logic.js` (`.pragma library`) and is unit-tested by
-`tests/unit/tst_logic.qml`, which imports the `.js` directly — no Plasma/Kirigami needed, so it
-runs on any bare `qt6` + `qttest` environment (and in CI). Prefer adding new branching logic there
-and asserting it directly, rather than only through QML. CI (qmllint + tests on push) is planned
-for Milestone 7.
+The zero-dependency **pure-JS logic tier**: the branching logic (scroll index clamp/wrap, hi-res
+wheel accumulation, "never remove the last desktop", hover-suppress) lives in
+`package/contents/ui/logic.js` (`.pragma library`) and is unit-tested by `tests/unit/tst_logic.qml`,
+which imports the `.js` directly — no Plasma/Kirigami needed, so it runs on any bare `qt6` + `qttest`
+environment (and in CI). Prefer adding new branching logic there and asserting it directly, rather
+than only through QML. CI runs qmllint + tests + ESLint on every PR
+(`.github/workflows/pr-validation.yml`).
 
 **Test the event path, not just the handler.** Scroll-to-switch broke in-shell while a test that
 called `handleWheel()` directly stayed green — the bug was in *event routing* (which item receives
