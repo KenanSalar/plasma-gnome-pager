@@ -606,6 +606,33 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
 
 Widget id (also the install folder name): `com.github.kenansalar.plasma-gnome-pager`.
 
+> **Gotcha (learned the hard way) — `metadata.json` `Icon` must be an icon-theme NAME, NOT a
+> bundled file.** The "Add Widgets" chooser (and `Plasmoid.icon`) resolve `Icon` only via the icon
+> theme — a relative/bundled path like `../icons/pager.svg` (or any `contents/icons/*.svg`) renders
+> the broken-image `?` placeholder, **never** the file. This is a confirmed Plasma limitation, not a
+> path-syntax mistake: KDE has **no** mechanism to resolve a plasmoid's bundled icon for the chooser
+> (a KDE dev's words: *"That does seem bad. Might be worth formally supporting this"*). A bundled SVG
+> only shows in the chooser if it's installed into the icon **theme** (e.g.
+> `~/.local/share/icons/hicolor/scalable/apps/<name>.svg`) — which `kpackagetool6`, the `.plasmoid`
+> zip, and the KDE Store's "Get New Widgets" (KNewStuff) do **not** do; only distro packaging (AUR/RPM
+> `make install`-style steps) or a manual copy would. So a *custom* chooser icon **cannot** work for
+> Store users (chicken-and-egg: the chooser needs the icon **before** the widget ever runs, so no
+> first-run self-install can fix the first impression). The popular widgets all sidestep this by
+> naming a stock icon (`plasma-panel-colorizer` → `desktop`, the weather widget → `weather-clear`)
+> and shipping their custom SVG only for *in-widget* / KDE-Store-product-page use.
+>
+> We therefore ship **`Icon: "virtual-desktops"`** — a standard Breeze icon (a desktop grid with one
+> cell highlighted; semantically a pager) that is **safe on any theme + any install method, Store
+> included**. It is **monochrome**, so it recolors to the scheme/accent; many themes (Papirus, etc.)
+> ship their **own** `virtual-desktops` so it renders native to the active theme, and the ones that
+> don't (pure Adwaita/HighContrast — they inherit only `hicolor` and lack the name) still resolve it
+> via **KDE's always-present Breeze fallback** (KDE's icon loader injects Breeze regardless of the
+> active theme — the same backstop that keeps Plasma's own UI from ever showing broken icons). Note
+> `virtual-desktops` is a KDE/Breeze name, **not** a freedesktop-spec-standard name, so the guarantee
+> rests on that Breeze fallback — which can only be absent if the Breeze icon set is uninstalled, at
+> which point Plasma itself is broken. (Verified live across Breeze, Fedora, and Catppuccin global
+> themes and the Breeze icon set.)
+
 ## Internationalization (i18n)
 
 All user-visible strings are wrapped at the call site in `i18n`/`i18nc`/`i18np`/`i18ncp` (with
