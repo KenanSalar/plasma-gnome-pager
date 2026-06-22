@@ -7,16 +7,11 @@
  * The window aggregator — a non-visual zero-size Item (Loader.item must be a QQuickItem, not a bare
  * QtObject). ONE unfiltered public TasksModel feeds BOTH features from a single snapshot via pure JS
  * (Logic.groupWindowsByDesktop for the tooltip window list, Logic.computeDesktopOccupancy for dynamic
- * workspaces), not N filtered models, so the grouping stays headless-unit-tested. GroupDisabled →
- * one row per window (an accurate per-desktop count); filterByActivity keeps other activities'
- * windows out of the lists (so occupancy is current-activity — see CLAUDE.md / the plan's trade-off).
- *
- * Lives in its own file (loaded behind a Loader in main.qml) rather than inline so main.qml stays
- * lean and this data-source+i18n unit is isolated. The reactive desktop set is INJECTED as the
- * `virtualDesktopInfo` property (not closure-captured), exactly like the indicator reads it; the
- * i18n + HTML formatting stays here because logic.js is i18n-free (it returns raw window data and the
- * presentation happens at this e2e boundary). This file is not headless-testable (it needs live
- * Plasma models); the grouping/truncation it calls IS unit-tested in logic.js.
+ * workspaces) rather than N filtered models, so the grouping stays headless-unit-tested. GroupDisabled
+ * → one row per window; filterByActivity keeps other activities' windows out (occupancy is current-
+ * activity). Loaded behind a Loader in main.qml so its cost is zero when neither feature needs it. The
+ * desktop set is INJECTED as `virtualDesktopInfo`; i18n + HTML formatting stays here (logic.js is
+ * i18n-free), so this file is not headless-testable, but the grouping/truncation it calls IS.
  */
 pragma ComponentBehavior: Bound
 

@@ -56,7 +56,8 @@ only *which* desktop is "current" can differ **per output**. So each pager must 
 monitor's current — using `vdi.currentDesktop` (the global/active-output current) makes every
 pager follow whichever monitor switched, the exact symptom this feature breaks. `WorkspaceIndicator`
 therefore resolves its own current: it reads its panel's output name from the QtQuick `Screen.name`
-attached property (KWin connector name, e.g. `DP-1`) and calls
+attached property (KWin connector name, e.g. `DP-1`) and injects it into **`ScreenCurrentDesktop.qml`**
+(a non-visual resolver extracted from the indicator), which calls
 `vdi.currentDesktopByScreenName(screenName)` (public, in `org.kde.taskmanager`). The
 perScreen-vs-global decision is the pure `Logic.resolveCurrentDesktop(perScreen, global)` —
 **prefer the per-screen value, fall back to the global** — so it degrades to single-desktop
@@ -72,13 +73,14 @@ monitors are on different desktops.)
 > per-screen current as a method (`currentDesktopByScreenName(name)`) plus a
 > `currentDesktopForScreenChanged(screenName)` signal (and the global `currentDesktopChanged`). A
 > binding like `currentDesktop: vdi.currentDesktopByScreenName(screenName)` would evaluate **once**
-> and never refresh — there is no property to depend on. So `WorkspaceIndicator.currentDesktop` is a
-> mutable source-of-truth property recomputed in `updateCurrentDesktop()`, driven by a
-> `Connections { target: virtualDesktopInfo }` on those signals (plus `onScreenNameChanged` /
-> `onVirtualDesktopInfoChanged` / `Component.onCompleted`); `activeIndex` and each dot's `active`
-> bind off it, staying declarative. The integration mock duck-types the same method+signal (the
-> default models the feature OFF: per-screen == global, so every pre-existing test stays valid), and
-> `tst_logic.qml` covers `resolveCurrentDesktop`.
+> and never refresh — there is no property to depend on. So `ScreenCurrentDesktop.currentDesktop` (the
+> extracted resolver) is a mutable source-of-truth property recomputed in `updateCurrentDesktop()`,
+> driven by a `Connections { target: virtualDesktopInfo }` on those signals (plus `onScreenNameChanged` /
+> `onVirtualDesktopInfoChanged` / `Component.onCompleted`); the indicator forwards it as its own
+> `currentDesktop`, and `activeIndex` and each dot's `active` bind off it, staying declarative. The
+> integration mock duck-types the same method+signal (the default models the feature OFF: per-screen ==
+> global, so every pre-existing test stays valid); `tst_logic.qml` covers `resolveCurrentDesktop` and
+> `tst_screencurrentdesktop.qml` covers the resolver's reactive recompute + the typeof degrade.
 
 > **Gotcha — DBus typed-arg constructors are lowercase, and `variant` takes a _plain_ value.**
 > The `org.kde.plasma.workspace.dbus` module exports `new DBus.string(s)`, `new DBus.int32(n)`,
@@ -102,9 +104,11 @@ monitors are on different desktops.)
 `preferredRepresentation: fullRepresentation` and `fullRepresentation: WorkspaceIndicator {}`.
 `main.qml` (root `PlasmoidItem`) owns the data sources, DBus helpers, and contextual actions;
 `WorkspaceIndicator.qml` lays out the dot strip — a row or column per `Plasmoid.formFactor` (passed
-down as a plain `vertical` bool), and a multi-row grid mirroring KWin's `desktopLayoutRows`;
-`WorkspaceDot.qml` is one element (a dot that morphs into the highlighted capsule when active — see
-the Visual model below).
+down as a plain `vertical` bool), and a multi-row grid mirroring KWin's `desktopLayoutRows` — and is
+layout + scroll + wiring only: it delegates the size math to **`IndicatorMetrics.qml`** (the sizing
+engine) and the per-screen current to **`ScreenCurrentDesktop.qml`**, both non-visual units extracted
+from it and each independently unit-tested. `WorkspaceDot.qml` is one element (a dot that morphs into
+the highlighted capsule when active — see the Visual model below).
 
 > **Gotcha (learned the hard way) — advertise width via `Layout.*`, not `implicitWidth` alone.**
 > An inline full-representation that sets *only* `implicitWidth`/`implicitHeight` gets a **default
@@ -192,7 +196,11 @@ how GNOME and the KDE `compact_pager` actually work.
 > pillThicknessRatio`, so dots AND an independently-sized pill scale in lockstep (the configured
 > dot:pill proportion is preserved under shrink). Common case (room
 > available on both axes): `fitDotSize >= naturalDotSize`, so effective == natural and the look is
-> byte-for-byte unchanged. Guarded by `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
+> byte-for-byte unchanged. **All of this size math lives in the non-visual `IndicatorMetrics.qml`** —
+> the indicator feeds it the requests + grid shape + live `availableMajor`/`availableCross` geometry and
+> forwards its outputs unchanged — so it is now **directly** unit-tested (`tst_indicatormetrics.qml`) as
+> well as through the indicator. Guarded by `tst_indicatormetrics.qml` +
+> `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
 > test_scaleDotsUnchangedWhenAmple,test_scaleDotsShrinkOnShortHeightVertical,
 > test_scaleDotsShrinkOnThinCrossMultiRow,test_scaleDotsCrossUnchangedWhenAmpleThickness,
 > test_scaleDotsShrinkOnThinCrossVertical,test_advertisesWidthViaLayout,
@@ -202,7 +210,7 @@ how GNOME and the KDE `compact_pager` actually work.
 > **Independent pill thickness — `pillSize` is decoupled from `dotSize` via ONE ratio; reuse the fit
 > math, don't fork it.** The pill's cross-axis *thickness* is its own config key `pillSize` (`Int`, `0
 > = auto = match the dots`); the dots keep `dotSize`. The decoupling is carried entirely by **one**
-> derived quantity in `WorkspaceIndicator`: `pillThicknessRatio = naturalPillSize / naturalDotSize`
+> derived quantity in `IndicatorMetrics`: `pillThicknessRatio = naturalPillSize / naturalDotSize`
 > (`1` when auto, because `naturalPillSize` falls back to `naturalDotSize`). With it, the existing pure
 > `Logic.fitDotSize`/`Logic.lineExtent` are reused **unchanged** — only their *factor arguments*
 > change: the capsule length in dot units becomes `pillThicknessRatio * pillWidthFactor` (major fit /
@@ -576,8 +584,8 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
 > — baking a px/ms literal would lose HiDPI/theme scaling (kirigami.md). Instead `dotSize`, `pillSize`
 > (`0 = match the dots` → the effective `dotSize`, via `pillThicknessRatio == 1`), and
 > `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
-> components** (the indicator's `dotSize`/`pillSize`, and `Logic.effectiveDuration` for the morph) — NOT in
-> `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
+> components** (`IndicatorMetrics`'s `dotSize`/`pillSize`, and `Logic.effectiveDuration` for the morph) —
+> NOT in `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
 > Kirigami, but only for the rename dialog's spacing, and is not itself headless-testable).
 > `effectiveDuration` also
 > folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),

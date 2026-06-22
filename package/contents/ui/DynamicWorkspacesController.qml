@@ -4,31 +4,24 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The GNOME-style dynamic-workspaces controller — a non-visual, zero-size Item (it hosts a Timer +
- * Connections, which need a QQuickItem host; a bare QtObject has no default property for child
- * elements). Extracted out of main.qml so the reactive state machine is ONE single-responsibility
- * unit AND headless-testable: it imports only QtQuick + the two pure .js tiers (no Plasmoid /
- * PlasmaCore / Kirigami / i18n), so tests/integration/tst_dynamicworkspacescontroller.qml can drive
- * it with a VdiMock + an injected occupancy array and assert the dispatched call specs directly.
- * (Before the extraction this whole machine lived inside the e2e-only main.qml and was untested.)
+ * The GNOME-style dynamic-workspaces controller — a non-visual zero-size Item (it hosts a Timer +
+ * Connections, which need a QQuickItem host). Extracted out of main.qml so the reactive state machine
+ * is ONE single-responsibility unit AND headless-testable: it imports only QtQuick + the two pure .js
+ * tiers (no Plasmoid/PlasmaCore/Kirigami/i18n), so tst_dynamicworkspacescontroller.qml drives it with a
+ * VdiMock + injected occupancy and asserts the dispatched specs directly.
  *
  * When enabled, keep exactly one empty trailing desktop by issuing ONE KWin add/remove per cycle and
- * letting the live VirtualDesktopInfo report the result (the read/write split). The decision is the
- * pure Logic.dynamicWorkspacePlan; here we debounce, re-check the freshest state, and hold a short
- * busy-lock against THIS instance re-firing before its own change reflects.
+ * letting VirtualDesktopInfo report the result (the read/write split). The decision is the pure
+ * Logic.dynamicWorkspacePlan; here we debounce, re-check the freshest state, and hold a short busy-lock
+ * against THIS instance re-firing before its own change reflects.
  *
- * The desktop SET is global, so this is a single GLOBAL behaviour. The shared coordinator
- * (coordinator.js, one .pragma library per plasmashell engine) gives two things across all
- * panel/monitor instances:
- *   1. Setting SYNC — the enabled flag and name prefix are ONE global value. The controller mirrors
- *      the global into THIS instance's persisted config via the syncConfigRequested signal (main.qml
- *      does the actual Plasmoid.configuration write, value-guarded — the controller stays Plasma-free).
- *   2. Single-WRITER election — only the lowest-token instance issues the KWin add/remove, so two
- *      panels never double-add then trim (the multi-monitor "flash"). dynToken is our handle.
- *
- * Inputs flow IN as plain values (dynamicEnabled / namePrefix / defaultPrefix / virtualDesktopInfo /
- * desktopOccupancy); side effects flow OUT as two signals (dispatchRequested / syncConfigRequested),
- * so the controller depends on abstractions, not on main.qml (DIP).
+ * The desktop SET is global, so this is a single GLOBAL behaviour coordinated via coordinator.js (one
+ * .pragma library per plasmashell engine): (1) setting SYNC — the enabled flag + name prefix are ONE
+ * global value, mirrored into this instance's persisted config via syncConfigRequested (main.qml does
+ * the Plasmoid.configuration write, so the controller stays Plasma-free); (2) single-WRITER election —
+ * only the lowest-token instance issues the add/remove, so panels never double-add then trim (the
+ * "flash"); dynToken is our handle. Inputs flow IN as plain values; side effects flow OUT as the two
+ * signals (DIP).
  */
 pragma ComponentBehavior: Bound
 

@@ -44,36 +44,25 @@ ConfigPageBase {
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
 
-    // Tolerance for the real-valued "differs from default" checks: a value dragged back onto the
-    // default (SnapAlways lands it on the step grid) can differ from the schema default by a float
-    // ULP and would otherwise read "modified". One named constant instead of a repeated literal.
-    readonly property real epsilon: 1e-9
+    // Single source for this page's keys + their compare kind; drives BOTH isModified and the
+    // Defaults reset via ConfigPageBase.fieldChanged/resetField. The kind picks the comparison:
+    // reals compare within epsilon, colours via Qt.colorEqual (QColor wrappers are identity-compared
+    // by !==, not value), ints/bools exact — so no per-key comparison is hand-written here.
+    readonly property var configKeys: [
+        { n: "dotSize", t: "int" },
+        { n: "pillSize", t: "int" },
+        { n: "spacingFactor", t: "real" },
+        { n: "pillWidthFactor", t: "real" },
+        { n: "inactiveOpacity", t: "real" },
+        { n: "hoverOpacity", t: "real" },
+        { n: "followThemeColors", t: "bool" },
+        { n: "activeColor", t: "color" },
+        { n: "inactiveColor", t: "color" }
+    ]
 
-    // True when any key on this page differs from its default (gates the base's Defaults action).
-    // Integers/bools compare exactly; the real-valued sliders use `epsilon` (above). Colours are
-    // QColor-backed value types: strict !== compares wrapper identity, not the colour value (equal
-    // colours still read "different"), so use Qt.colorEqual (Qt docs).
-    isModified: cfg_dotSize !== cfg_dotSizeDefault
-        || cfg_pillSize !== cfg_pillSizeDefault
-        || Math.abs(cfg_spacingFactor - cfg_spacingFactorDefault) > epsilon
-        || Math.abs(cfg_pillWidthFactor - cfg_pillWidthFactorDefault) > epsilon
-        || Math.abs(cfg_inactiveOpacity - cfg_inactiveOpacityDefault) > epsilon
-        || Math.abs(cfg_hoverOpacity - cfg_hoverOpacityDefault) > epsilon
-        || cfg_followThemeColors !== cfg_followThemeColorsDefault
-        || !Qt.colorEqual(cfg_activeColor, cfg_activeColorDefault)
-        || !Qt.colorEqual(cfg_inactiveColor, cfg_inactiveColorDefault)
-
-    onDefaultsRequested: {
-        cfg_dotSize = cfg_dotSizeDefault;
-        cfg_pillSize = cfg_pillSizeDefault;
-        cfg_spacingFactor = cfg_spacingFactorDefault;
-        cfg_pillWidthFactor = cfg_pillWidthFactorDefault;
-        cfg_inactiveOpacity = cfg_inactiveOpacityDefault;
-        cfg_hoverOpacity = cfg_hoverOpacityDefault;
-        cfg_followThemeColors = cfg_followThemeColorsDefault;
-        cfg_activeColor = cfg_activeColorDefault;
-        cfg_inactiveColor = cfg_inactiveColorDefault;
-    }
+    // True when any key differs from its default (gates the base's Defaults action).
+    isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
+    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     Kirigami.FormLayout {
         ConfigSlider {

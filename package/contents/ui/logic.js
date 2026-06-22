@@ -4,29 +4,21 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Pure, dependency-free branching logic shared by the QML components. Keeping it here
- * (no Plasma/Kirigami/Qt deps) lets tests/unit/tst_logic.qml import and exercise every
- * branch on a bare qt6 + qttest, with no Plasma session — the project's logic tier
- * (see tests/README.md / CLAUDE.md). The QML side stays a thin caller.
- *
- * `.pragma library` shares one stateless instance across all importers (no per-import
- * copy); it forbids referencing QML ids/context — which is exactly the constraint that
- * keeps this file pure.
+ * Pure, dependency-free branching logic shared by the QML components. No Plasma/Kirigami/Qt deps, so
+ * tst_logic.qml exercises every branch on bare qt6 + qttest with no Plasma session; the QML side
+ * stays a thin caller. `.pragma library` shares one stateless instance across importers and forbids
+ * QML ids/context — the constraint that keeps this file pure.
  */
 .pragma library
 
 /**
- * Single source of truth for the QML-side config defaults. Each config key mirrors the matching
- * contents/config/main.xml <default> and is the fallback the QML uses when a key reads back
- * `undefined` (a freshly-added schema, a removed/re-added widget). Referenced by main.qml's
- * `?? Logic.DEFAULTS.<key>` guards and by the WorkspaceIndicator/WorkspaceDot property defaults,
- * so the same literal is no longer written three times and cannot drift between them. main.xml
- * stays the SCHEMA source; this is the QML mirror. (`wheelNotchDelta` is the one exception — a
- * shared non-config constant with NO main.xml entry, kept here alongside the other shared values;
- * WorkspaceIndicator reads it via Logic.DEFAULTS.) The theme/HiDPI-derived render fallbacks
- * (dotSize → Kirigami.Units, the theme colours) are NOT here — they are intentionally different
- * from the hex schema defaults and live in the components. `Object.freeze` keeps this one shared
- * (.pragma library) instance immutable. `dotSize`/`animationDuration` 0 are the "auto" sentinels.
+ * Single source of truth for the QML-side config defaults, each mirroring a main.xml <default>. Used
+ * as the `?? Logic.DEFAULTS.<key>` fallback when a key reads back undefined (freshly-added schema,
+ * removed/re-added widget), so the literal isn't written three times and can't drift. Theme/HiDPI
+ * render fallbacks (the auto dotSize, the theme colours) live in the components instead, being
+ * intentionally different from the hex schema defaults. `wheelNotchDelta` is a shared constant with
+ * no main.xml entry; dotSize/animationDuration 0 are the "auto" sentinels. Object.freeze keeps the
+ * shared instance immutable.
  */
 var DEFAULTS = Object.freeze({
     // Behaviour (General group)
@@ -56,24 +48,18 @@ var DEFAULTS = Object.freeze({
 });
 
 /**
- * Coerce a value to a string, mapping a null/undefined to "" (so callers never throw on a
- * transient absent value). Anything else goes through String() unchanged (0 → "0", false →
- * "false"). Shared by the sanitize* functions, which both need this exact "absent → empty,
- * else stringify" rule. NOT used by resolveCurrentDesktop, whose prefer/fallback semantics
- * differ (it excludes "" from the prefer branch and uses truthiness for the global one).
+ * Coerce to string, mapping null/undefined to "" (callers never throw on a transient absent value);
+ * everything else through String() unchanged (0 → "0", false → "false"). Shared by the sanitize*
+ * functions. NOT used by resolveCurrentDesktop, whose prefer/fallback semantics differ.
  */
 function toStringOrEmpty(value) {
     return (value === undefined || value === null) ? "" : String(value);
 }
 
 /**
- * Step the active index by `delta` (+1 next, -1 previous).
- *
- * Returns the new index in [0, count-1], or -1 for any state the caller must ignore:
- * an empty list, or a `currentIndex` that is out of range (e.g. -1 during a transient
- * add/remove, when indexOf(currentDesktop) has not resolved yet). When `wrap` is false
- * the index clamps at the ends (scrolling past the edge is a no-op); when true it wraps
- * with a true modulo so negative deltas behave.
+ * Step the active index by delta (+1 next, -1 previous). Returns the new index in [0, count-1], or
+ * -1 for states the caller must ignore (empty list, or an out-of-range currentIndex during a
+ * transient add/remove). wrap=false clamps at the ends; true wraps with a true modulo.
  */
 function stepIndex(currentIndex, count, delta, wrap) {
     if (count <= 0)
@@ -104,13 +90,11 @@ function lastDesktopId(ids) {
 }
 
 /**
- * Resolve the current desktop for one screen. Plasma 6.7's "switch desktops independently for each
- * screen" (kwinrc PerOutputVirtualDesktops) lets each output show a different current desktop, read
- * via VirtualDesktopInfo.currentDesktopByScreenName(name): `perScreen` is that value (a UUID string,
- * or undefined/null/"" when there is no per-screen info — an unknown screen name, the feature off,
- * or an older Plasma without the API). `global` is VirtualDesktopInfo.currentDesktop (the global /
- * active-output current). Prefer the per-screen value when present, else fall back to the global one,
- * so the widget degrades to its single-desktop behaviour whenever per-screen data is missing.
+ * Resolve the current desktop for one screen (Plasma 6.7 per-output desktops). `perScreen` is
+ * VirtualDesktopInfo.currentDesktopByScreenName(name) — undefined/null/"" when there is no per-screen
+ * info (unknown screen, feature off, older Plasma without the API); `global` is the global
+ * currentDesktop. Prefer the per-screen value, else fall back to global, so it degrades to
+ * single-desktop behaviour whenever per-screen data is missing.
  */
 function resolveCurrentDesktop(perScreen, global) {
     if (perScreen !== undefined && perScreen !== null && perScreen !== "")
@@ -119,10 +103,10 @@ function resolveCurrentDesktop(perScreen, global) {
 }
 
 /**
- * Accumulate high-resolution / touchpad wheel deltas and emit whole "notches" as integer
- * steps. A standard mouse wheel reports ±120 angle units per notch; touchpads report many
- * small deltas that must sum to a notch before stepping. Returns { steps, remainder } —
- * feed `remainder` back in as `accumulated` on the next event so sub-notch motion is not lost.
+ * Accumulate hi-res/touchpad wheel deltas and emit whole notches as integer steps (a mouse wheel
+ * reports ±120 per notch; touchpads report sub-notch deltas that must sum to a notch first). Returns
+ * { steps, remainder } — feed `remainder` back as `accumulated` next event so sub-notch motion is
+ * not lost.
  */
 function accumulateWheel(accumulated, deltaY, threshold) {
     var t = (threshold > 0) ? threshold : DEFAULTS.wheelNotchDelta;
@@ -132,10 +116,8 @@ function accumulateWheel(accumulated, deltaY, threshold) {
 }
 
 /**
- * Opacity for a dot/capsule. The active element IS the highlighted capsule, so it is drawn
- * at full strength (1.0); inactive elements are dimmed to `inactiveOpacity` and brighten to
- * `hoverOpacity` on hover. Hover therefore affects inactive dots only — an active capsule is
- * always fully opaque (hovering it changes nothing).
+ * Opacity for a dot/capsule: the active capsule is full strength (1.0); inactive dots dim to
+ * inactiveOpacity and brighten to hoverOpacity on hover (so hovering the active capsule does nothing).
  */
 function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
     if (active)
@@ -144,10 +126,9 @@ function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
 }
 
 /**
- * Colour for a dot/capsule. When `followTheme` is true the element follows the colour scheme
- * (active → `themeActive`, inactive → `themeInactive`); otherwise it uses the user's custom
- * `customActive` / `customInactive`. The caller passes the live Kirigami.Theme colours in as the
- * theme args so the QML binding still tracks them and re-evaluates on a colour-scheme change.
+ * Colour for a dot/capsule: follow the scheme (the theme args) when followTheme, else the user's
+ * custom colours. The caller passes the live Kirigami.Theme colours in so the binding re-evaluates
+ * on a colour-scheme change.
  */
 function dotColor(active, followTheme, themeActive, themeInactive, customActive, customInactive) {
     if (followTheme)
@@ -156,10 +137,9 @@ function dotColor(active, followTheme, themeActive, themeInactive, customActive,
 }
 
 /**
- * Resolve the morph animation duration. `requested` is the user's configured value (0 = auto);
- * `themeDuration` is Kirigami.Units.longDuration (0 when "reduce animations" is on). Returns 0
- * whenever the theme says animations are off (reduce-animations always wins), otherwise the
- * requested override, or the themed default when no override is set (requested <= 0).
+ * Resolve the morph duration. `requested` is the user's value (0 = auto); `themeDuration` is
+ * Kirigami.Units.longDuration (0 when "reduce animations" is on). Reduce-animations always wins
+ * (returns 0); otherwise the requested override, else the themed default (requested <= 0).
  */
 function effectiveDuration(requested, themeDuration) {
     if (themeDuration <= 0)
@@ -168,9 +148,8 @@ function effectiveDuration(requested, themeDuration) {
 }
 
 /**
- * Desktops per line for a grid of `rows` rows — mirrors KWin's desktop grid, where the column
- * count is derived from the configured row count: columns = ceil(count / rows). Returns 0 for an
- * empty set, and treats a missing/<1 `rows` as 1 (a single line — the default desktop layout).
+ * Desktops per line for `rows` rows — mirrors KWin's grid: columns = ceil(count / rows). 0 for an
+ * empty set; a missing/<1 `rows` is treated as 1 (a single line — the default layout).
  */
 function gridColumns(count, rows) {
     if (count <= 0)
@@ -180,9 +159,9 @@ function gridColumns(count, rows) {
 }
 
 /**
- * Split `arr` into consecutive chunks of at most `size` — the row-major lines of the grid (line 0
- * is the first `size` desktops, etc.; the last line may be shorter). Returns [] for a null/empty
- * input or a `size` < 1 (the transient no-desktops state), so a Repeater over it is simply empty.
+ * Split `arr` into consecutive chunks of at most `size` — the row-major grid lines (the last may be
+ * shorter). [] for a null/empty input or a `size` < 1 (the transient no-desktops state), so a
+ * Repeater over it is simply empty.
  */
 function chunk(arr, size) {
     if (!arr || arr.length === 0 || !size || size < 1)
@@ -194,14 +173,11 @@ function chunk(arr, size) {
 }
 
 /**
- * Shallow element-wise equality for arrays of primitives (booleans, strings). Lets a caller skip a
- * `var` property reassignment whose contents are byte-identical: in QML a `var`/object property
- * notifies on EVERY reassignment to a fresh object reference (which each rebuild's freshly-built
- * array is) — there is no contents compare — so the aggregator uses this to keep the OLD reference
- * when contents match and avoid waking downstream bindings/handlers (the dynamic controller, each
- * dot's tooltip) on an unchanged occupancy/tooltip snapshot. Identity- and null/length-guarded;
- * two empty arrays compare equal. Strict `!==` compare, so it does NOT recurse into nested arrays
- * (the inputs here are flat primitive arrays).
+ * Shallow element-wise equality for arrays of primitives. Lets a caller skip a `var` reassignment
+ * whose contents are byte-identical: a QML var/object property notifies on EVERY reassignment to a
+ * fresh reference (there is no contents compare), so the aggregator keeps the OLD reference when
+ * contents match to avoid waking downstream bindings on an unchanged occupancy/tooltip snapshot.
+ * Identity/null/length-guarded; flat compare (does not recurse into nested arrays).
  */
 function arraysShallowEqual(a, b) {
     if (a === b)
@@ -215,13 +191,11 @@ function arraysShallowEqual(a, b) {
 }
 
 /**
- * Total extent of one reflow line of `count` slots laid end to end with a uniform `gap` between
- * every adjacent pair: ONE slot is the active capsule (`activeExtent`), the rest are dots
- * (`dotSize`). The length is position-independent — it does not matter which slot holds the
- * capsule, only that exactly one does. Returns a single `dotSize` for count <= 0 (the transient
- * no-desktops fallback, so the panel cell never collapses). The cross axis carries no capsule,
- * so callers pass `activeExtent === dotSize` there — the degenerate all-dots case
- * (n·dotSize + (n-1)·gap). Used for both the major-axis strip length and the cross thickness.
+ * Total extent of one reflow line: `count` slots end to end with a uniform `gap`, exactly ONE slot
+ * the active capsule (`activeExtent`), the rest dots (`dotSize`). Position-independent (only that one
+ * slot is the capsule). Returns a single `dotSize` for count <= 0 (the transient no-desktops
+ * fallback). The cross axis carries no capsule, so callers pass activeExtent == dotSize there. Used
+ * for both the major-axis strip length and the cross thickness.
  */
 function lineExtent(count, dotSize, gap, activeExtent) {
     if (count <= 0)
@@ -230,16 +204,13 @@ function lineExtent(count, dotSize, gap, activeExtent) {
 }
 
 /**
- * Dot size that makes ONE full reflow line exactly fill `available` along the major axis — the
- * inverse of lineExtent's major-axis form. A line of `perLine` slots (one capsule + the rest dots,
- * uniform gaps) measures dotSize · (pillWidthFactor + (perLine - 1)·(1 + spacingFactor)); solving
- * that for dotSize at length `available` gives available / denom. Returns POSITIVE_INFINITY (an
- * unbounded "no constraint") when there is nothing to fit — a non-positive `available` (the
- * pre-layout frame where width/height is still 0), no slots (perLine <= 0), or a non-positive
- * denominator — so the caller's min(naturalDotSize, fit) simply keeps the natural size. The caller
- * clamps the result to a legibility floor and to the natural size, which keeps this Kirigami-free
- * (the floor/natural are themed values) and unit-testable. Used by WorkspaceIndicator to shrink the
- * dots/pill to fit a crowded panel instead of overflowing onto the neighbouring widgets.
+ * Dot size that makes ONE full line exactly fill `available` on the major axis — the algebraic
+ * inverse of lineExtent: a line measures dotSize · (pillWidthFactor + (perLine-1)·(1 +
+ * spacingFactor)), so the fit is available / that denominator. Returns POSITIVE_INFINITY when there
+ * is nothing to fit (non-positive `available` before layout, perLine <= 0, or a non-positive
+ * denominator) so the caller's min(naturalDotSize, fit) keeps the natural size. The caller clamps to
+ * a legibility floor and the natural size, keeping this Kirigami-free. Used to shrink the dots/pill
+ * to a crowded panel instead of overflowing onto the neighbours.
  */
 function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
     if (available <= 0 || perLine <= 0)
@@ -251,19 +222,17 @@ function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
 }
 
 /**
- * How many window titles a tooltip lists before collapsing the rest into an "…and N other windows"
- * line — the stock KDE pager's rule (applets/pager/qml/main.qml::generateWindowList): show 4, but
- * show all 5 when there are exactly 5, since "…and 1 other window" would waste a line for no gain.
+ * How many window titles a tooltip lists before "…and N other windows": show 4, but show all 5 when
+ * there are exactly 5 (since "…and 1 other window" would waste a line). Ported from the stock KDE pager.
  */
 function windowListMaximum(count) {
     return count === 5 ? 5 : 4;
 }
 
 /**
- * HTML-escape a window title for the rich-text tooltip (ported verbatim from the stock pager's
- * sanitize()). Titles are arbitrary user/app strings, so `<`, `>`, `&`, quotes and the no-break
- * space must be entity-encoded or they would corrupt the <ul><li> markup the formatter builds.
- * Coerces non-strings (a transient null/undefined title) to "" so the caller never throws.
+ * HTML-escape a window title for the rich-text tooltip (ported from the stock pager): `<`, `>`, `&`,
+ * quotes and the no-break space must be entity-encoded or they corrupt the <ul><li> markup. The
+ * ordinary space is NOT escaped (it must still wrap). Coerces a transient null/undefined title to "".
  */
 function sanitizeHtml(input) {
     var table = {
@@ -283,11 +252,10 @@ function sanitizeHtml(input) {
 var MAX_DESKTOP_NAME_LENGTH = 100;
 
 /**
- * Normalise a user-entered desktop name before the KWin `setDesktopName` DBus write (distinct from
- * sanitizeHtml above, which escapes markup): coerce a null/undefined/non-string to "", trim
- * surrounding whitespace, reject an empty/whitespace-only name by returning "" (the same no-op
- * sentinel convention as lastDesktopId), and cap an absurd length so the name stays sane in the
- * tooltip/markup. The QML caller does `if (!clean) return;` before issuing the call.
+ * Normalise a user-entered desktop name before the KWin setDesktopName write (distinct from
+ * sanitizeHtml, which escapes markup): coerce to string, trim, reject an empty/whitespace-only name
+ * by returning "" (the no-op sentinel), and cap length. The QML caller does `if (!clean) return;`
+ * before issuing the call.
  */
 function sanitizeDesktopName(input) {
     var s = toStringOrEmpty(input).trim();
@@ -297,10 +265,9 @@ function sanitizeDesktopName(input) {
 }
 
 /**
- * Membership test for groupWindowsByDesktop: does this window belong on the desktop `uuid`?
- * True only for a real window (`isWindow`) that is either on all desktops (`onAll`) or whose
- * `desktops` list contains `uuid`. A null/undefined window or a missing `desktops` list yields
- * false (guards the transient model state). Returns a strict boolean.
+ * Tooltip membership: does this window belong on desktop `uuid`? True only for a real window
+ * (`isWindow`) that is either on all desktops or whose `desktops` list contains uuid. A null window
+ * or a missing `desktops` list yields false (guards the transient model state). Strict boolean.
  */
 function windowIsOnDesktop(window, uuid) {
     if (!window || !window.isWindow)
@@ -309,16 +276,12 @@ function windowIsOnDesktop(window, uuid) {
 }
 
 /**
- * Group a flat window list into per-desktop title lists, index-aligned with `desktopIds` (parallel
- * to desktopNames). `windows` is the snapshot the QML aggregator materialises from TasksModel — each
- * element { title, minimized, onAll, isWindow, desktops:[uuid…] }. For each desktop id it returns
- * { visible: [title…], minimized: [title…] } in model order: a window belongs to a desktop when it
- * is a real window AND (it is on all desktops OR its `desktops` list contains that id); minimized
- * windows go in their own bucket (the stock pager lists them under a separate header). Titles are
- * kept RAW — the i18n "Untitled" substitution and HTML escaping happen in main.qml's formatter (this
- * stays pure/headless-testable). Guards the transient states: a null/empty `windows` still yields one
- * empty entry per desktop, and a null/empty `desktopIds` (desktopIds can be [] for a frame —
- * robustness.md) yields [].
+ * Group a flat window snapshot into per-desktop title lists, index-aligned with `desktopIds`. Each
+ * element is { title, minimized, onAll, isWindow, desktops:[uuid…] }. Per desktop returns { visible:
+ * [title…], minimized:[title…] } in model order; minimized windows go in their own bucket (the stock
+ * pager lists them under a separate header). Titles stay RAW — the i18n "Untitled" substitution and
+ * HTML escaping happen in main.qml's formatter, so this stays pure/headless-testable. Guards
+ * transient state: null/empty windows → one empty entry per desktop; null/empty desktopIds → [].
  */
 function groupWindowsByDesktop(windows, desktopIds) {
     if (!desktopIds || desktopIds.length === 0)
@@ -344,22 +307,18 @@ function groupWindowsByDesktop(windows, desktopIds) {
 }
 
 /*
- * Dynamic workspaces (GNOME-style).
- *
- * GNOME keeps exactly one empty workspace at the end: populate the last one and a new empty appears;
- * empty the others and they collapse away. The functions below are the PURE decision layer for that
- * (no Plasma deps) — main.qml feeds them a window snapshot + the live desktop ids and dispatches the
- * single add/remove they return, letting `vdi` report the resulting state (the read/write split).
- * Default OFF; see DEFAULTS.dynamicWorkspaces / dynamicNamePrefix.
+ * Dynamic workspaces (GNOME-style). Keep exactly one empty desktop at the end: populate the last and
+ * a new empty appears; empty the others and they collapse. The functions below are the PURE decision
+ * layer — main.qml feeds them a window snapshot + the live ids and dispatches the single add/remove
+ * they return, letting `vdi` report the resulting state (the read/write split). Default OFF.
  */
 
 /**
  * Does `window` make a desktop NON-EMPTY for dynamic-workspace purposes? Real window only, and —
- * unlike windowIsOnDesktop (the tooltip's membership) — an on-all-desktops window does NOT count
- * (it would pin every desktop as occupied, so nothing could ever be empty), nor does a window
- * hidden from the pager (`skipPager`, matching the KWin "Dynamic Workspaces" scripts). MINIMIZED
- * windows DO count (a minimized window still occupies its desktop — GNOME + the KWin scripts agree),
- * so there is intentionally no minimized check here. Returns a strict boolean.
+ * unlike windowIsOnDesktop — an on-all-desktops window does NOT count (it would pin every desktop as
+ * occupied, so nothing could ever be empty), nor does a `skipPager` window. MINIMIZED windows DO
+ * count (a minimized window still occupies its desktop — GNOME + the KWin scripts agree), so there is
+ * intentionally no minimized check. Strict boolean.
  */
 function windowOccupiesDesktop(window, uuid) {
     if (!window || !window.isWindow)
@@ -370,12 +329,9 @@ function windowOccupiesDesktop(window, uuid) {
 }
 
 /**
- * Reduce a flat window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`
- * (parallel to desktopNames / the tooltip array). `windows` elements are the same shape main.qml
- * materialises from TasksModel — { isWindow, onAll, skipPager, minimized, desktops:[uuid…] } (title is
- * unused here). out[i] is true iff some window windowOccupiesDesktop(w, desktopIds[i]). Guards the
- * transient states exactly like groupWindowsByDesktop: null/empty `desktopIds` → [] (desktopIds can be
- * [] for a frame — robustness.md); null/empty `windows` → all-false, one entry per desktop.
+ * Reduce a flat window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`:
+ * out[i] is true iff some window windowOccupiesDesktop(w, desktopIds[i]). Guards transient state like
+ * groupWindowsByDesktop: null/empty desktopIds → []; null/empty windows → all-false, one per desktop.
  */
 function computeDesktopOccupancy(windows, desktopIds) {
     if (!desktopIds || desktopIds.length === 0)
@@ -397,24 +353,16 @@ function computeDesktopOccupancy(windows, desktopIds) {
 }
 
 /**
- * Decide the SINGLE dynamic-workspace action for the current state, or null for "leave it alone".
- * `occupancy` is computeDesktopOccupancy(...) aligned with `desktopIds`.
- *
- * Returns one of:
- *   { kind: "add" }                  — append an empty desktop at the end
- *   { kind: "remove", uuid: <id> }   — remove that desktop (main.qml issues removeSpec)
- *   null                             — no change
- *
- * The rule, computing ONE action per call so reactive re-triggering converges to a stable fixpoint
- * (always exactly one trailing empty):
+ * Decide the SINGLE dynamic-workspace action, or null for "leave it alone". `occupancy` is
+ * computeDesktopOccupancy(...) aligned with `desktopIds`. Returns { kind:"add" } / { kind:"remove",
+ * uuid } / null. The rule (one action per call, so reactive re-triggering converges to exactly one
+ * trailing empty):
  *   - 0 trailing empties   → add (the last desktop is occupied)
- *   - >=2 trailing empties → remove the LAST (trims one; re-trigger trims the rest)
- *   - otherwise            → null (one empty desktop is exactly right; never touch the last one)
- *
- * Empty desktops BETWEEN occupied ones are deliberately left alone (only the trailing run is managed).
- * Guards (every transient frame is a no-op): null arrays, an empty desktop set, or a length mismatch
- * between `occupancy` and `desktopIds` (the occupancy snapshot lags a desktop add/remove by a frame)
- * all return null. Removal reuses canRemoveDesktop so the never-remove-last rule is one source of truth.
+ *   - >=2 trailing empties → remove the LAST (re-trigger trims the rest)
+ *   - otherwise            → null (one trailing empty is right; never touch the last desktop)
+ * Only the trailing run is managed — empty MIDDLE desktops are left alone. Every transient frame is a
+ * no-op: null arrays, an empty set, or occupancy.length !== desktopIds.length (occupancy lags a
+ * desktop add/remove by a frame). Removal reuses canRemoveDesktop (one source of truth).
  */
 function dynamicWorkspacePlan(occupancy, desktopIds) {
     if (!occupancy || !desktopIds)
@@ -435,12 +383,11 @@ function dynamicWorkspacePlan(occupancy, desktopIds) {
 }
 
 /**
- * Build the name for an auto-created dynamic desktop: a user-chosen base + " " + its number (so a
- * configured prefix "Workspace" with number 3 → "Workspace 3"). `prefix` is the raw config value
- * (DEFAULTS.dynamicNamePrefix, "" by default); `fallback` is the i18n default base ("Desktop") passed
- * IN from main.qml so this file stays i18n-free. Both prefix and fallback are run through
- * sanitizeDesktopName (trim, cap 100, "" if blank); an all-blank case falls back to the literal
- * "Desktop" so the name is NEVER empty — KWin silently drops createDesktop with an empty name.
+ * Build the name for an auto-created dynamic desktop: base + " " + number (prefix "Workspace" + 3 →
+ * "Workspace 3"). `prefix` is the raw config value; `fallback` is the i18n default base passed IN
+ * from main.qml so this stays i18n-free. Both run through sanitizeDesktopName; an all-blank case
+ * falls back to the literal "Desktop" so the name is NEVER empty — KWin silently drops createDesktop
+ * with an empty name.
  */
 function formatDynamicDesktopName(prefix, number, fallback) {
     var base = sanitizeDesktopName(prefix);
@@ -452,16 +399,12 @@ function formatDynamicDesktopName(prefix, number, fallback) {
 }
 
 /**
- * Elect the single "writer" instance for dynamic workspaces among all pager instances in this
- * plasmashell. `registry` maps each instance's coordinator token -> its enabled flag (object keys are
- * strings; values are bools). The writer is the ENABLED instance with the smallest token — first-
- * registered wins, deterministic, and stable as instances join/leave. Returns that token as a Number,
- * or -1 when no instance is enabled.
- *
- * Why: the virtual-desktop SET is global (every monitor shows the same desktops), so two pagers (one
- * per panel) both react to the last desktop filling and BOTH create a desktop — which is then trimmed,
- * the visible "flash". Electing exactly one writer makes the management a single global behaviour (and
- * keeps auto-created naming consistent). Pure here; the shared mutable registry lives in coordinator.js.
+ * Elect the single dynamic-workspace "writer" among all pager instances in this plasmashell.
+ * `registry` maps each instance's coordinator token → its enabled flag. The writer is the ENABLED
+ * instance with the smallest token (first-registered wins; deterministic and stable as instances
+ * join/leave). Returns that token as a Number, or -1 when none is enabled. Why: the desktop SET is
+ * global, so without a single writer two pagers both create a desktop on the same fill → trim → a
+ * visible flash. The shared mutable registry lives in coordinator.js.
  */
 function electDynamicWriter(registry) {
     if (!registry)
@@ -478,16 +421,13 @@ function electDynamicWriter(registry) {
 }
 
 /**
- * Should a TasksModel `dataChanged(topLeft, bottomRight, roles)` trigger a tooltip rebuild? The
- * window-list aggregator (main.qml) reads only a handful of roles (title/desktops/minimised/isWindow),
- * but KWin emits dataChanged for high-frequency roles it never reads — most notably IsActive on EVERY
- * window-focus change (the losing AND gaining window, X11 and Wayland), plus StackingOrder, Geometry,
- * IsDemandingAttention, the icon. Rebuilding on those regroups + reformats to a byte-identical result,
- * pure waste on an always-on widget. `relevantRoles` is the set of role ints the rebuild actually
- * reads (built from the public taskmanager enum in main.qml, which stays the Plasma-aware caller).
- * Returns true (rebuild) when ANY changed role is relevant, OR when `changedRoles` is empty/absent —
- * Qt defines an empty roles list as "ALL roles changed", so that case must always rebuild. Only a
- * change provably limited to irrelevant roles is skipped, so the tooltip output can never go stale.
+ * Should a TasksModel dataChanged(…, roles) trigger a tooltip rebuild? The aggregator reads only a
+ * few roles (title/desktops/minimised/isWindow), but KWin emits dataChanged for high-frequency roles
+ * it never reads — most notably IsActive on EVERY window-focus change — and rebuilding on those is
+ * pure waste on an always-on widget. `relevantRoles` is the set the rebuild actually reads. Returns
+ * true when any changed role is relevant, OR when `changedRoles` is empty/absent (Qt defines an empty
+ * roles list as "ALL roles changed", so that case must always rebuild). Only a change provably
+ * limited to irrelevant roles is skipped, so the tooltip output can never go stale.
  */
 function dataChangeAffectsRoles(changedRoles, relevantRoles) {
     if (!changedRoles || changedRoles.length === 0)
@@ -499,18 +439,14 @@ function dataChangeAffectsRoles(changedRoles, relevantRoles) {
 }
 
 /*
- * KWin DBus call SHAPES.
- *
- * Each builder below returns a plain, dependency-free *description* of a KWin VirtualDesktopManager
- * call — { service, path, iface, member, args } — or `null` when a robustness guard trips (a
- * transient-empty uuid, the never-remove-last rule, an empty rename). main.qml maps each arg
- * { t, v } to the matching DBus.* constructor (t: "s" string, "u" uint32, "i" int32, "v" variant)
- * and issues the async call (see main.qml::dispatch/toDBusArg). Keeping the SHAPES here — the exact
- * service/path/iface/member and per-arg DBus types — is the whole point: a wrong string or arg type
- * fails SILENTLY (KWin drops the call, no error in QML; see CLAUDE.md's DBus gotcha), and it is the
- * most likely thing to break on a Plasma upgrade. Pure here, they go under `make check`
- * (tst_logic.qml) instead of being verifiable only in a live shell. The i18n desktop name for
- * addSpec is passed IN from main.qml so this file stays i18n-free / headless-testable.
+ * KWin DBus call SHAPES. Each builder returns a plain { service, path, iface, member, args }
+ * description of a VirtualDesktopManager call, or null when a robustness guard trips (a
+ * transient-empty uuid, never-remove-last, an empty rename). main.qml maps each arg { t, v } to the
+ * matching DBus.* constructor (t: "s" string, "u" uint32, "i" int32, "v" variant) and issues the
+ * async call. Keeping the exact strings/types here is the point: a wrong one fails SILENTLY (KWin
+ * drops the call, no error in QML) and is the most likely thing to break on a Plasma upgrade — so
+ * they go under `make check` instead of being verifiable only in a live shell. The i18n desktop name
+ * for addSpec is passed IN from main.qml so this stays i18n-free.
  */
 var KWIN_SERVICE = "org.kde.KWin";
 var KWIN_VDM_PATH = "/VirtualDesktopManager";
@@ -518,12 +454,10 @@ var KWIN_VDM_IFACE = "org.kde.KWin.VirtualDesktopManager";
 var DBUS_PROPERTIES_IFACE = "org.freedesktop.DBus.Properties";
 
 /**
- * Build a VirtualDesktopManager DBus call spec — the shared { service, path, iface, member, args }
- * envelope for the createDesktop/removeDesktop/setDesktopName writes (all on KWIN_VDM_IFACE), so the
- * only per-call differences are `member` and `args`. switchSpec is intentionally NOT built through
- * this — it targets a different iface/member (Properties.Set). The key order (service, path, iface,
- * member, args) is load-bearing: tst_logic.qml compares specs via JSON.stringify, which is
- * insertion-order sensitive.
+ * The shared { service, path, iface, member, args } envelope for the createDesktop/removeDesktop/
+ * setDesktopName writes (all on KWIN_VDM_IFACE), so the only per-call differences are `member` and
+ * `args`. switchSpec is intentionally NOT built through this (different iface/member: Properties.Set).
+ * The key order is load-bearing: tst_logic compares specs via JSON.stringify (insertion-order sensitive).
  */
 function vdmCall(member, args) {
     return {
@@ -536,10 +470,10 @@ function vdmCall(member, args) {
 }
 
 /**
- * Switch the (global) current desktop to `uuid`, via the VirtualDesktopManager "current" property.
- * Returns null for a falsy uuid (desktopIds/currentDesktop can be transiently empty — robustness.md).
- * The variant arg wraps a PLAIN string (main.qml's "v" case does `new DBus.variant(v)`), never a
- * wrapped DBus.string — a gadget-wrapped variant is silently rejected (CLAUDE.md DBus gotcha).
+ * Switch the (global) current desktop to `uuid` via the VirtualDesktopManager "current" property.
+ * null for a falsy uuid (desktopIds/currentDesktop can be transiently empty). The variant arg wraps a
+ * PLAIN string (main.qml's "v" case does new DBus.variant(v)), never a wrapped DBus.string — a
+ * gadget-wrapped variant is silently rejected.
  */
 function switchSpec(uuid) {
     if (!uuid)
@@ -555,17 +489,15 @@ function switchSpec(uuid) {
 
 /**
  * Append a new desktop at `position` (createDesktop(uint32 position, string name)). `name` is the
- * already-i18n'd label from main.qml (kept out of this file). `position|0` coerces a transient
- * undefined/NaN count to 0 so the uint32 arg is always a real integer.
+ * already-i18n'd label from main.qml. `position|0` coerces a transient undefined/NaN count to 0.
  */
 function addSpec(position, name) {
     return vdmCall("createDesktop", [{ t: "u", v: position | 0 }, { t: "s", v: String(name) }]);
 }
 
 /**
- * Remove the desktop `uuid` (removeDesktop(string id)). Returns null for a falsy uuid OR when
- * `count <= 1` — the never-remove-last rule, reusing canRemoveDesktop so the guard is one source
- * of truth and tested here.
+ * Remove the desktop `uuid` (removeDesktop(string id)). null for a falsy uuid OR when count <= 1 —
+ * the never-remove-last rule, reusing canRemoveDesktop so the guard is one source of truth.
  */
 function removeSpec(uuid, count) {
     if (!uuid || !canRemoveDesktop(count))
@@ -575,8 +507,8 @@ function removeSpec(uuid, count) {
 
 /**
  * Rename the desktop `uuid` to `name` (setDesktopName(string id, string name)). The name is run
- * through sanitizeDesktopName (trim, reject empty/whitespace, cap length); returns null for a falsy
- * uuid OR an empty sanitized name, so a blank rename is a tested no-op.
+ * through sanitizeDesktopName (trim, reject empty/whitespace, cap length); null for a falsy uuid OR
+ * an empty sanitized name, so a blank rename is a tested no-op.
  */
 function renameSpec(uuid, name) {
     var clean = sanitizeDesktopName(name);

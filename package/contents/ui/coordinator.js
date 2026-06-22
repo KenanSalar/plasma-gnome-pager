@@ -6,25 +6,16 @@
  *
  * Cross-instance coordination for dynamic workspaces.
  *
- * The virtual-desktop SET is GLOBAL — every monitor/panel shows the same desktops (KWin has no
- * per-output desktop set; only the *current* desktop can differ per output). So dynamic-workspace
- * management must be a SINGLE global behaviour, both in its on/off state and in who acts.
- *
- * plasmashell runs every panel/applet in ONE process and ONE QML engine, and a `.pragma library` is
- * instantiated ONCE per engine — so the module-level state below is SHARED across all pager instances.
- * That is the only pure-QML way to coordinate them (no private imports, no C++ plugin — robustness.md).
- * It provides:
- *   1. SETTING SYNC — the enabled flag and name prefix are ONE global value. publish() records it and
- *      pushes it to every instance via the onSync callback each registered with join(); each instance
- *      mirrors it into its own Plasmoid.configuration, so toggling on ANY panel applies everywhere and
- *      all settings dialogs agree (true global toggle, no per-panel divergence).
- *   2. SINGLE-WRITER ELECTION — among the present instances exactly one (the lowest token) issues the
- *      KWin add/remove, so two panels never double-add then trim (the "flash"). Pure decision:
- *      Logic.electDynamicWriter (unit-tested); this file is the thin shared-state holder
- *      (smoke-tested by tst_coordinator.qml).
- *
- * If the shared-engine assumption ever failed, each instance would seed and own its own global and elect
- * itself — i.e. the per-instance behaviour — degraded, never crashing.
+ * The virtual-desktop SET is GLOBAL (only the *current* desktop differs per output), so dynamic-
+ * workspace management must be a SINGLE global behaviour. plasmashell runs every panel in ONE QML
+ * engine and a `.pragma library` is instantiated ONCE per engine, so the module state below is SHARED
+ * across all pager instances — the only pure-QML way to coordinate them (no private imports, no C++).
+ * It provides: (1) SETTING SYNC — the enabled flag + name prefix are ONE global value, published to
+ * every instance (which mirrors it into its own config) so a toggle on ANY panel applies everywhere;
+ * (2) SINGLE-WRITER ELECTION — exactly one present instance (lowest token) issues the KWin add/remove,
+ * so two panels never double-add then trim (the "flash"); the pure decision is Logic.electDynamicWriter.
+ * If the shared-engine assumption ever failed, each instance would seed/own its own global and elect
+ * itself — the per-instance behaviour, degraded but never crashing.
  */
 .pragma library
 .import "logic.js" as Logic

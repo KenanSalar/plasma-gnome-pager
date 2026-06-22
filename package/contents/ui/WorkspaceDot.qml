@@ -4,32 +4,23 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * One workspace element. GNOME-style REFLOW model: this element IS the workspace — there is
- * no separate overlay. When inactive it is a dim circle; when active it morphs into a wider
- * highlighted "capsule" (the pill). Switching desktops thus morphs two elements at once — the
- * old active shrinks back to a dot while the new one grows into a capsule — and the parent Row
- * reflows around them. Because every element is a real, uniformly-spaced Row child, the capsule
- * can never overlap or clip a neighbour (no overhang/clearance math is needed); see
- * WorkspaceIndicator.qml.
- *
- * Three states drive the look:
+ * One workspace element (GNOME-style REFLOW model): the element IS the workspace, no separate
+ * overlay. Inactive it is a dim circle; active it morphs into a wider highlighted "capsule" (the
+ * pill), so a switch morphs two elements at once and the parent Row reflows around them — every
+ * element being a uniformly-spaced Row child means the capsule can never overlap/clip a neighbour
+ * (no overhang math; see WorkspaceIndicator.qml). Three states drive the look:
  *  - inactive:        dim circle, inactive colour @ inactiveOpacity, dotSize across.
  *  - inactive+hover:  brightened to hoverOpacity (Logic.dotOpacity); hover affects inactive only.
  *  - active:          capsule, active colour @ full opacity, pillWidth along the MAJOR axis
  *                     (width on a horizontal strip, height on a vertical one — `vertical`).
  *
- * Colour follows the colour scheme by default (active = Kirigami.Theme.highlightColor, inactive =
- * textColor); when followThemeColors is false the configured activeColor/inactiveColor are used
- * instead (Logic.dotColor). The morph (the major-axis length + colour + opacity) animates via
- * Behaviors, gated by `animate` so the FIRST placement is instant (the active element is already a
- * capsule on frame 0 — no grow-in on shell reload) and by effectiveDuration > 0 (the configured
- * animationDuration, or the themed default; 0 when "reduce animations" is on → instant). Each
- * element also carries its own PlasmaCore.ToolTipArea showing `desktopName` (mainText) and, when
- * enabled, the rich-text list of windows on that desktop (`tooltipText` as subText) on hover.
- *
- * Sizing/colour/animation come in as properties from the indicator (one source of truth, fed from
- * plasmoid.configuration via main.qml), with Kirigami-derived defaults so a dot still renders
- * standalone and under qmltestrunner.
+ * Colour follows the scheme by default, else the configured activeColor/inactiveColor (Logic.dotColor).
+ * The morph (major-axis length + colour + opacity) animates via Behaviors, gated by `animate` so the
+ * FIRST placement is instant (active element already a capsule on frame 0 — no grow-in on shell
+ * reload) and by effectiveDuration > 0 (0 when "reduce animations" is on → instant). Each element
+ * carries its own PlasmaCore.ToolTipArea (desktopName as mainText, the window list as rich-text subText).
+ * Sizing/colour/animation come in as properties from the indicator, with Kirigami-derived defaults so
+ * a dot renders standalone and under qmltestrunner.
  */
 pragma ComponentBehavior: Bound
 

@@ -45,30 +45,24 @@ ConfigPageBase {
     property string cfg_dynamicNamePrefixDefault
     property int cfg_animationDurationDefault
 
-    // True when any key on this page differs from its default (gates the base's Defaults action).
-    isModified: cfg_enableScroll !== cfg_enableScrollDefault
-        || cfg_scrollWrap !== cfg_scrollWrapDefault
-        || cfg_invertScroll !== cfg_invertScrollDefault
-        || cfg_showTooltips !== cfg_showTooltipsDefault
-        || cfg_showWindowList !== cfg_showWindowListDefault
-        || cfg_enableAddRemove !== cfg_enableAddRemoveDefault
-        || cfg_enableRename !== cfg_enableRenameDefault
-        || cfg_dynamicWorkspaces !== cfg_dynamicWorkspacesDefault
-        || cfg_dynamicNamePrefix !== cfg_dynamicNamePrefixDefault
-        || cfg_animationDuration !== cfg_animationDurationDefault
+    // Single source for this page's keys + their compare kind; drives BOTH isModified and the
+    // Defaults reset via ConfigPageBase.fieldChanged/resetField (no hand-synced per-key bodies).
+    readonly property var configKeys: [
+        { n: "enableScroll", t: "bool" },
+        { n: "scrollWrap", t: "bool" },
+        { n: "invertScroll", t: "bool" },
+        { n: "showTooltips", t: "bool" },
+        { n: "showWindowList", t: "bool" },
+        { n: "enableAddRemove", t: "bool" },
+        { n: "enableRename", t: "bool" },
+        { n: "dynamicWorkspaces", t: "bool" },
+        { n: "dynamicNamePrefix", t: "string" },
+        { n: "animationDuration", t: "int" }
+    ]
 
-    onDefaultsRequested: {
-        cfg_enableScroll = cfg_enableScrollDefault;
-        cfg_scrollWrap = cfg_scrollWrapDefault;
-        cfg_invertScroll = cfg_invertScrollDefault;
-        cfg_showTooltips = cfg_showTooltipsDefault;
-        cfg_showWindowList = cfg_showWindowListDefault;
-        cfg_enableAddRemove = cfg_enableAddRemoveDefault;
-        cfg_enableRename = cfg_enableRenameDefault;
-        cfg_dynamicWorkspaces = cfg_dynamicWorkspacesDefault;
-        cfg_dynamicNamePrefix = cfg_dynamicNamePrefixDefault;
-        cfg_animationDuration = cfg_animationDurationDefault;
-    }
+    // True when any key differs from its default (gates the base's Defaults action).
+    isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
+    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     Kirigami.FormLayout {
         QQC2.CheckBox {

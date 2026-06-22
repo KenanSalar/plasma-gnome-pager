@@ -196,8 +196,13 @@ PlasmoidItem {
             return new DBus.int32(a.v);
         case "v":
             return new DBus.variant(a.v);
+        default:
+            // Unknown type letter: a *Spec builder emitted a `t` this map doesn't handle. Pass
+            // the raw value (KWin would drop the malformed call) but warn LOUDLY rather than fail
+            // silently — the silent-DBus-drop failure class this widget exists to avoid.
+            console.warn("plasma-gnome-pager: toDBusArg got unknown DBus type letter", a.t);
+            return a.v;
         }
-        return a.v;
     }
 
     // Switch to a desktop by UUID via the VirtualDesktopManager "current" property.
