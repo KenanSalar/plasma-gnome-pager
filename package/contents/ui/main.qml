@@ -22,7 +22,6 @@ import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksMo
 import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
 
 import "logic.js" as Logic
-import "coordinator.js" as Coordinator         // single-writer election + prefix sync across panel instances
 
 PlasmoidItem {
     id: root
@@ -224,114 +223,33 @@ PlasmoidItem {
     }
 
     // ── Dynamic workspaces (GNOME-style) ──────────────────────────────────────────────────────────
-    // When enabled, keep exactly one empty trailing desktop by issuing ONE KWin add/remove per cycle and
-    // letting `vdi` report the result (the read/write split). The decision is the pure
-    // Logic.dynamicWorkspacePlan; here we debounce, re-check the freshest state, and hold a short
-    // busy-lock against THIS instance re-firing before its own change reflects.
-    //
-    // The desktop SET is global, so this is a single GLOBAL behaviour. The shared coordinator
-    // (coordinator.js) gives two things across all panel/monitor instances:
-    //   1. Setting SYNC — the enabled flag and name prefix are ONE global value: toggling on any panel
-    //      mirrors into every other panel's own config (so all checkboxes agree and persist), removing
-    //      the per-panel confusion. applyDynamicSync writes our config; publishDynamicConfig broadcasts ours.
-    //   2. Single-WRITER election — only the lowest-token instance issues the KWin add/remove, so two
-    //      panels never double-add then trim (the multi-monitor "flash"). dynToken is our handle.
-    property bool dynBusy: false
-    property int dynToken: 0
-    Timer {
-        id: dynBusyTimer
-        interval: 750
-        onTriggered: root.dynBusy = false
-    }
+    // Keep exactly one empty trailing desktop, as a single GLOBAL behaviour across all panel instances.
+    // The whole reactive state machine + cross-instance coordination lives in its own non-visual
+    // DynamicWorkspacesController (extracted from main.qml for single-responsibility + headless tests):
+    // it reads the live desktop set + occupancy and emits the only two things this e2e boundary can do —
+    // dispatchRequested (a built KWin spec → our async dispatch) and syncConfigRequested (mirror the one
+    // global setting into THIS instance's persisted Plasmoid.configuration, value-guarded so it can't loop).
+    DynamicWorkspacesController {
+        id: dynamicController
 
-    // Join the coordinator (registering applyDynamicSync as how it pushes the global value to us). If a
-    // sibling already established the global, adopt it; otherwise we are first and seed it from our stored
-    // config. Then evaluate once (the last desktop may already be occupied at startup). Leave on teardown
-    // so a removed panel stops counting in the election.
-    Component.onCompleted: {
-        root.dynToken = Coordinator.join(root.applyDynamicSync);
-        if (Coordinator.haveGlobal())
-            root.applyDynamicSync(Coordinator.globalEnabled(), Coordinator.globalPrefix());
-        else
-            Coordinator.publish(root.dynamicWorkspaces, root.dynamicNamePrefix);
-        root.scheduleDynamic();
-    }
-    Component.onDestruction: Coordinator.leave(root.dynToken)
+        dynamicEnabled: root.dynamicWorkspaces
+        namePrefix: root.dynamicNamePrefix
+        // The i18n default base name, passed IN so the controller stays i18n-free (it is headless-tested
+        // where the i18n* globals don't exist). KWin silently drops createDesktop with an empty name, so
+        // formatDynamicDesktopName guarantees a non-empty "<base> N".
+        defaultPrefix: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
+        virtualDesktopInfo: vdi
+        desktopOccupancy: root.desktopOccupancy
 
-    // Mirror the one global setting into THIS instance's persisted config (so the checkbox/prefix field
-    // agree across panels and survive a reload). Value-guarded, so it never loops: after this our values
-    // equal the global, and publishDynamicConfig below only republishes a genuine local change.
-    function applyDynamicSync(enabled, prefix) {
-        if (Plasmoid.configuration.dynamicWorkspaces !== enabled)
-            Plasmoid.configuration.dynamicWorkspaces = enabled;
-        if (Plasmoid.configuration.dynamicNamePrefix !== prefix)
-            Plasmoid.configuration.dynamicNamePrefix = prefix;
-    }
-
-    // Our config changed. If it differs from the established global, WE changed it (the user toggled this
-    // panel) → publish to every panel. If it already matches the global, this was an applyDynamicSync echo
-    // → just re-evaluate. Guarded against the pre-join window (config bindings fire before onCompleted).
-    function publishDynamicConfig() {
-        if (root.dynToken === 0)
-            return;
-        if (!Coordinator.haveGlobal()
-                || root.dynamicWorkspaces !== Coordinator.globalEnabled()
-                || root.dynamicNamePrefix !== Coordinator.globalPrefix())
-            Coordinator.publish(root.dynamicWorkspaces, root.dynamicNamePrefix);
-        root.scheduleDynamic();
-    }
-
-    // Coalesce a burst of occupancy / desktop-set changes into ONE evaluation next tick (the aggregator's
-    // scheduleRebuild idiom). A cheap no-op when the feature is off.
-    function scheduleDynamic() {
-        if (!root.dynamicWorkspaces)
-            return;
-        Qt.callLater(root.evaluateDynamic);
-    }
-
-    // Compute and dispatch the single dynamic-workspace action for the FRESHEST state, or do nothing. Only
-    // the elected writer acts (Coordinator.isWriter) — so multiple panels never double-add. The length
-    // guard inside dynamicWorkspacePlan makes a transient frame — where desktopOccupancy still lags a
-    // just-changed desktop set — a no-op until occupancy catches up.
-    function evaluateDynamic() {
-        if (!root.dynamicWorkspaces || root.dynBusy)
-            return;
-        if (!Coordinator.isWriter(root.dynToken))
-            return;                              // another panel instance is the single global writer
-        const ids = vdi.desktopIds ?? [];
-        const plan = Logic.dynamicWorkspacePlan(root.desktopOccupancy, ids);
-        if (!plan)
-            return;
-        let spec = null;
-        if (plan.kind === "add") {
-            // Name auto-created desktops "<prefix> N" (prefix synced across panels, default the i18n
-            // "Desktop"). position == current count (append at end), so the new desktop's number is pos + 1.
-            // formatDynamicDesktopName guarantees a non-empty name: KWin silently drops createDesktop with an
-            // empty name. The i18n default base is passed IN (logic.js stays i18n-free).
-            const pos = vdi.numberOfDesktops ?? ids.length;
-            spec = Logic.addSpec(pos, Logic.formatDynamicDesktopName(root.dynamicNamePrefix, pos + 1,
-                i18nc("@info default base name for auto-created virtual desktops", "Desktop")));
-        } else if (plan.kind === "remove") {
-            spec = Logic.removeSpec(plan.uuid, vdi.numberOfDesktops ?? ids.length);
-        }
-        if (!spec)
-            return;
-        root.dynBusy = true;
-        root.dispatch(spec);
-        dynBusyTimer.restart();
-    }
-
-    // Triggers: occupancy flips (a window opened/closed/moved) and the desktop SET changing (also the
-    // signal that OUR own add/remove landed → clear the busy-lock and re-evaluate). Config changes go
-    // through publishDynamicConfig so the global stays in sync before we act.
-    onDesktopOccupancyChanged: root.scheduleDynamic()
-    onDynamicWorkspacesChanged: root.publishDynamicConfig()
-    onDynamicNamePrefixChanged: root.publishDynamicConfig()
-    Connections {
-        target: vdi
-        function onDesktopIdsChanged() {
-            root.dynBusy = false;
-            root.scheduleDynamic();
+        onDispatchRequested: spec => root.dispatch(spec)
+        onSyncConfigRequested: (nextEnabled, nextPrefix) => {
+            // Mirror the one global setting into this instance's persisted config so every panel's
+            // checkbox/prefix agree and survive a reload. Value-guarded: after this our values equal the
+            // global, and the controller only republishes a genuine local change — so it can't loop.
+            if (Plasmoid.configuration.dynamicWorkspaces !== nextEnabled)
+                Plasmoid.configuration.dynamicWorkspaces = nextEnabled;
+            if (Plasmoid.configuration.dynamicNamePrefix !== nextPrefix)
+                Plasmoid.configuration.dynamicNamePrefix = nextPrefix;
         }
     }
 
