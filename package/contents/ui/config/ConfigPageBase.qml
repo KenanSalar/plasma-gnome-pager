@@ -4,19 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The shared skeleton for every settings page: a Kirigami.ScrollablePage (on robustness.md's
- * allowlist; the stock KCM.SimpleKCM is just a thin subclass) so each page gets the standard KDE
- * title header + top spacing + scrolling. The Plasma applet config dialog footer is only
- * Apply/Discard/Cancel — it has NO "Defaults" button of its own — so this base adds one as a
- * header action, defined ONCE here instead of copy-pasted onto each page.
- *
- * Contract for a derived page (see ConfigGeneral/ConfigAppearance): declare one `configKeys`
- * list of { n: <key>, t: "bool"|"int"|"real"|"string"|"color" }, then
- *   - isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))   // gates the action
- *   - onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
- * so the compare/reset logic isn't hand-written per key. The page's own content (a
- * Kirigami.FormLayout) is its default child — ScrollablePage places it inside its built-in
- * ScrollView automatically.
+ * Shared skeleton for every settings page: a Kirigami.ScrollablePage (robustness.md allowlist) for the KDE
+ * header + scrolling, plus the "Defaults" button the Plasma footer lacks (defined ONCE here). A derived
+ * page declares `configKeys` { n, t } and binds isModified/onDefaultsRequested off the helpers below.
  */
 import QtQuick
 import org.kde.kirigami as Kirigami
@@ -27,18 +17,14 @@ Kirigami.ScrollablePage {
     // Derived page binds this to its per-key "differs from default" check.
     property bool isModified: false
 
-    // The settings forms' field-column width: a derived page pins its non-slider fields (e.g. a
-    // TextField) to this so they line up with the sliders. Kept equal to ConfigSlider.trackWidth
-    // (the same Kirigami.Units.gridUnit * 18) so every row's field column is the same width.
+    // Field-column width for non-slider fields; kept equal to ConfigSlider.trackWidth so every row lines up.
     readonly property int fieldWidth: Kirigami.Units.gridUnit * 18
 
-    // Tolerance for real-valued "differs from default" checks: SnapAlways can land a value a float
-    // ULP off the schema default, which would otherwise read "modified". Shared so no page redefines it.
+    // Tolerance for real-valued "differs from default": SnapAlways can land a value a ULP off the default.
     readonly property real epsilon: 1e-9
 
-    // Does cfg_<name> differ from cfg_<name>Default? Type-aware: reals compare within epsilon, colours
-    // via Qt.colorEqual (QColor wrappers compare by identity under !==, not value), everything else
-    // exact. Lets a page generate isModified from its configKeys list. `page` is the derived page.
+    // Does cfg_<name> differ from cfg_<name>Default? Type-aware: reals within epsilon, colours via
+    // Qt.colorEqual (QColor wrappers compare by identity under !==), else exact. `page` is the derived page.
     function fieldChanged(page, name, kind) {
         var a = page["cfg_" + name];
         var b = page["cfg_" + name + "Default"];
@@ -49,8 +35,7 @@ Kirigami.ScrollablePage {
         return a !== b;
     }
 
-    // Reset cfg_<name> to its injected schema default — the Defaults handler is one forEach over the
-    // same configKeys list.
+    // Reset cfg_<name> to its injected schema default.
     function resetField(page, name) {
         page["cfg_" + name] = page["cfg_" + name + "Default"];
     }

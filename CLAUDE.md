@@ -19,7 +19,7 @@ the windows open on that desktop), add/remove/rename desktops, GNOME-style dynam
 independently-sized active pill, screen-reader accessibility, form-factor (vertical-panel) handling,
 the settings UI, and robustness hardening (per-screen current desktop, scale-to-fit, transient-state
 guards) are built. This file and
-`.claude/rules/*` describe how the code is built, not the schedule or milestone roadmap (that
+`.claude/rules/*` describe how the code is built, not the schedule or roadmap (that
 history lives in git history and the GitHub Releases).
 
 ## The rules are the law — read them first
@@ -119,7 +119,7 @@ the highlighted capsule when active — see the Visual model below).
 > on **both** axes (needs `import QtQuick.Layouts`). The MAJOR (line) axis — width on a horizontal
 > panel, height on a vertical one (`vertical`) — pins `preferred == max == naturalStripLength` but
 > drops `min` to a smaller `floorStripLength` so the panel can **compress** the strip; when it does,
-> the dots scale down to fill the allocation (scale-to-fit, M6 — see the scale-to-fit gotcha below).
+> the dots scale down to fill the allocation (scale-to-fit — see the scale-to-fit gotcha below).
 > The CROSS axis carries the line(s) (`min == preferred == naturalCrossThickness`) with its
 > **maximum reset to `-1`** (Qt's unconstrained `+∞`) so the panel stretches it to the panel
 > thickness and the centred grid sits in the middle. Asserted by
@@ -136,13 +136,13 @@ below): its cross-axis *thickness* is the effective `pillSize` (config key `pill
 match the dots`) and its *length* is `pillSize * pillWidthFactor`, so a thick pill can sit over tiny
 dots (or vice versa). By default `pillSize` tracks `dotSize`, recovering the original look exactly.
 There is **no** separate overlay. Switching morphs two elements at once (old capsule → dot, new dot
-→ capsule) and the line reflows between them. **Form factor (M4):** the major axis is horizontal on
+→ capsule) and the line reflows between them. **Form factor:** the major axis is horizontal on
 a horizontal panel and vertical on a vertical one (`vertical`, from `Plasmoid.formFactor`); the dot
 morphs `width` or `height` accordingly (`radius` is `min(width,height)/2` — half the shorter, cross
 axis — so the ends keep stadium-round in both orientations and at any pill thickness).
 When KWin's grid has more than one row, the strip is several such reflow lines stacked along the
 cross axis (mirroring `VirtualDesktopInfo.desktopLayoutRows`) — see the multi-row gotcha below.
-Hover brighten (M3) is a *separate* inactive-only state driven by
+Hover brighten is a *separate* inactive-only state driven by
 `containsMouse`; `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)` returns
 `1.0` for the active capsule and `hovered ? hoverOpacity : inactiveOpacity` otherwise (so hovering
 the active capsule does nothing). This replaced an earlier *sliding overlay pill* — which could not
@@ -162,13 +162,13 @@ how GNOME and the KDE `compact_pager` actually work.
 > (`naturalCrossThickness = lineCount*max(dotSize,pillSize) + (lineCount-1)*dotSpacing`),
 > not the live positioner extent, so the panel cell stays put during the morph and when no element
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
-> single line `perLine == desktopCount` and `lineCount == 1`, recovering the M3 1-D width formula.
+> single line `perLine == desktopCount` and `lineCount == 1`, recovering the 1-D width formula.
 > Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
 > test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
 > (`dotSize`, `pillSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match
 > the `main.xml` settings keys exactly (see "Config flow" below).
 >
-> **Scale-to-fit (M6 major axis; cross axis post-M6) — shrink the dots to the allocation on BOTH axes,
+> **Scale-to-fit (major axis, with the cross axis added later) — shrink the dots to the allocation on BOTH axes,
 > never overflow; NATURAL vs EFFECTIVE size.** When the natural strip would exceed the panel-allocated
 > length on **either** axis (many desktops on a crowded panel; a multi-row grid on a thin panel), the
 > dots/pill **shrink** to fill the allocation instead of drawing over the neighbours or past the panel
@@ -233,7 +233,7 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_independentThickerPill,test_pillThicknessAdvertisedOnCrossAxis,test_pillScalesWithFitShrink}` +
 > `tst_workspacedot.qml::test_independentPillThickness` + `tst_logic.qml` defaults (the `pillSize` key).
 >
-> **Multi-row grid (M4) — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
+> **Multi-row grid — mirror KWin, don't add a setting; nested positioners, not a 2-D Grid.**
 > KWin's `desktopLayoutRows` (read live off `VirtualDesktopInfo`, null-guarded, ≥1) splits the
 > desktops into that many **lines** via `Logic.gridColumns(count, rows)` (= `ceil(count/rows)`,
 > the per-line count) + `Logic.chunk(ids, perLine)`. Each line is an **independent single-line

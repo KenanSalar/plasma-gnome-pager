@@ -3,22 +3,17 @@
 // SPDX-FileCopyrightText: 2026 Kenan Salar
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Shared element-location helpers for the component/integration tiers. The dot's circle and
-// tooltip are nested inside per-dot ToolTipAreas/Repeaters, so the tests locate them by
-// duck-typing the visual tree (never by child order/depth). These predicates + collectors were
-// copy-pasted into both tst_workspacedot.qml and tst_workspaceindicator.qml; this is the single
-// shared copy. `.pragma library` (parsed once, no QML context), built on the shared tree walk.
+// Shared element-location helpers for the component/integration tiers: locate the dot's nested circle /
+// tooltip by duck-typing the visual tree (never by child order). `.pragma library`, built on the tree walk.
 .pragma library
 .import "treewalk.js" as TreeWalk
 
-// The dim circle / morphing capsule Rectangle — uniquely carries both `radius` and `color`
-// (the MouseArea/ToolTipArea have neither).
+// The dim circle / morphing capsule Rectangle — uniquely carries both `radius` and `color`.
 function isCircle(c) {
     return c.radius !== undefined && c.color !== undefined;
 }
 
-// A WorkspaceDot delegate — uniquely carries `modelData` (the desktop UUID) plus the `active`
-// bool; no other item in the tree carries both.
+// A WorkspaceDot delegate — uniquely carries `modelData` (the desktop UUID) plus an `active` bool.
 function isDot(c) {
     return c.modelData !== undefined && typeof c.active === "boolean";
 }
@@ -28,7 +23,7 @@ function isTooltip(c) {
     return c.mainText !== undefined;
 }
 
-// The single circle/capsule Rectangle inside `item` (or null) — used to assert size/colour/opacity.
+// The single circle/capsule Rectangle inside `item` (or null).
 function circleOf(item) {
     var found = TreeWalk.collect(item, isCircle);
     return found.length ? found[0] : null;
@@ -40,9 +35,8 @@ function tooltipOf(item) {
     return found.length ? found[0] : null;
 }
 
-// True when a WorkspaceDot has morphed into the active capsule: its major-axis length matches the
-// indicator's pillWidth (within half a px). The caller passes indicator.pillWidth so this stays
-// component-agnostic. (The strip is horizontal where this is used, so the major axis is width.)
+// True when a WorkspaceDot has morphed into the active capsule: major-axis length ≈ indicator.pillWidth
+// (passed in so this stays component-agnostic; the strip is horizontal here, so the major axis is width).
 function isCapsule(dot, pillWidth) {
     return Math.abs(dot.width - pillWidth) <= 0.5;
 }
@@ -56,8 +50,7 @@ function countCapsules(dots, pillWidth) {
     return n;
 }
 
-// The centre point of `item` in `target`'s coordinates (a point with .x/.y) — for centring a
-// pointer event (mouseClick/mouseMove) on a dot or asserting cross-axis centre alignment.
+// The centre point of `item` in `target`'s coordinates — for centring a pointer event or asserting alignment.
 function centerOf(item, target) {
     return item.mapToItem(target, item.width / 2, item.height / 2);
 }

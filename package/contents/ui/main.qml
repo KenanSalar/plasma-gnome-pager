@@ -4,19 +4,19 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Root PlasmoidItem: owns the virtual-desktop data source (read) and the KWin
- * DBus helpers (write), and renders the dot strip inline in the panel.
+ * Root PlasmoidItem: owns the virtual-desktop data source (read) and the KWin DBus helpers (write),
+ * and renders the dot strip inline in the panel. This is the e2e boundary (not headless-testable).
  */
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts                            // Column/RowLayout (rename dialog content)
+import QtQuick.Layouts                            // rename dialog layout
 
 import org.kde.plasma.plasmoid
 
-// Public, stable imports only (intentionally no org.kde.plasma.private.*):
-import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action (menu) + PlasmaCore.Dialog (rename)
-import org.kde.plasma.components as PlasmaComponents3  // TextField/Button/Label (rename dialog)
+// Public, stable imports only — never org.kde.plasma.private.* (robustness.md).
+import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action + PlasmaCore.Dialog
+import org.kde.plasma.components as PlasmaComponents3  // rename dialog controls
 import org.kde.kirigami as Kirigami              // Units (rename dialog spacing)
 import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksModel/ActivityInfo (read)
 import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
@@ -28,28 +28,17 @@ PlasmoidItem {
 
     Plasmoid.icon: "user-desktop"
 
-    // A pager never demands attention — mark it Passive so the panel/system-tray treats it as a
-    // quiet always-on widget (and a panel may auto-hide over it). The dots float directly on the
-    // panel, so the applet draws no background of its own (the GNOME look).
+    // Passive always-on widget, no background of its own (dots float on the panel — the GNOME look).
     Plasmoid.status: PlasmaCore.Types.PassiveStatus
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
 
-    // Panel orientation, read here (the one place that touches Plasmoid) and passed DOWN as a plain
-    // bool so the indicator/dot stay free of Plasmoid/PlasmaCore and remain headless-testable.
-    // Planar (desktop) and Floating both report non-Vertical, so they fall through to the horizontal
-    // row — the sensible default off-panel.
+    // Panel orientation, read here (the one place touching Plasmoid) and passed DOWN as a plain bool so
+    // the sub-components stay Plasmoid-free and headless-testable. Planar/Floating fall through to horizontal.
     readonly property bool isVertical: Plasmoid.formFactor === PlasmaCore.Types.Vertical
 
-    // Behaviour settings, read live from the config schema (contents/config/main.xml).
-    // Defaults there apply even before the settings UI exists (M5 owns the dialog), so the
-    // widget is config-driven now. These flow down to the indicator/tooltip/actions as
-    // plain booleans, keeping those sub-components free of plasmoid.configuration (and so
-    // headless-testable).
-    //
-    // The `?? <default>` mirrors each schema default: a freshly-added schema can read back
-    // `undefined` for a frame (or until the widget is re-added) and a bare bool would then
-    // collapse to false, silently disabling every interaction. The guard keeps the intended
-    // defaults regardless, while still honouring a real saved value (false ?? true === false).
+    // Behaviour settings, read live from main.xml. Each `?? Logic.DEFAULTS` guards the transient-undefined
+    // frame (a freshly-added/re-added key reads back undefined → a bare bool would collapse to false,
+    // silently disabling interactions); a real saved value still wins. Passed down as plain values.
     readonly property bool enableScroll: Plasmoid.configuration.enableScroll ?? Logic.DEFAULTS.enableScroll
     readonly property bool scrollWrap: Plasmoid.configuration.scrollWrap ?? Logic.DEFAULTS.scrollWrap
     readonly property bool invertScroll: Plasmoid.configuration.invertScroll ?? Logic.DEFAULTS.invertScroll
@@ -57,23 +46,17 @@ PlasmoidItem {
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
     readonly property bool enableRename: Plasmoid.configuration.enableRename ?? Logic.DEFAULTS.enableRename
-    // Dynamic workspaces (GNOME-style, default OFF): auto-keep exactly one empty trailing desktop. Drives
-    // the controller below. dynamicNamePrefix is the base name for the desktops it creates ("" = the i18n
-    // default "Desktop"); the controller appends the new desktop's number ("<prefix> N").
+    // Dynamic workspaces (default OFF): auto-keep one empty trailing desktop. dynamicNamePrefix is the
+    // base name for created desktops ("" = i18n default "Desktop"). Both drive the controller below.
     readonly property bool dynamicWorkspaces: Plasmoid.configuration.dynamicWorkspaces ?? Logic.DEFAULTS.dynamicWorkspaces
     readonly property string dynamicNamePrefix: Plasmoid.configuration.dynamicNamePrefix ?? Logic.DEFAULTS.dynamicNamePrefix
 
-    // Manual Add/Remove is available only when enabled AND dynamic workspaces is off — the two
-    // conflict (the controller would instantly trim a manually-added empty / re-add a removed
-    // trailing one). Derived once here and reused by the contextualActions' visible:/enabled: below.
+    // Manual Add/Remove only when enabled AND dynamic workspaces off — the two conflict (the controller
+    // would instantly undo a manual add/remove). Reused by the contextualActions below.
     readonly property bool canAddRemove: enableAddRemove && !dynamicWorkspaces
 
-    // Appearance + animation settings, read the same way and passed down to the indicator as plain
-    // values (it forwards them per-dot). dotSize/animationDuration use a `0 = auto` sentinel: the
-    // indicator/dot turn 0 into the HiDPI/themed default — resolved there because the components are
-    // the headless-tested rendering layer (main.qml imports Kirigami only for the rename dialog's
-    // spacing, not for these; see WorkspaceIndicator/WorkspaceDot). Each `?? <default>`
-    // mirrors the schema default for the transient-undefined frame, exactly like the booleans above.
+    // Appearance/animation settings, read the same way. dotSize/animationDuration use a 0 = auto sentinel
+    // resolved in the indicator/dot (the headless-tested rendering layer); same `?? default` guard.
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
     readonly property int pillSize: Plasmoid.configuration.pillSize ?? Logic.DEFAULTS.pillSize
@@ -85,14 +68,9 @@ PlasmoidItem {
     readonly property color activeColor: Plasmoid.configuration.activeColor ?? Logic.DEFAULTS.activeColor
     readonly property color inactiveColor: Plasmoid.configuration.inactiveColor ?? Logic.DEFAULTS.inactiveColor
 
-    // A pager renders inline in the panel. Plasma will not instantiate ANY
-    // representation unless a fullRepresentation is defined (a compact-only applet
-    // renders nothing at all), so the dot strip IS the full representation and we
-    // force it to always show inline — never a popup or the default compact icon —
-    // via preferredRepresentation. (verified against develop.kde.org/docs/plasma/widget)
-    //
-    // The indicator is the representation directly; it advertises its size via Layout.*
-    // hints so the panel allocates the right width (tooltips live per-dot inside it).
+    // A pager renders inline. Plasma instantiates NO representation unless a fullRepresentation exists (a
+    // compact-only applet renders nothing, no error), so the dot strip IS the full representation, forced
+    // inline via preferredRepresentation; it advertises size via Layout.* hints. See CLAUDE.md.
     preferredRepresentation: fullRepresentation
     fullRepresentation: WorkspaceIndicator {
         vertical: root.isVertical
@@ -103,8 +81,7 @@ PlasmoidItem {
         showTooltips: root.showTooltips
         desktopTooltips: root.desktopTooltips
 
-        // Appearance/animation config (dotSize/pillSize passed as the raw 0=auto requests; resolved
-        // in the indicator — pillSize 0 there means "match the dot size").
+        // dotSize/pillSize passed as raw 0=auto requests; resolved in the indicator (pillSize 0 = match dots).
         dotSizeRequest: root.dotSize
         pillSizeRequest: root.pillSize
         spacingFactor: root.spacingFactor
@@ -119,35 +96,25 @@ PlasmoidItem {
         onSwitchRequested: uuid => root.switchTo(uuid)
     }
 
-    // Reactive, read-only desktop state. Bind to it; never cache — it updates when
-    // desktops change by ANY means (keyboard, another pager, settings). Writing
-    // (switch/add/remove) goes through KWin DBus below. (see virtual-desktops.md)
+    // Reactive read-only desktop state — bind, never cache; it updates on ANY change (keyboard, another
+    // pager, settings). Writes go through KWin DBus below (virtual-desktops.md).
     TaskManager.VirtualDesktopInfo {
         id: vdi
     }
 
-    // Per-desktop tooltip subText (a rich-text <ul> of the windows open on each desktop), index-aligned
-    // with vdi.desktopIds and passed DOWN to the indicator/dots as plain strings (so those sub-components
-    // stay free of Plasma data types and headless-testable). Built here — the e2e boundary that may touch
-    // live Plasma models + i18n. Explicitly gated by showTooltips && showWindowList: the aggregator Loader
-    // can now also be active purely for dynamic workspaces (occupancy below), so the Loader being live no
-    // longer implies the user wants the window list — without this gate, turning on dynamic workspaces would
-    // resurface the window list the user disabled. Empty [] → each dot falls back to a name-only tooltip.
-    // Mirrors the stock KDE pager's tooltip text, but sourced from the PUBLIC TaskManager.TasksModel instead
-    // of the private PagerModel (robustness.md). The `as` cast gives qmllint a typed read of Loader.item.
+    // Per-desktop tooltip subText (rich-text window list), index-aligned with desktopIds, passed DOWN as
+    // plain strings. Gated by showTooltips && showWindowList INDEPENDENTLY of the Loader (which may be live
+    // only for occupancy). Sourced from the PUBLIC TasksModel, not the private PagerModel (robustness.md).
     readonly property var desktopTooltips: (root.showTooltips && root.showWindowList && tooltipLoader.item)
         ? (tooltipLoader.item as WindowAggregator).desktopTooltips : []
 
-    // Per-desktop occupancy boolean[] (does each desktop hold a window?), index-aligned with vdi.desktopIds.
-    // Produced from the SAME window snapshot as desktopTooltips (one shared TasksModel) and consumed by the
-    // dynamic-workspaces controller below. Empty [] when the aggregator Loader is inactive (feature + window
-    // list both off) — the controller then no-ops via the length guard in Logic.dynamicWorkspacePlan.
+    // Per-desktop occupancy boolean[] from the SAME snapshot, consumed by the dynamic-workspaces
+    // controller. Empty [] when the Loader is inactive (controller then no-ops via its length guard).
     readonly property var desktopOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopOccupancy : []
 
-    // The whole window-list machinery (a TasksModel + ActivityInfo + the row Instantiator) lives behind a
-    // Loader, so when nothing needs it the always-on model cost simply does not exist (qml-performance.md:
-    // this widget is always on screen). It's needed for the tooltip window list (showTooltips && showWindowList)
-    // AND for dynamic workspaces (which reads per-desktop occupancy) — so the gate is the OR of the two.
+    // The window-list machinery (TasksModel + ActivityInfo + row Instantiator) lives behind a Loader so the
+    // always-on model cost is zero when unused (qml-performance.md). Needed by the tooltip window list OR
+    // dynamic workspaces — so the gate is the OR of the two.
     Loader {
         id: tooltipLoader
         active: (root.showTooltips && root.showWindowList) || root.dynamicWorkspaces
@@ -156,19 +123,15 @@ PlasmoidItem {
     Component {
         id: aggregatorComponent
         WindowAggregator {
-            virtualDesktopInfo: vdi   // inject the read source (the aggregator is otherwise data-source-agnostic)
-            // Whether the user actually wants the per-dot window list. When false the aggregator is
-            // live ONLY for dynamic-workspace occupancy, so it skips all the (discarded) tooltip work.
+            virtualDesktopInfo: vdi   // inject the read source (the aggregator is data-source-agnostic)
+            // windowListActive false → aggregator is live only for occupancy, skipping the discarded tooltip work.
             windowListActive: root.showTooltips && root.showWindowList
         }
     }
 
-    // Every virtual-desktop write goes through KWin's VirtualDesktopManager. The CALL SHAPES
-    // (service/path/iface/member + per-arg DBus types) live in pure logic.js as *Spec builders, so
-    // the exact strings/types — the parts that fail SILENTLY on a Plasma upgrade (CLAUDE.md DBus
-    // gotcha) — are unit-tested by tst_logic.qml. Here we only DISPATCH a built spec: async
-    // fire-and-forget (issue the call, let `vdi` report the resulting state). A null spec (a guard
-    // tripped in logic.js: transient-empty uuid, never-remove-last, blank rename) is a no-op.
+    // Every desktop write goes through KWin's VirtualDesktopManager. The CALL SHAPES live in logic.js's
+    // *Spec builders (unit-tested — they fail SILENTLY on a Plasma upgrade, CLAUDE.md); here we only
+    // DISPATCH a built spec (async fire-and-forget, let `vdi` report the state). A null spec is a no-op.
     function dispatch(spec) {
         if (!spec) {
             return;
@@ -182,10 +145,9 @@ PlasmoidItem {
         });
     }
 
-    // Map ONE spec arg { t, v } to the order-sensitive DBus.* constructor it describes (t mirrors a
-    // DBus signature letter: "s" string, "u" uint32, "i" int32, "v" variant). This is the only seam
-    // tests can't reach (it needs the real DBus plugin); it stays a trivial 1:1 switch. The "v" case
-    // wraps a PLAIN value — never a wrapped DBus.string, which KWin silently rejects (CLAUDE.md).
+    // Map ONE spec arg { t, v } to its order-sensitive DBus.* constructor (t: "s" string, "u" uint32,
+    // "i" int32, "v" variant). The only seam tests can't reach (needs the real DBus plugin). The "v" case
+    // wraps a PLAIN value — a wrapped DBus.string is silently rejected by KWin (CLAUDE.md).
     function toDBusArg(a) {
         switch (a.t) {
         case "s":
@@ -197,27 +159,24 @@ PlasmoidItem {
         case "v":
             return new DBus.variant(a.v);
         default:
-            // Unknown type letter: a *Spec builder emitted a `t` this map doesn't handle. Pass
-            // the raw value (KWin would drop the malformed call) but warn LOUDLY rather than fail
-            // silently — the silent-DBus-drop failure class this widget exists to avoid.
+            // Unknown type letter from a *Spec builder: warn LOUDLY rather than fail silently — the
+            // silent-DBus-drop failure class this widget exists to avoid.
             console.warn("plasma-gnome-pager: toDBusArg got unknown DBus type letter", a.t);
             return a.v;
         }
     }
 
-    // Switch to a desktop by UUID via the VirtualDesktopManager "current" property.
     function switchTo(uuid) {
         root.dispatch(Logic.switchSpec(uuid));
     }
 
-    // Append a new desktop at the end. `?? 0` keeps a transient-undefined count (shell reload / widget
-    // re-add) out of the uint32 position; when the menu action actually fires the widget is live, so it
-    // is a real append. The i18n label stays here (logic.js is i18n-free). `vdi` reports the new count.
+    // Append a new desktop at the end. `?? 0` keeps a transient-undefined count out of the uint32. The
+    // i18n label stays here (logic.js is i18n-free); `vdi` reports the new count.
     function addDesktop() {
         root.dispatch(Logic.addSpec(vdi.numberOfDesktops ?? 0, i18n("New Desktop")));
     }
 
-    // Remove a desktop by UUID. logic.js's removeSpec enforces never-remove-last (returns null).
+    // Remove a desktop by UUID. removeSpec enforces never-remove-last (returns null).
     function removeDesktop(uuid) {
         root.dispatch(Logic.removeSpec(uuid, vdi.numberOfDesktops));
     }
@@ -227,30 +186,24 @@ PlasmoidItem {
         root.removeDesktop(Logic.lastDesktopId(vdi.desktopIds));
     }
 
-    // ── Dynamic workspaces (GNOME-style) ──────────────────────────────────────────────────────────
-    // Keep exactly one empty trailing desktop, as a single GLOBAL behaviour across all panel instances.
-    // The whole reactive state machine + cross-instance coordination lives in its own non-visual
-    // DynamicWorkspacesController (extracted from main.qml for single-responsibility + headless tests):
-    // it reads the live desktop set + occupancy and emits the only two things this e2e boundary can do —
-    // dispatchRequested (a built KWin spec → our async dispatch) and syncConfigRequested (mirror the one
-    // global setting into THIS instance's persisted Plasmoid.configuration, value-guarded so it can't loop).
+    // Dynamic workspaces (GNOME-style): one GLOBAL behaviour keeping an empty trailing desktop. The
+    // non-visual DynamicWorkspacesController holds the state machine + coordination, emitting dispatchRequested
+    // (a KWin spec) and syncConfigRequested (mirror the global setting into this instance's config).
     DynamicWorkspacesController {
         id: dynamicController
 
         dynamicEnabled: root.dynamicWorkspaces
         namePrefix: root.dynamicNamePrefix
-        // The i18n default base name, passed IN so the controller stays i18n-free (it is headless-tested
-        // where the i18n* globals don't exist). KWin silently drops createDesktop with an empty name, so
-        // formatDynamicDesktopName guarantees a non-empty "<base> N".
+        // i18n default base name, passed IN so the controller stays i18n-free. Never empty — KWin drops
+        // createDesktop on an empty name.
         defaultPrefix: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
         virtualDesktopInfo: vdi
         desktopOccupancy: root.desktopOccupancy
 
         onDispatchRequested: spec => root.dispatch(spec)
         onSyncConfigRequested: (nextEnabled, nextPrefix) => {
-            // Mirror the one global setting into this instance's persisted config so every panel's
-            // checkbox/prefix agree and survive a reload. Value-guarded: after this our values equal the
-            // global, and the controller only republishes a genuine local change — so it can't loop.
+            // Mirror the global setting into this instance's persisted config so every panel agrees.
+            // Value-guarded so the sync→onChanged→publish path can't loop.
             if (Plasmoid.configuration.dynamicWorkspaces !== nextEnabled)
                 Plasmoid.configuration.dynamicWorkspaces = nextEnabled;
             if (Plasmoid.configuration.dynamicNamePrefix !== nextPrefix)
@@ -258,15 +211,14 @@ PlasmoidItem {
         }
     }
 
-    // Rename a desktop by UUID via KWin's setDesktopName(id, name). renameSpec trims/sanitizes and
-    // rejects an empty/whitespace-only name (returns null → no-op); `vdi` reports the new name back
-    // via the desktopNames binding — no cache (the read/write split).
+    // Rename a desktop via KWin setDesktopName. renameSpec trims/sanitizes and rejects empty (null →
+    // no-op); `vdi` reports the new name via desktopNames (no cache — the read/write split).
     function renameDesktop(uuid, name) {
         root.dispatch(Logic.renameSpec(uuid, name));
     }
 
-    // Open the rename prompt for a desktop, prefilled with its current name. Resolves the name from the
-    // live vdi arrays (index-aligned; guarded for the transient-empty frame).
+    // Open the rename prompt prefilled with the desktop's current name (resolved from the live vdi
+    // arrays, index-aligned and guarded for the transient-empty frame).
     function openRenameDialog(uuid) {
         if (!uuid) {
             return;
@@ -276,12 +228,9 @@ PlasmoidItem {
         renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
     }
 
-    // Right-click menu. Add/Remove are gated by enableAddRemove AND hidden while dynamicWorkspaces is on
-    // (the two conflict: the controller would immediately trim a manually-added empty / re-add a removed
-    // trailing empty — so manual editing must yield to the auto-manager). dynamicWorkspaces is globally
-    // synced, so this hides the entries on every panel; enableAddRemove's own value is left untouched and
-    // returns when dynamic is turned off. Remove also disables at the last desktop. Rename never conflicts.
-    // (The "Configure…" entry is added automatically by Plasma once a config schema exists.)
+    // Right-click menu. Add/Remove are gated by canAddRemove (enableAddRemove AND dynamic off — they
+    // conflict; dynamicWorkspaces is global, so hidden on every panel, value preserved). Remove also
+    // disables at the last desktop. ("Configure…" is auto-added by Plasma.)
     Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: i18n("Add Desktop")
@@ -309,13 +258,9 @@ PlasmoidItem {
         }
     ]
 
-    // Rename prompt — a panel-native PlasmaCore.Dialog (a top-level Window), declared directly (not in a
-    // Loader: a Loader is for Items, and there is no precedent for loading a Window through one; visible:
-    // false keeps it cheap — no native surface until first shown, and its content is just a field + two
-    // buttons). Chosen over Kirigami.PromptDialog, whose base parents to applicationWindow().overlay —
-    // undefined in a plasmoid, so it would be clipped to the thin panel (robustness.md). It pops next to
-    // the widget via visualParent + location (the AppletAlternatives idiom) and lives here in main.qml
-    // (the e2e boundary) so the headless-tested sub-components never touch a dialog or Plasma window type.
+    // Rename prompt — a panel-native PlasmaCore.Dialog (top-level Window), declared directly (visible:false
+    // keeps it cheap). NOT Kirigami.PromptDialog, whose base parents to applicationWindow().overlay —
+    // undefined in a plasmoid, so it would clip to the thin panel (robustness.md).
     PlasmaCore.Dialog {
         id: renameDialog
 
@@ -326,7 +271,7 @@ PlasmoidItem {
         location: Plasmoid.location
         hideOnWindowDeactivate: true            // click-away cancels
 
-        // Show prefilled with the desktop's current name, text selected and focused for immediate typing.
+        // Prefill with the current name, select-all and focus for immediate typing.
         function openFor(uuid, currentName) {
             renameDialog.targetUuid = uuid;
             renameField.text = currentName;
@@ -335,8 +280,8 @@ PlasmoidItem {
             renameField.forceActiveFocus();
         }
 
-        // Commit the rename, then close. An empty/whitespace name (sanitize → "") keeps the prompt open
-        // rather than silently doing nothing; renameDesktop re-sanitizes, so the write stays guarded.
+        // Commit then close. An empty/whitespace name (sanitize → "") keeps the prompt open rather than
+        // silently doing nothing; renameDesktop re-sanitizes, so the write stays guarded.
         function commit() {
             const clean = Logic.sanitizeDesktopName(renameField.text);
             if (clean === "") {
@@ -356,8 +301,8 @@ PlasmoidItem {
                 id: renameField
                 Layout.fillWidth: true
                 Layout.minimumWidth: Kirigami.Units.gridUnit * 12
-                onAccepted: renameDialog.commit()                  // Enter commits
-                Keys.onEscapePressed: renameDialog.visible = false // Esc cancels
+                onAccepted: renameDialog.commit()
+                Keys.onEscapePressed: renameDialog.visible = false
             }
             RowLayout {
                 Layout.alignment: Qt.AlignRight

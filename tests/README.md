@@ -121,13 +121,13 @@ Conventions:
 
 ## Roadmap note
 
-The zero-dependency **pure-JS logic tier** landed in **Milestone 3**: the branching logic (scroll
-index clamp/wrap, hi-res wheel accumulation, "never remove the last desktop", hover-suppress) lives
-in `package/contents/ui/logic.js` (`.pragma library`) and is unit-tested by
-`tests/unit/tst_logic.qml`, which imports the `.js` directly — no Plasma/Kirigami needed, so it
-runs on any bare `qt6` + `qttest` environment (and in CI). Prefer adding new branching logic there
-and asserting it directly, rather than only through QML. CI (qmllint + tests on push) is planned
-for Milestone 7.
+The zero-dependency **pure-JS logic tier**: the branching logic (scroll index clamp/wrap, hi-res
+wheel accumulation, "never remove the last desktop", hover-suppress) lives in
+`package/contents/ui/logic.js` (`.pragma library`) and is unit-tested by `tests/unit/tst_logic.qml`,
+which imports the `.js` directly — no Plasma/Kirigami needed, so it runs on any bare `qt6` + `qttest`
+environment (and in CI). Prefer adding new branching logic there and asserting it directly, rather
+than only through QML. CI runs qmllint + tests + ESLint on every PR
+(`.github/workflows/pr-validation.yml`).
 
 **Test the event path, not just the handler.** Scroll-to-switch broke in-shell while a test that
 called `handleWheel()` directly stayed green — the bug was in *event routing* (which item receives

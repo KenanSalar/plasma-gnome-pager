@@ -4,22 +4,10 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Resolves the current desktop FOR ONE SCREEN, extracted from WorkspaceIndicator so the per-screen
- * logic is one single-responsibility, headless-testable unit (tst_screencurrentdesktop). A non-visual
- * zero-size Item (it hosts a Connections, which needs a QQuickItem host — same pattern as the other
- * controllers here).
- *
- * Plasma 6.7 lets each output show a different current desktop via
- * VirtualDesktopInfo.currentDesktopByScreenName, which is a METHOD + change SIGNAL, not a notifying
- * property — so a plain binding would evaluate once and never refresh. Instead currentDesktop is a
- * mutable source-of-truth recomputed imperatively in updateCurrentDesktop(), driven by the Connections
- * below; the indicator binds activeIndex off it.
- *
- * screenName is read on the indicator (a placed visual Item — the QtQuick Screen attached property only
- * reflects the output for an on-screen item) and injected IN, so this never reads Screen itself. The
- * perScreen-vs-global decision is the pure Logic.resolveCurrentDesktop (prefer per-screen, fall back to
- * global), so it degrades to single-desktop behaviour when the feature is off, the screen is unknown,
- * or the API is absent (older Plasma — the typeof guard).
+ * Resolves the current desktop FOR ONE SCREEN (Plasma 6.7 per-output), extracted from WorkspaceIndicator
+ * (unit-tested by tst_screencurrentdesktop). currentDesktopByScreenName is a METHOD + change SIGNAL, not a
+ * notifying property, so currentDesktop is recomputed imperatively (a plain binding evaluates once). The
+ * prefer-per-screen / fall-back-to-global decision is pure Logic.resolveCurrentDesktop. See CLAUDE.md.
  */
 pragma ComponentBehavior: Bound
 
@@ -46,9 +34,8 @@ Item {
         resolver.currentDesktop = Logic.resolveCurrentDesktop(perScreen, globalCurrent);
     }
 
-    // Recompute on every external change: the global current, THIS screen's current, a desktop
-    // add/remove (a screen's current may have been removed), the source swapping in, or this panel
-    // moving to another output. "Bind, don't cache": every external change re-resolves.
+    // Recompute on every external change (global current, this screen's current, a desktop add/remove, the
+    // source swapping in, or this panel moving outputs). "Bind, don't cache."
     Connections {
         target: resolver.virtualDesktopInfo
         function onCurrentDesktopChanged() {

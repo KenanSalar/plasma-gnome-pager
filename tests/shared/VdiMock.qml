@@ -4,17 +4,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Shared test double for TaskManager.VirtualDesktopInfo. Duck-typed: it exposes exactly the
- * members WorkspaceIndicator reads — .desktopIds, .currentDesktop, .desktopNames,
- * .desktopLayoutRows, and the Plasma 6.7 per-screen current API
- * (.currentDesktopByScreenName(name) + the .currentDesktopForScreenChanged(screenName) signal).
- *
- * Defaults model a single desktop set on one line with the per-screen feature OFF (perScreenCurrent
- * empty → every screen equals the global currentDesktop), so screen-agnostic tests stay valid.
- * Per-screen tests set `perScreenCurrent` and emit `currentDesktopForScreenChanged` to mimic a
- * single output switching. Lives in tests/shared/ so it is the ONE canonical mock (not a tst_*.qml,
- * so qmltestrunner never runs it as a test); a test imports the directory (`import "../shared"`)
- * and instantiates `VdiMock {}`.
+ * Shared test double for TaskManager.VirtualDesktopInfo. Duck-typed: exposes exactly the members
+ * WorkspaceIndicator reads (.desktopIds/.currentDesktop/.desktopNames/.desktopLayoutRows + the Plasma 6.7
+ * per-screen API). Defaults model one desktop set with the per-screen feature OFF (every screen == the
+ * global currentDesktop), so screen-agnostic tests stay valid; per-screen tests set `perScreenCurrent` and
+ * emit `currentDesktopForScreenChanged`. In tests/shared/ as the ONE canonical mock (not a tst_*.qml).
  */
 import QtQuick
 

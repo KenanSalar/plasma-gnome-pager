@@ -4,15 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Behavior page of the settings dialog. Built on ConfigPageBase (a Kirigami.ScrollablePage that
- * supplies the KDE title header + the shared "Defaults" header action); this page just declares its
- * keys and its content.
- *
- * Each `cfg_<key>` alias name MUST match a contents/config/main.xml entry exactly; the dialog then
- * wires load/save automatically. `cfg_<key>Default` is injected by the dialog from the schema default
- * (declared below, no initializer, so main.xml stays the single source of truth). This page fulfils
- * ConfigPageBase's contract: it binds `isModified` and handles `onDefaultsRequested`. Public Kirigami
- * + QtQuick.Controls only (not PlasmaComponents) — see plasmoid.md / kirigami.md.
+ * The Behavior page, built on ConfigPageBase (KDE header + the shared "Defaults" action). Each
+ * `cfg_<key>` alias MUST match a main.xml entry exactly (the dialog wires load/save); `cfg_<key>Default`
+ * is injected from the schema. Public Kirigami + QtQuick.Controls only (plasmoid.md). See CLAUDE.md.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -94,9 +88,7 @@ ConfigPageBase {
             id: enableAddRemove
             Kirigami.FormData.label: i18n("Menu:")
             text: i18n("Add and remove desktops from the right-click menu")
-            // Greyed out while dynamic workspaces is on — the two are mutually exclusive (dynamic manages
-            // desktops automatically). Non-destructive: the stored value is kept and returns when dynamic
-            // is turned off. The right-click entries are hidden at runtime by the same condition in main.qml.
+            // Greyed while dynamic workspaces is on (mutually exclusive); value preserved, returns when off.
             enabled: !dynamicWorkspaces.checked
         }
         QQC2.CheckBox {
@@ -121,8 +113,7 @@ ConfigPageBase {
         QQC2.TextField {
             id: dynamicNamePrefix
             Kirigami.FormData.label: i18n("New desktop name:")
-            // The base name for auto-created desktops; the desktop's number is appended ("<name> 2", "<name> 3").
-            // Empty falls back to the localized default shown as the placeholder. Only matters when dynamic is on.
+            // Base name for auto-created desktops (number appended); empty → the placeholder default.
             enabled: dynamicWorkspaces.checked
             placeholderText: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
             Layout.preferredWidth: root.fieldWidth   // match the slider track width (ConfigPageBase.fieldWidth)

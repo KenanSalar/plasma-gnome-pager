@@ -3,11 +3,9 @@
 // SPDX-FileCopyrightText: 2026 Kenan Salar
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Shared, stateless test helper: depth-first collect of descendants matching a predicate.
-// The component tests can't do a flat `children` scan — the circle/tooltip/dot delegates are
-// nested inside per-dot ToolTipAreas/Repeaters — so each tier walked the tree itself. This is
-// that one walk, shared. `.pragma library` so it is parsed once and carries no QML context
-// (mirrors package/contents/ui/logic.js).
+// Shared test helper: depth-first collect of descendants matching a predicate (the circle/tooltip/dot
+// delegates are nested inside per-dot ToolTipAreas/Repeaters, so a flat children scan won't do).
+// `.pragma library` mirrors logic.js.
 .pragma library
 
 // Return every descendant of `item` (any depth) for which pred(child) is true.

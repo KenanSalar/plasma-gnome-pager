@@ -4,16 +4,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Appearance page of the settings dialog. Built on ConfigPageBase (KDE title header + the shared
- * "Defaults" header action). Controls: the dimensionless ratios use ConfigSlider (its `value` is a
- * real, unlike the integer-only SpinBox) with a live read-out; dotSize is an integer slider where 0
- * reads as "Default" (the 0 = auto sentinel → HiDPI themed size in the widget). Colours use
- * org.kde.kquickcontrols.ColorButton (the canonical Plasma picker; this page is loaded lazily only
- * when the dialog opens, so the import never affects the always-on widget — robustness.md), disabled
- * while "Follow the color scheme" is on.
- *
- * Each `cfg_<key>` alias name MUST match a contents/config/main.xml entry exactly. This page fulfils
- * ConfigPageBase's contract: it binds `isModified` and handles `onDefaultsRequested`.
+ * The Appearance page, built on ConfigPageBase. The dimensionless ratios use ConfigSlider (real `value`)
+ * with a live read-out; dotSize/pillSize are integer sliders where 0 reads "Default"/"Match dots" (the
+ * 0 = auto sentinel, resolved in the widget). Colours use org.kde.kquickcontrols.ColorButton — lazy-loaded
+ * with the dialog, so the import never affects the always-on widget (robustness.md). Each `cfg_<key>` MUST
+ * match a main.xml entry exactly; binds isModified + handles onDefaultsRequested. See CLAUDE.md.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -44,10 +39,8 @@ ConfigPageBase {
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
 
-    // Single source for this page's keys + their compare kind; drives BOTH isModified and the
-    // Defaults reset via ConfigPageBase.fieldChanged/resetField. The kind picks the comparison:
-    // reals compare within epsilon, colours via Qt.colorEqual (QColor wrappers are identity-compared
-    // by !==, not value), ints/bools exact — so no per-key comparison is hand-written here.
+    // This page's keys + compare kind; drives isModified + the Defaults reset via ConfigPageBase
+    // (reals within epsilon, colours via Qt.colorEqual, ints/bools exact — no per-key body).
     readonly property var configKeys: [
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
