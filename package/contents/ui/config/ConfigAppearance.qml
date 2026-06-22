@@ -4,16 +4,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Appearance page of the settings dialog. Built on ConfigPageBase (KDE title header + the shared
- * "Defaults" header action). Controls: the dimensionless ratios use ConfigSlider (its `value` is a
- * real, unlike the integer-only SpinBox) with a live read-out; dotSize is an integer slider where 0
- * reads as "Default" (the 0 = auto sentinel → HiDPI themed size in the widget). Colours use
- * org.kde.kquickcontrols.ColorButton (the canonical Plasma picker; this page is loaded lazily only
- * when the dialog opens, so the import never affects the always-on widget — robustness.md), disabled
- * while "Follow the color scheme" is on.
- *
- * Each `cfg_<key>` alias name MUST match a contents/config/main.xml entry exactly. This page fulfils
- * ConfigPageBase's contract: it binds `isModified` and handles `onDefaultsRequested`.
+ * The Appearance page, built on ConfigPageBase. The dimensionless ratios use ConfigSlider (real `value`)
+ * with a live read-out; dotSize/pillSize are integer sliders where 0 reads "Default"/"Match dots" (the
+ * 0 = auto sentinel, resolved in the widget). Colours use org.kde.kquickcontrols.ColorButton — lazy-loaded
+ * with the dialog, so the import never affects the always-on widget (robustness.md). Each `cfg_<key>` MUST
+ * match a main.xml entry exactly; binds isModified + handles onDefaultsRequested. See CLAUDE.md.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -44,36 +39,23 @@ ConfigPageBase {
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
 
-    // Tolerance for the real-valued "differs from default" checks: a value dragged back onto the
-    // default (SnapAlways lands it on the step grid) can differ from the schema default by a float
-    // ULP and would otherwise read "modified". One named constant instead of a repeated literal.
-    readonly property real epsilon: 1e-9
+    // This page's keys + compare kind; drives isModified + the Defaults reset via ConfigPageBase
+    // (reals within epsilon, colours via Qt.colorEqual, ints/bools exact — no per-key body).
+    readonly property var configKeys: [
+        { n: "dotSize", t: "int" },
+        { n: "pillSize", t: "int" },
+        { n: "spacingFactor", t: "real" },
+        { n: "pillWidthFactor", t: "real" },
+        { n: "inactiveOpacity", t: "real" },
+        { n: "hoverOpacity", t: "real" },
+        { n: "followThemeColors", t: "bool" },
+        { n: "activeColor", t: "color" },
+        { n: "inactiveColor", t: "color" }
+    ]
 
-    // True when any key on this page differs from its default (gates the base's Defaults action).
-    // Integers/bools compare exactly; the real-valued sliders use `epsilon` (above). Colours are
-    // QColor-backed value types: strict !== compares wrapper identity, not the colour value (equal
-    // colours still read "different"), so use Qt.colorEqual (Qt docs).
-    isModified: cfg_dotSize !== cfg_dotSizeDefault
-        || cfg_pillSize !== cfg_pillSizeDefault
-        || Math.abs(cfg_spacingFactor - cfg_spacingFactorDefault) > epsilon
-        || Math.abs(cfg_pillWidthFactor - cfg_pillWidthFactorDefault) > epsilon
-        || Math.abs(cfg_inactiveOpacity - cfg_inactiveOpacityDefault) > epsilon
-        || Math.abs(cfg_hoverOpacity - cfg_hoverOpacityDefault) > epsilon
-        || cfg_followThemeColors !== cfg_followThemeColorsDefault
-        || !Qt.colorEqual(cfg_activeColor, cfg_activeColorDefault)
-        || !Qt.colorEqual(cfg_inactiveColor, cfg_inactiveColorDefault)
-
-    onDefaultsRequested: {
-        cfg_dotSize = cfg_dotSizeDefault;
-        cfg_pillSize = cfg_pillSizeDefault;
-        cfg_spacingFactor = cfg_spacingFactorDefault;
-        cfg_pillWidthFactor = cfg_pillWidthFactorDefault;
-        cfg_inactiveOpacity = cfg_inactiveOpacityDefault;
-        cfg_hoverOpacity = cfg_hoverOpacityDefault;
-        cfg_followThemeColors = cfg_followThemeColorsDefault;
-        cfg_activeColor = cfg_activeColorDefault;
-        cfg_inactiveColor = cfg_inactiveColorDefault;
-    }
+    // True when any key differs from its default (gates the base's Defaults action).
+    isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
+    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     Kirigami.FormLayout {
         ConfigSlider {

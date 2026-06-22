@@ -4,19 +4,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Integration test for WorkspaceIndicator — the composed dot strip + reflow + reactive
- * wiring, exercising the documented robustness guards (see .claude/rules/robustness.md).
- * It is testable headless because the indicator depends only on QtQuick / QtQuick.Layouts /
- * Kirigami (+ logic.js) and reads desktop state through a duck-typed `virtualDesktopInfo`
- * property — a plain QtObject stands in for TaskManager.VirtualDesktopInfo. Its WorkspaceDot
- * delegates pull in org.kde.plasma.core for their per-dot ToolTipArea, which loads fine under
- * offscreen qmltestrunner.
- *
- * main.qml / PlasmoidItem is intentionally NOT tested here: it needs plasmashell,
- * KWin and a session bus, which don't exist under qmltestrunner. See tests/README.md.
- *
- * Run with `make check` (sets QT_QPA_PLATFORM=offscreen so Kirigami initialises
- * without a display).
+ * Integration test for WorkspaceIndicator — the composed dot strip + reflow + reactive wiring, exercising
+ * the robustness guards (robustness.md). Headless-testable: the indicator depends only on QtQuick/Layouts/
+ * Kirigami (+ logic.js) and reads desktop state through a duck-typed `virtualDesktopInfo` (a VdiMock stands
+ * in for VirtualDesktopInfo). main.qml/PlasmoidItem is NOT tested here (needs plasmashell/KWin/a session
+ * bus). Run with `make check` (offscreen).
  */
 import QtQuick
 import QtQuick.Layouts
@@ -76,9 +68,8 @@ TestCase {
         signalName: "switchRequested"
     }
 
-    // A duck-typed VirtualDesktopInfo mock. Pass a currentDesktop outside desktopIds (the
-    // staleUuid) to exercise the transient add/remove state the indicator must tolerate.
-    // desktopNames is optional (defaults []), needed only by the tooltip tests.
+    // A duck-typed VirtualDesktopInfo mock. A currentDesktop outside desktopIds (the staleUuid) exercises
+    // the transient add/remove state; desktopNames is optional (needed only by the tooltip tests).
     function makeMock(desktopIds, currentDesktop, desktopNames, desktopLayoutRows) {
         return createTemporaryObject(vdiMockComponent, testCase, {
             desktopIds: desktopIds,
@@ -88,25 +79,21 @@ TestCase {
         });
     }
 
-    // The single point that instantiates the component under test (auto-cleaned). Extra
-    // props (e.g. enableScroll/scrollWrap, an explicit width) can be passed for the
-    // interaction tests; virtualDesktopInfo is always set.
+    // The single point that instantiates the component under test (auto-cleaned). Extra props can be
+    // passed for the interaction tests; virtualDesktopInfo is always set.
     function makeIndicator(vdi, props) {
         const p = props || {};
         p.virtualDesktopInfo = vdi;
         return createTemporaryObject(indicatorComponent, testCase, p);
     }
 
-    // Collect the WorkspaceDot delegates from the indicator's visual tree. A dot is uniquely
-    // identified by its required `modelData` (the desktop UUID) plus the `active` bool — no other
-    // item in the tree carries both. The walk + duck-type predicates are shared with the unit tier
-    // (tests/shared/elements.js).
+    // Collect the WorkspaceDot delegates from the indicator's visual tree (locators shared with the unit
+    // tier, tests/shared/elements.js).
     function collectDots(indicator) {
         return TreeWalk.collect(indicator, Elements.isDot);
     }
 
-    // Find the dot delegate for a given desktop UUID (or null) — used by the
-    // reactivity/geometry tests below to locate a specific element.
+    // Find the dot delegate for a given desktop UUID (or null).
     function dotByUuid(indicator, uuid) {
         const dots = collectDots(indicator);
         for (let i = 0; i < dots.length; i++)
@@ -115,25 +102,22 @@ TestCase {
         return null;
     }
 
-    // The dots in flat desktop order, so geometry tests can walk neighbours. Sort by globalIndex
-    // (line * perLine + position) so it stays correct across multiple grid lines; for a single
-    // line globalIndex == the per-line index, so single-line tests are unaffected.
+    // The dots in flat desktop order (sorted by globalIndex), so geometry tests can walk neighbours
+    // correctly across multiple grid lines.
     function dotsByIndex(indicator) {
         const dots = collectDots(indicator);
         dots.sort((a, b) => a.globalIndex - b.globalIndex);
         return dots;
     }
 
-    // The dim circle/capsule Rectangle inside a given dot (shared locator, tests/shared/elements.js).
-    // Used by the colour flow-through test.
+    // The dim circle/capsule Rectangle inside a given dot (shared locator). Used by the colour test.
     function circleOf(dot) {
         return Elements.circleOf(dot);
     }
 
-    // The trailing edge of the last (highest-globalIndex) dot, mapped into the indicator, must land
-    // within the allocation on the named axis — the scale-to-fit invariant (never overflow). `axis`
-    // is explicit ("x" or "y"), NOT derived from `vertical`: the cross-fit tests constrain the axis
-    // OPPOSITE the strip orientation, so the caller names the constrained axis directly.
+    // The trailing edge of the last dot must land within the allocation on the named axis — the
+    // scale-to-fit invariant (never overflow). `axis` is explicit ("x"/"y"), since the cross-fit tests
+    // constrain the axis OPPOSITE the strip orientation.
     function lastElementFits(indicator, axis) {
         const dots = dotsByIndex(indicator);
         const last = dots[dots.length - 1];
@@ -149,8 +133,7 @@ TestCase {
         compare(collectDots(indicator).length, ids.length);
     }
 
-    // robustness.md: a null source (transient during desktop add/remove or shell
-    // reload) must yield an empty strip, never an error or a stray dot.
+    // robustness.md: a null source (transient) must yield an empty strip, never an error or stray dot.
     function test_nullSourceProducesNoDots() {
         const indicator = makeIndicator(null);
         verify(indicator, "indicator created");
@@ -189,7 +172,7 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "forwarded the clicked UUID");
     }
 
-    // --- The reflow capsule (the active element morphs to a pill) ------------------
+    // The reflow capsule (the active element morphs to a pill)
 
     // activeIndex maps currentDesktop to its position in desktopIds.
     function test_activeIndexMapping() {
@@ -221,8 +204,7 @@ TestCase {
         compare(plain, ids.length - 1, "all other elements are dots");
     }
 
-    // robustness.md: a null source (transient) yields no elements, and the cell falls back
-    // to a sane minimum (one dot wide) rather than collapsing to 0.
+    // robustness.md: a null source yields no elements, and the cell falls back to one dot wide (not 0).
     function test_nullSourceNoCapsule() {
         const indicator = makeIndicator(null);
         compare(indicator.activeIndex, -1, "no active index without a source");
@@ -230,9 +212,8 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "cell falls back to one dot wide");
     }
 
-    // robustness.md: currentDesktop not (yet) in desktopIds during an add/remove → no
-    // capsule (all dots), and the advertised width stays at the steady-state (one-capsule)
-    // value so the panel cell does NOT jitter while the active element is momentarily unknown.
+    // robustness.md: currentDesktop not (yet) in desktopIds → no capsule, and the advertised width stays
+    // at the steady-state value so the panel cell does NOT jitter while the active element is unknown.
     function test_transientStaleNoCapsuleWidthStable() {
         const indicator = makeIndicator(makeMock(ids, staleUuid));
         compare(indicator.activeIndex, -1, "stale currentDesktop maps to -1");
@@ -243,8 +224,8 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, steady, 0.5, "cell stays at the steady-state width");
     }
 
-    // Uniform spacing: the gap between EVERY adjacent pair — dot-dot and capsule-dot alike —
-    // equals the single Row spacing (the GNOME look; positive gaps also prove no overlap).
+    // Uniform spacing: the gap between EVERY adjacent pair (dot-dot and capsule-dot) equals the Row
+    // spacing (the GNOME look; positive gaps also prove no overlap).
     function test_uniformSpacing() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));   // middle is the capsule
         const dots = dotsByIndex(indicator);
@@ -255,10 +236,8 @@ TestCase {
         }
     }
 
-    // --- Reactivity: the "bind, don't cache" contract -----------------------------
-    // The indicator reads desktop state live, so a change by ANY means (keyboard, another
-    // pager, settings) — modelled here by mutating the mock — must update the UI without
-    // a manual refresh. These tests fail if a binding is ever replaced by a cached value.
+    // Reactivity: the "bind, don't cache" contract. The indicator reads desktop state live, so a change
+    // by ANY means (modelled by mutating the mock) must update the UI — these fail if a binding is cached.
 
     // Switching the current desktop moves the `active` flag to the new dot (and only it).
     function test_switchUpdatesActiveDot() {
@@ -273,8 +252,7 @@ TestCase {
         compare(dotByUuid(indicator, ids[2]).active, true, "new dot activates");
     }
 
-    // Switching morphs the capsule: the new current element grows to pillWidth while the old
-    // shrinks back to dotSize. tryVerify polls so it tolerates the morph animation.
+    // Switching morphs the capsule: the new current grows to pillWidth, the old shrinks to dotSize.
     function test_morphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
@@ -302,8 +280,7 @@ TestCase {
         compare(indicator.activeIndex, 0, "current desktop's index is unchanged by an append");
     }
 
-    // Removing a desktop (desktopIds shrinks) drops a dot; the capsule re-tracks the
-    // still-current desktop at its new index rather than disappearing.
+    // Removing a desktop drops a dot; the capsule re-tracks the still-current desktop at its new index.
     function test_removeDesktopRemovesDot() {
         const vdi = makeMock(ids, ids[2]);   // current is the last desktop
         const indicator = makeIndicator(vdi);
@@ -320,13 +297,10 @@ TestCase {
         }, 2000, "the surviving current desktop is the capsule");
     }
 
-    // --- Plasma 6.7: per-screen current desktop -----------------------------------
-    // "Switch desktops independently for each screen": each output can show a different current
-    // desktop. The indicator resolves the current FOR ITS screen (screenName) via the mock's
-    // currentDesktopByScreenName, falling back to the global currentDesktop when there is no
-    // per-screen entry. These prove (a) the active dot reflects this screen, not the global current;
-    // (b) a switch on ANOTHER screen does not move this strip's pill (the reported bug); and
-    // (c) this screen's own switch is reactive.
+    // Plasma 6.7: per-screen current desktop. Each output can show a different current; the indicator
+    // resolves the current FOR ITS screen (currentDesktopByScreenName, falling back to global). These
+    // prove the active dot reflects this screen, another screen's switch doesn't move this pill, and this
+    // screen's own switch is reactive.
 
     // The active dot follows THIS screen's current desktop, not the global one.
     function test_perScreenActiveFollowsOwnScreen() {
@@ -370,8 +344,7 @@ TestCase {
         verify(!dotByUuid(indicator, ids[0]).active, "the old dot deactivates");
     }
 
-    // An unknown screen falls back to the global current (matches the mock's by-name fallback, and
-    // models a screen the per-screen API doesn't know — e.g. the feature off).
+    // An unknown screen falls back to the global current (models a screen the API doesn't know).
     function test_perScreenFallsBackToGlobalWhenScreenUnknown() {
         const vdi = makeMock(ids, ids[1]);
         vdi.perScreenCurrent = { "DP-1": ids[2] };       // only DP-1 has an entry
@@ -389,10 +362,8 @@ TestCase {
         verify(dotByUuid(indicator, ids[2]).active, "global current is active with no screen name");
     }
 
-    // --- animate latch: instant first placement, morph thereafter -----------------
-    // `animate` is a one-way latch that gates the per-dot morph so the FIRST valid placement
-    // is instant (the active element is already a capsule, no grow-in on shell reload) — see
-    // the gotcha in CLAUDE.md / WorkspaceIndicator.qml.
+    // animate latch: a one-way latch gating the morph so the FIRST valid placement is instant (active
+    // element already a capsule, no grow-in on reload). See CLAUDE.md.
 
     // Created with a valid current desktop: the latch is already set (Component.onCompleted).
     function test_animateLatchedOnValidStart() {
@@ -400,8 +371,8 @@ TestCase {
         compare(indicator.animate, true, "morph latched on a valid initial placement");
     }
 
-    // Created with no active element, then a source arrives: the latch enables via the
-    // onActiveIndexChanged + Qt.callLater deferral path (so the first placement is instant).
+    // No active element, then a source arrives: the latch enables via the onActiveIndexChanged +
+    // Qt.callLater deferral (first placement still instant).
     function test_animateDefersFromInvalidStart() {
         const indicator = makeIndicator(null);   // no source → activeIndex -1
         compare(indicator.animate, false, "morph disabled while there is no active element");
@@ -410,8 +381,7 @@ TestCase {
         tryCompare(indicator, "animate", true, 2000, "morph enables once a valid element first appears");
     }
 
-    // Once latched true, a transient loss of the active element (current drops out of ids
-    // during an add/remove) must NOT reset the latch back to false.
+    // Once latched true, a transient loss of the active element must NOT reset the latch to false.
     function test_animateIsOneWayLatch() {
         const vdi = makeMock(ids, currentUuid);
         const indicator = makeIndicator(vdi);
@@ -423,17 +393,14 @@ TestCase {
         compare(indicator.animate, true, "animate never returns to false");
     }
 
-    // First placement is instant: created already at the LAST desktop, that element is a
-    // capsule on the first frame (synchronous — no grow-in from a dot).
+    // First placement is instant: created at the LAST desktop, that element is a capsule on frame 0.
     function test_firstPlacementIsImmediate() {
         const indicator = makeIndicator(makeMock(ids, ids[2]));
         fuzzyCompare(dotByUuid(indicator, ids[2]).width, indicator.pillWidth, 0.5,
                      "active element is already a capsule on first placement");
     }
 
-    // --- activeIndex edge cases (data-driven) -------------------------------------
-    // activeIndex is the guard the capsule hangs off; it must be -1 for every transient/
-    // invalid state and the correct element index otherwise.
+    // activeIndex edge cases (data-driven): -1 for every transient/invalid state, the element index otherwise.
     function test_activeIndex_data() {
         return [
             { tag: "empty-ids", desktops: [], current: "uuid-x", expected: -1 },
@@ -447,10 +414,9 @@ TestCase {
         compare(indicator.activeIndex, data.expected, data.tag);
     }
 
-    // --- geometry edge cases ------------------------------------------------------
+    // geometry edge cases
 
-    // The advertised width holds the whole strip, so the end elements never clip past the
-    // edges — whether the capsule is at the first or the last desktop.
+    // The advertised width holds the whole strip, so the end elements never clip past the edges.
     function test_noClipAtEnds() {
         const many = [ids[0], ids[1], ids[2], "uuid-d", "uuid-e", "uuid-f"];
 
@@ -475,8 +441,7 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.pillWidth, 0.5, "cell is one capsule wide");
     }
 
-    // Clicking the active capsule switches (the whole capsule is the hit area). Needs a real
-    // synthesized click — direct signal emission would bypass the hit-test.
+    // Clicking the active capsule switches (the whole capsule is the hit area). Needs a synthesized click.
     function test_clickActiveCapsuleSwitches() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -490,11 +455,9 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], currentUuid, "the active desktop's UUID is forwarded");
     }
 
-    // --- Milestone 3: scroll-to-switch --------------------------------------------
-    // The indicator forwards a wheel step as switchRequested(uuid); the index math
-    // (clamp/wrap/accumulate) is unit-tested in tst_logic, so here we assert the wiring:
-    // direction, the enable/wrap flags, the clamped no-ops, and sub-notch accumulation.
-    // Wheel DOWN (negative angleDelta) → next desktop; wheel UP (positive) → previous.
+    // scroll-to-switch: the indicator forwards a wheel step as switchRequested(uuid); the index math is
+    // unit-tested in tst_logic, so here we assert the wiring (direction, enable/wrap flags, clamped no-ops,
+    // sub-notch accumulation). Wheel DOWN → next desktop; wheel UP → previous.
 
     function test_scrollDownStepsNext() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
@@ -516,8 +479,7 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "scroll up moves to the previous desktop");
     }
 
-    // invertScroll flips the wheel-sign → direction mapping: wheel DOWN → previous, wheel UP → next
-    // (the opposite of the two tests above). Default is off, so every other test stays valid.
+    // invertScroll flips the mapping: wheel DOWN → previous, wheel UP → next. Default off.
     function test_invertScrollDownStepsPrevious() {
         const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: true });
         switchSpy.target = indicator;
@@ -585,8 +547,7 @@ TestCase {
         compare(switchSpy.count, 0, "no switching when enableScroll is false");
     }
 
-    // Touchpad/hi-res wheels report sub-notch deltas that must accumulate to a full notch
-    // before stepping (and not be lost in between).
+    // Touchpad/hi-res wheels report sub-notch deltas that must accumulate to a full notch before stepping.
     function test_scrollAccumulatesSubNotch() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
         switchSpy.target = indicator;
@@ -599,9 +560,8 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[1], "accumulated notch moves to the next desktop");
     }
 
-    // Real wheel EVENTS (not just calling handleWheel) — these exercise the actual path
-    // that was broken in-shell: a MouseArea behind the dots receives the wheel because the
-    // dots have no onWheel, so it propagates down. mouseWheel(item, x, y, xDelta, yDelta).
+    // Real wheel EVENTS (not just handleWheel) — the path broken in-shell: a MouseArea behind the dots
+    // receives the wheel because the dots have no onWheel, so it propagates down.
     function test_wheelEventStepsNext() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -631,8 +591,7 @@ TestCase {
         compare(switchSpy.count, 0, "a real wheel event does nothing when scroll is disabled");
     }
 
-    // Wheel events must not block clicks: clicking a dot still switches to it (the wheel
-    // MouseArea is NoButton, so press/release pass through to the dot beneath).
+    // Wheel events must not block clicks: the wheel MouseArea is NoButton, so press/release pass through.
     function test_wheelLayerDoesNotBlockClicks() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -645,28 +604,21 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "the clicked dot's UUID is forwarded");
     }
 
-    // --- Milestone 3: panel sizing ------------------------------------------------
-    // The applet collapsed to a square cell in-shell (dots overflowed the neighbours) when
-    // the representation advertised only implicitWidth. The indicator must expose its
-    // content width through Layout.* hints so the panel allocates the right space.
+    // panel sizing: advertising only implicitWidth collapsed the applet to a square cell in-shell (dots
+    // overflowed). The indicator must expose its content width through Layout.* hints.
     function test_advertisesWidthViaLayout() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator.implicitWidth > 0, "indicator has a positive content width");
         compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth advertises the natural content width");
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the natural width (a pager does not stretch past it)");
-        // M6 scale-to-fit: the MINIMUM drops to the floor (one line at minDotSize) so the panel can
-        // compress us and the dots shrink to fit instead of overflowing the neighbours.
+        // scale-to-fit: the MINIMUM drops to the floor (one line at minDotSize) so the panel can compress us.
         verify(indicator.minDotSize < indicator.naturalDotSize, "the legible floor dot is smaller than natural");
         verify(indicator.Layout.minimumWidth < indicator.implicitWidth, "minimumWidth drops below natural so the panel can compress us");
         fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorStripLength, 0.5, "minimumWidth is the floor (strip at the minimum legible dot)");
     }
 
-    // --- Milestone 4: vertical form factor ----------------------------------------
-    // On a vertical (side) panel the strip becomes a single COLUMN: dots stack along Y, the
-    // capsule grows TALL, and the pinned/free Layout axes swap (height pinned, width free to fill
-    // the panel thickness). `vertical` defaults false, so every test above stays horizontal; these
-    // mirror the horizontal geometry/sizing assertions onto the Y / height axis. Like the other
-    // geometry tests they pass no explicit size, so the Item auto-sizes to its implicit extents.
+    // vertical form factor: a side panel becomes a single COLUMN (dots stack along Y, the capsule grows
+    // TALL, the pinned/free Layout axes swap). These mirror the horizontal geometry/sizing onto Y/height.
 
     // The dots stack top-to-bottom (strictly increasing Y), all in one column (≈ equal X).
     function test_verticalStacksDots() {
@@ -682,8 +634,7 @@ TestCase {
         }
     }
 
-    // Uniform spacing along Y: the vertical gap between EVERY adjacent pair equals the single
-    // strip spacing (capsule-dot and dot-dot alike; positive gaps also prove no overlap).
+    // Uniform spacing along Y: the vertical gap between EVERY adjacent pair equals the strip spacing.
     function test_verticalUniformSpacing() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });   // middle is the capsule
         const dots = dotsByIndex(indicator);
@@ -705,24 +656,21 @@ TestCase {
         }
     }
 
-    // Vertical sizing: the HEIGHT axis is pinned to the strip length (min == preferred == max),
-    // while the WIDTH axis is left free (preferred == one dot, maximum unconstrained) so the panel
-    // can stretch the strip to its thickness. Mirror of test_advertisesWidthViaLayout.
+    // Vertical sizing: the HEIGHT axis is pinned to the strip length, the WIDTH axis left free so the
+    // panel stretches to its thickness. Mirror of test_advertisesWidthViaLayout.
     function test_verticalAdvertisesHeightViaLayout() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         verify(indicator.implicitHeight > 0, "indicator has a positive content height");
         compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "preferredHeight advertises the natural content length");
         compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "maximumHeight pins the natural length (a pager does not stretch past it)");
-        // M6 scale-to-fit: the MAJOR (height) minimum drops to the floor so a short panel compresses
-        // the column and the dots shrink to fit.
+        // scale-to-fit: the MAJOR (height) minimum drops to the floor so a short panel compresses the column.
         verify(indicator.Layout.minimumHeight < indicator.implicitHeight, "minimumHeight drops below natural so the panel can compress us");
         fuzzyCompare(indicator.Layout.minimumHeight, indicator.floorStripLength, 0.5, "minimumHeight is the floor (column at the minimum legible dot)");
 
         compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth is one dot thick");
         const maxW = indicator.Layout.maximumWidth;
         verify(maxW < 0 || maxW > indicator.implicitWidth, "width axis is free (max unconstrained), so the panel fills the thickness");
-        // Cross (width) MINIMUM drops to floorCrossThickness too (cross scale-to-fit), so an ultra-thin
-        // side panel can compress the thickness and the dot shrinks rather than overflowing it.
+        // Cross (width) MINIMUM drops to floorCrossThickness too, so an ultra-thin side panel can compress it.
         fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorCrossThickness, 0.5, "cross (width) min is the floor");
     }
 
@@ -734,8 +682,7 @@ TestCase {
         fuzzyCompare(indicator.implicitHeight, steady, 0.5, "vertical strip length is the steady-state formula");
     }
 
-    // Switching morphs the capsule along the height: the new current grows tall while the old
-    // shrinks back to a dot. tryVerify polls so it tolerates the morph animation.
+    // Switching morphs the capsule along the height: the new current grows tall, the old shrinks to a dot.
     function test_verticalMorphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi, { vertical: true });
@@ -749,8 +696,7 @@ TestCase {
         }, 2000, "capsule morphs tall onto the newly current element; the old shrinks to a dot");
     }
 
-    // The advertised length holds the whole column, so the end elements never clip past the
-    // top/bottom edges — whether the capsule is at the first or the last desktop.
+    // The advertised length holds the whole column, so the end elements never clip past the edges.
     function test_verticalNoClipAtEnds() {
         const many = [ids[0], ids[1], ids[2], "uuid-d", "uuid-e", "uuid-f"];
 
@@ -766,11 +712,8 @@ TestCase {
         verify(lastBottom <= atLast.height + 0.5, "last element does not clip past the bottom edge");
     }
 
-    // --- Milestone 4: multi-row grid (mirrors KWin's desktopLayoutRows) -----------
-    // When KWin's desktop grid has more than one row, the strip splits the desktops into that many
-    // LINES, each an independent single-line reflow strip. Driven live by desktopLayoutRows on the
-    // mock; defaults to 1 (single line) so every test above is unaffected. Horizontal panel: lines
-    // stack vertically (rows of dots); the per-line count is ceil(count / rows).
+    // multi-row grid (mirrors KWin's desktopLayoutRows): >1 row splits the desktops into that many LINES,
+    // each an independent single-line reflow strip. Driven live by desktopLayoutRows; defaults to 1.
 
     readonly property var fourIds: ["uuid-a", "uuid-b", "uuid-c", "uuid-d"]
     readonly property var fiveIds: ["uuid-a", "uuid-b", "uuid-c", "uuid-d", "uuid-e"]
@@ -791,7 +734,7 @@ TestCase {
         compare(collectDots(indicator).length, 5, "all five dots present");
     }
 
-    // Default / 1 row stays a single line — the M3/M4 single-line behaviour.
+    // Default / 1 row stays a single line.
     function test_gridDefaultsToSingleLine() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0]));   // no rows → 1
         compare(indicator.perLine, 4, "single line holds all desktops");
@@ -870,8 +813,7 @@ TestCase {
         verify(p2.x > p0.x + 0.5, "the second line sits beside the first (transposed)");
     }
 
-    // --- Milestone 3: per-dot tooltip data ----------------------------------------
-    // Tooltips live per-dot now; the indicator feeds each dot its name and the flag.
+    // per-dot tooltip data: the indicator feeds each dot its name and the flag.
 
     function test_dotsReceiveDesktopName() {
         const names = ["One", "Two", "Three"];
@@ -896,9 +838,8 @@ TestCase {
         verify(dotByUuid(indicator, ids[0]).showTooltips, "toggling showTooltips updates the dots reactively");
     }
 
-    // --- window-list tooltip: per-dot subText, index-aligned with desktopIds -----------
-    // main.qml builds the window-list subText per desktop and hands the indicator an array parallel
-    // to desktopNames; the indicator feeds each dot its entry by globalIndex (exactly like the name).
+    // window-list tooltip: per-dot subText, index-aligned with desktopIds. main.qml hands the indicator an
+    // array parallel to desktopNames; the indicator feeds each dot its entry by globalIndex (like the name).
 
     function test_dotsReceiveTooltipText() {
         const tips = ["win-a", "win-b", "win-c"];
@@ -923,10 +864,8 @@ TestCase {
             compare(dotByUuid(indicator, fourIds[i]).tooltipText, tips[i], "dot " + i + " keeps its global window-list subText");
     }
 
-    // --- Milestone 5: appearance / colour / animation config flow through ----------
-    // main.qml feeds the indicator the Appearance keys; the indicator forwards them per-dot. These
-    // assert the wiring (the values reach the derived metrics + the dots); the look itself is
-    // covered by the dot unit tests and the logic tier.
+    // appearance / colour / animation config flow through: main.qml feeds the indicator the Appearance
+    // keys, which it forwards per-dot. These assert the wiring (the look is covered by the dot unit tests).
 
     // Metrics reach the derived sizes and every dot.
     function test_metricsFlowThrough() {
@@ -955,8 +894,7 @@ TestCase {
         fuzzyCompare(indicator.dotSize, Kirigami.Units.iconSizes.small / 2, 0.5, "0 resolves to the themed default");
     }
 
-    // The pillSize sentinel: 0 (default) → "match dots", so the pill tracks the dot size (ratio 1)
-    // and the look is the original M6 default even when only the DOT size is customised.
+    // The pillSize sentinel: 0 (default) → "match dots", so the pill tracks the dot size (ratio 1).
     function test_autoPillTracksDotSize() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 20, pillWidthFactor: 3 });
         compare(indicator.pillSizeRequest, 0, "pill request defaults to the 0 (match-dots) sentinel");
@@ -965,9 +903,8 @@ TestCase {
         fuzzyCompare(indicator.pillWidth, 60, 0.5, "pillWidth = dotSize * pillWidthFactor when the pill tracks the dots");
     }
 
-    // Independent sizing: small dots under a thick pill. The dots keep their own size, the pill its
-    // own thickness, and the pill length is pillSize * pillWidthFactor (not dot-relative). Ample
-    // allocation on both axes so scale-to-fit does not interfere.
+    // Independent sizing: small dots under a thick pill keep their own size; pill length is
+    // pillSize * pillWidthFactor. Ample allocation so scale-to-fit does not interfere.
     function test_independentThickerPill() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24, pillWidthFactor: 3 });
         indicator.width = indicator.naturalStripLength * 2;
@@ -985,8 +922,8 @@ TestCase {
         fuzzyCompare(inactiveDot.width, 8, 0.5, "inactive dot stays a small dot on the major axis");
     }
 
-    // A pill thicker than the dots raises the advertised CROSS thickness (implicitHeight on a
-    // horizontal strip) to the pill thickness, so the panel allocates room for the fat pill.
+    // A pill thicker than the dots raises the advertised CROSS thickness to the pill, so the panel
+    // allocates room for it.
     function test_pillThicknessAdvertisedOnCrossAxis() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24 });
         fuzzyCompare(indicator.naturalCrossThickness, 24, 0.5, "cross thickness is the thicker pill, not the dot");
@@ -994,8 +931,7 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "major axis still advertises the strip length");
     }
 
-    // Independent pill + dot shrink in LOCKSTEP under scale-to-fit: a narrow panel forces a shrink,
-    // but the configured pill:dot thickness ratio is preserved (pillSize == dotSize * ratio always).
+    // Independent pill + dot shrink in LOCKSTEP under scale-to-fit: the configured pill:dot ratio holds.
     function test_pillScalesWithFitShrink() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 16, pillSizeRequest: 32, pillWidthFactor: 3 });
         const ratio = indicator.pillThicknessRatio;   // 32 / 16 == 2
@@ -1006,8 +942,7 @@ TestCase {
         fuzzyCompare(indicator.pillWidth, indicator.pillSize * indicator.pillWidthFactor, 0.5, "pillWidth tracks the shrunk pill thickness");
     }
 
-    // Custom colours flow through: with followThemeColors off, each dot's circle uses the
-    // configured colours (active vs inactive).
+    // Custom colours flow through: with followThemeColors off, each dot uses the configured colours.
     function test_colorsFlowThrough() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             followThemeColors: false,
@@ -1028,13 +963,11 @@ TestCase {
         compare(dot.effectiveDuration, 250, "dot resolves it to effectiveDuration");
     }
 
-    // --- Per-screen current: re-resolution paths beyond the initial placement ------
-    // The per-screen tests above set screenName at creation. These exercise the two Connections
-    // that re-resolve a LIVE indicator: onScreenNameChanged (the panel moved to another output)
-    // and onDesktopIdsChanged (a desktop the screen was on got removed and KWin reassigned it).
+    // Per-screen current: re-resolution on a LIVE indicator via the two Connections —
+    // onScreenNameChanged (panel moved output) and onDesktopIdsChanged (a desktop was removed/reassigned).
 
-    // The panel is dragged to another monitor: screenName changes on a live indicator, so the
-    // current must re-resolve to the new output's per-screen current (exercises onScreenNameChanged).
+    // Panel dragged to another monitor: screenName changes on a live indicator → current re-resolves
+    // (onScreenNameChanged).
     function test_perScreenReactiveToScreenNameChange() {
         const vdi = makeMock(ids, ids[0]);
         vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
@@ -1048,16 +981,15 @@ TestCase {
         verify(!dotByUuid(indicator, ids[0]).active, "the old output's dot deactivates");
     }
 
-    // A desktop add/remove can change THIS screen's current; onDesktopIdsChanged must re-resolve
-    // the per-screen current (the existing add/remove tests use a global-current mock).
+    // A desktop add/remove can change THIS screen's current; onDesktopIdsChanged must re-resolve it.
     function test_perScreenReResolvesOnDesktopRemoval() {
         const vdi = makeMock(ids, ids[0]);
         vdi.perScreenCurrent = { "DP-2": ids[2] };
         const indicator = makeIndicator(vdi, { screenName: "DP-2" });
         verify(dotByUuid(indicator, ids[2]).active, "starts on this screen's current (uuid-c)");
 
-        // uuid-c is removed; KWin moves this screen to uuid-b. Update the per-screen map first, then
-        // shrink desktopIds — the ids change fires onDesktopIdsChanged, which re-resolves the current.
+        // uuid-c removed; KWin moves this screen to uuid-b. Update the map, then shrink desktopIds (which
+        // fires onDesktopIdsChanged → re-resolve).
         vdi.perScreenCurrent = { "DP-2": ids[1] };
         vdi.desktopIds = [ids[0], ids[1]];
 
@@ -1066,7 +998,7 @@ TestCase {
         verify(!dotByUuid(indicator, ids[2]), "the removed desktop's dot is gone");
     }
 
-    // --- Scroll edge: no active element, and remainder sign across events -----------
+    // Scroll edge: no active element, and remainder sign across events
 
     // Scrolling while the current desktop is stale (activeIndex == -1, a transient add/remove
     // state) is a no-op — stepIndex returns -1, so handleWheel emits nothing. Covers the
@@ -1084,9 +1016,8 @@ TestCase {
         compare(switchSpy.count, 0, "a real wheel event is a no-op too");
     }
 
-    // Negative (wheel-up) remainder persists in wheelAccumulator across events with the right sign:
-    // a -200 delta steps once and carries -80, so a following -40 completes the next notch. If the
-    // remainder were dropped (reset to 0), the -40 would be sub-notch and never switch.
+    // Negative (wheel-up) remainder persists across events: -200 steps once and carries -80, so a
+    // following -40 completes the next notch (a dropped remainder would never switch).
     function test_wheelAccumulatorCarriesNegativeRemainder() {
         const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true });
         switchSpy.target = indicator;
@@ -1101,11 +1032,8 @@ TestCase {
         compare(switchSpy.count, 2, "the carried remainder completes a second notch");
     }
 
-    // --- desktopRows clamp guard ---------------------------------------------------
-
-    // The indicator clamps a transient 0/undefined desktopLayoutRows to a single line (its own
-    // ternary, separate from Logic.gridColumns). makeMock's `|| 1` default hides a literal 0, so
-    // set it post-construction.
+    // desktopRows clamp guard: the indicator clamps a transient 0/undefined desktopLayoutRows to a single
+    // line. makeMock's `|| 1` default hides a literal 0, so set it post-construction.
     function test_gridRowsClampGuard() {
         const vdi = makeMock(fourIds, fourIds[0]);   // defaults to 1 row
         const indicator = makeIndicator(vdi);
@@ -1116,11 +1044,8 @@ TestCase {
         compare(indicator.perLine, fourIds.length, "the single line holds all desktops");
     }
 
-    // --- Hover passes through the wheel layer (composed strip) ---------------------
-
-    // The behind-dots wheelArea (NoButton, no hover) must not swallow hover: hovering an inactive
-    // dot in the REAL composition brightens it to hoverOpacity. This is the hover analogue of
-    // test_wheelLayerDoesNotBlockClicks (hover is only otherwise tested on a standalone dot).
+    // Hover passes through the wheel layer: the behind-dots wheelArea (NoButton, no hover) must not swallow
+    // hover — hovering an inactive dot in the REAL composition brightens it (analogue of the click test).
     function test_hoverBrightensDotInComposedStrip() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const dot = dotByUuid(indicator, ids[0]);   // inactive (current is uuid-b)
@@ -1135,11 +1060,8 @@ TestCase {
         tryCompare(circle, "opacity", indicator.inactiveOpacity, 2000, "returns to dim when not hovered");
     }
 
-    // --- The animate latch gates each dot's morph ----------------------------------
-
-    // The indicator's animate latch + the configured duration resolve into each dot's morphEnabled
-    // gate (animate && effectiveDuration > 0). Wiring check: with a valid start the latch is on,
-    // and every dot's gate matches the resolved relationship (true unless animations are disabled).
+    // The animate latch gates each dot's morph: the latch + configured duration resolve into each dot's
+    // morphEnabled (animate && effectiveDuration > 0). Wiring check.
     function test_morphGateFlowsThroughToDots() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { animationDuration: 200 });
         compare(indicator.animate, true, "latch is on for a valid initial placement");
@@ -1149,9 +1071,8 @@ TestCase {
                     "dot " + i + " morph gate matches latch && duration");
     }
 
-    // The animate latch's immediate-placement check runs AFTER the per-screen current is resolved
-    // in Component.onCompleted: created already on this screen's per-screen current, that element is
-    // a capsule on the first frame (no grow-in) — the per-screen variant of test_firstPlacementIsImmediate.
+    // The placement check runs AFTER the per-screen current resolves in onCompleted: created on this
+    // screen's current, that element is a capsule on frame 0 (per-screen variant of firstPlacementImmediate).
     function test_firstPlacementImmediatePerScreen() {
         const vdi = makeMock(ids, ids[0]);              // global current is uuid-a
         vdi.perScreenCurrent = { "DP-2": ids[2] };      // but THIS screen is on uuid-c
@@ -1162,11 +1083,9 @@ TestCase {
                      "this screen's current is already a capsule on the first frame");
     }
 
-    // --- Milestone 6: robustness hardening & edge cases ---------------------------
-    // Scale-to-fit (overflow), the empty-array transient, many desktops, and rapid switching. The
-    // Layout-hint side of scale-to-fit is asserted in test_advertisesWidthViaLayout /
-    // test_verticalAdvertisesHeightViaLayout (minimum drops to the floor); these assert the rendered
-    // RESULT — the dots actually shrink to fit a crowded allocation and grow back when there is room.
+    // robustness hardening & edge cases: scale-to-fit (overflow), the empty-array transient, many desktops,
+    // rapid switching. The Layout-hint side is asserted above; these assert the rendered RESULT (the dots
+    // actually shrink to fit and grow back when there is room).
 
     readonly property var sixIds: ["uuid-a", "uuid-b", "uuid-c", "uuid-d", "uuid-e", "uuid-f"]
 
@@ -1178,9 +1097,8 @@ TestCase {
         return out;
     }
 
-    // A narrow allocation (half the natural strip) makes the dots shrink below natural so the line
-    // still fits the allocated width instead of overflowing the neighbours. Setting indicator.width
-    // directly replaces the implicitWidth binding — exactly how the panel constrains the applet.
+    // A narrow allocation shrinks the dots below natural so the line still fits instead of overflowing.
+    // Setting indicator.width directly replaces the implicitWidth binding — how the panel constrains us.
     function test_scaleDotsShrinkOnNarrowWidth() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
         indicator.width = indicator.naturalStripLength * 0.6;   // panel grants 60% of the natural length
@@ -1208,24 +1126,20 @@ TestCase {
         tryVerify(() => lastElementFits(indicator, "y"), 2000, "the shrunken column fits the allocated height");
     }
 
-    // CROSS-axis scale-to-fit: a multi-row KWin grid (4 rows) on a THIN horizontal panel. The major
-    // (width) axis has natural room, so only the cross (height) thickness is constrained — the dots must
-    // shrink so the stacked lines fit the thickness instead of overflowing it. Setting height to a
-    // fraction f of naturalCrossThickness yields an effective dotSize of f × naturalDotSize (the cross
-    // fit is the exact inverse), so f == 0.6 stays comfortably above the legible floor (0.5 × natural).
+    // CROSS-axis scale-to-fit: a 4-row grid on a THIN horizontal panel constrains only the cross (height)
+    // thickness, so the dots shrink to fit the stacked lines. Setting height to f × naturalCrossThickness
+    // yields dotSize f × naturalDotSize (the cross fit is the exact inverse), so f == 0.6 stays above the floor.
     function test_scaleDotsShrinkOnThinCrossMultiRow() {
         const big = manyIds(12);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4));   // 4 lines of 3
         indicator.height = indicator.naturalCrossThickness * 0.6;        // panel thinner than the 4 stacked lines need
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "cross-fit shrank the dot below natural");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
-        // tryVerify: the rendered dot sizes morph, so wait for the reflow to settle; the last line (highest
-        // globalIndex) sits in the bottom row, so its bottom must land within the allocated thickness.
+        // wait for the reflow to settle; the last line sits in the bottom row, so its bottom must fit.
         tryVerify(() => lastElementFits(indicator, "y"), 2000, "the shrunken grid fits the allocated cross thickness");
     }
 
-    // With ample thickness the multi-row grid is unchanged: the cross fit exceeds natural, so the caller
-    // keeps natural — the common case (a roomy panel) stays byte-for-byte as today.
+    // With ample thickness the multi-row grid is unchanged: the cross fit exceeds natural, so keep natural.
     function test_scaleDotsCrossUnchangedWhenAmpleThickness() {
         const big = manyIds(12);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4));
@@ -1233,8 +1147,8 @@ TestCase {
         fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.5, "no shrink when the thickness is ample");
     }
 
-    // Vertical transpose of the cross-fit: on a side panel the cross axis is WIDTH, so a thin side panel
-    // with a multi-row grid shrinks the dots to fit the width (the lines stack along x).
+    // Vertical transpose of the cross-fit: on a side panel the cross axis is WIDTH, so a thin one shrinks
+    // the dots to fit the width.
     function test_scaleDotsShrinkOnThinCrossVertical() {
         const big = manyIds(12);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4), { vertical: true });
@@ -1244,8 +1158,7 @@ TestCase {
         tryVerify(() => lastElementFits(indicator, "x"), 2000, "the shrunken grid fits the allocated cross thickness (width)");
     }
 
-    // robustness.md: an empty desktopIds ARRAY (distinct from a null source) during a transient
-    // add/remove must yield no dots and a cell that holds one dot, never collapsing to 0.
+    // robustness.md: an empty desktopIds ARRAY (vs a null source) must yield no dots and a one-dot cell.
     function test_emptyDesktopIdsArrayProducesNoDots() {
         const indicator = makeIndicator(makeMock([], ""));
         compare(collectDots(indicator).length, 0, "an empty desktopIds array yields no dots");
@@ -1276,9 +1189,8 @@ TestCase {
         compare(indicator.lineCount, 4, "4 grid lines");
     }
 
-    // Rapid back-to-back switches (a fast keyboard/scroll burst, fired mid-morph) must converge to
-    // exactly one capsule on the final target and never throw — the one-way animate latch and the
-    // idempotent updateCurrentDesktop() recompute settle deterministically.
+    // Rapid back-to-back switches (a burst fired mid-morph) must converge to one capsule on the final
+    // target and never throw (the one-way latch + idempotent recompute settle deterministically).
     function test_rapidSwitchingConvergesToOneCapsule() {
         const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0]), { animationDuration: 200 });
         const vdi = indicator.virtualDesktopInfo;
@@ -1298,12 +1210,11 @@ TestCase {
                   2000, "the final desktop morphs to the capsule width");
     }
 
-    // --- M6 scale-to-fit: the floor clamp and the no-scale-up guarantee --------------
-    // The existing scale tests use 0.6× (the dot shrinks but stays above the floor). These pin the two
-    // ends of the clamp `dotSize = max(minDotSize, min(naturalDotSize, fitDotSize))`.
+    // scale-to-fit: the floor clamp and the no-scale-up guarantee. These pin the two ends of
+    // `dotSize = max(minDotSize, min(naturalDotSize, fitDotSize))`.
 
-    // An EXTREME narrow allocation (0.3× the natural strip, below the floor's strip length) clamps the
-    // effective dot exactly at minDotSize — it shrinks no further (overflow is accepted over illegible dots).
+    // An EXTREME narrow allocation (0.3×, below the floor) clamps the effective dot exactly at minDotSize —
+    // no further (overflow accepted over illegible dots).
     function test_scaleClampsAtFloorOnExtremeNarrow() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
         indicator.width = indicator.naturalStripLength * 0.3;   // far below the legible floor
@@ -1336,8 +1247,7 @@ TestCase {
         fuzzyCompare(inactiveCentreY, activeCentreY, 0.5, "inactive dot is cross-centred against the thicker pill");
     }
 
-    // The vertical-strip transpose of the centring fix: the cross axis is horizontal, so an inactive
-    // dot must be centred on X against the wider (tall) pill.
+    // Vertical-strip transpose of the centring fix: the cross axis is X, so an inactive dot centres on X.
     function test_inactiveDotCentredAgainstThickPillVertical() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true, dotSizeRequest: 8, pillSizeRequest: 24 });
         indicator.height = indicator.naturalStripLength * 2;
@@ -1350,8 +1260,7 @@ TestCase {
     }
 
     // Floor (extreme narrow) with a thick pill: the dot clamps at minDotSize and the pill at its
-    // proportional floor minDotSize * pillThicknessRatio — neither shrinks past its minimum (overflow is
-    // accepted over illegible elements), and the lockstep ratio is preserved at the floor.
+    // proportional floor minDotSize * ratio — neither shrinks further, and the lockstep ratio holds.
     function test_pillFloorAtExtremeNarrow() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]), { dotSizeRequest: 16, pillSizeRequest: 32 });
         const ratio = indicator.pillThicknessRatio;   // 2
@@ -1363,10 +1272,9 @@ TestCase {
         verify(indicator.pillSize >= indicator.minDotSize * ratio - 0.01, "pill never shrinks past its floor");
     }
 
-    // --- multi-row: lines are sized independently (the documented trade-off) ---------
-    // 5 desktops / 2 rows → lines of [3, 2]. Each line is its own reflow strip, so the line holding the
-    // capsule (line 0) is WIDER than the short trailing line — they are not forced to a common column
-    // width. The strip's natural width is the wider (capsule) line. (test_gridUnevenLastLine checks counts.)
+    // multi-row: lines are sized independently (the documented trade-off). 5 desktops / 2 rows → [3, 2];
+    // each line is its own reflow strip, so the capsule line is WIDER than the short trailing line (not
+    // forced to a common column width). The strip's natural width is the wider line.
     function test_gridLinesSizedIndependently() {
         const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0], [], 2));
         compare(indicator.perLine, 3, "3 per line");
@@ -1378,9 +1286,8 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "the strip width is the wider (full) line");
     }
 
-    // The advertised width is a position-independent FORMULA (a switch trades one growing element for one
-    // shrinking one), so it must NOT change across a switch — the panel cell never jitters. The existing
-    // test_transientStaleNoCapsuleWidthStable covers only the stale (no-capsule) state.
+    // The advertised width is a position-independent FORMULA (a switch trades one growing element for a
+    // shrinking one), so it must NOT change across a switch — the panel cell never jitters.
     function test_implicitWidthConservedAcrossSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
@@ -1392,9 +1299,8 @@ TestCase {
         fuzzyCompare(indicator.implicitWidth, before, 0.5, "advertised width is conserved across the switch");
     }
 
-    // robustness.md: a populated → empty ARRAY → populated round-trip (a transient frame during an
-    // add/remove, distinct from the at-creation empty case). No dots while empty, the size stays
-    // finite, the one-way animate latch survives, and exactly one capsule returns on repopulation.
+    // robustness.md: a populated → empty → populated round-trip. No dots while empty, the size stays
+    // finite, the one-way latch survives, and exactly one capsule returns on repopulation.
     function test_transientEmptyIdsThenRepopulate() {
         const vdi = makeMock(ids, currentUuid);
         const indicator = makeIndicator(vdi);
@@ -1412,10 +1318,8 @@ TestCase {
                   2000, "exactly one capsule after repopulation");
     }
 
-    // --- per-screen degrade paths -------------------------------------------------
-    // An explicit EMPTY per-screen entry ("" — the API has no current for this output) is excluded by
-    // resolveCurrentDesktop, so the indicator falls back to the global current (logic-tier covers the
-    // pure rule; this drives it through the mock end-to-end).
+    // per-screen degrade paths: an explicit EMPTY per-screen entry ("") is excluded by
+    // resolveCurrentDesktop, so the indicator falls back to the global current (drives the pure rule e2e).
     function test_perScreenEmptyEntryFallsBackToGlobal() {
         const vdi = makeMock(ids, ids[1]);
         vdi.perScreenCurrent = { "DP-2": "" };
@@ -1424,8 +1328,7 @@ TestCase {
         verify(dotByUuid(indicator, ids[1]).active, "the global current is the active dot");
     }
 
-    // Older Plasma (pre-6.7): the source has no currentDesktopByScreenName method, so the typeof guard
-    // makes the indicator resolve the global current — it degrades to single-current behaviour.
+    // Older Plasma (pre-6.7): no currentDesktopByScreenName, so the typeof guard resolves the global current.
     function test_olderPlasmaDegradesToGlobal() {
         const vdi = createTemporaryObject(legacyVdiComponent, testCase, { desktopIds: ids, currentDesktop: ids[2] });
         const indicator = makeIndicator(vdi, { screenName: "DP-9" });
@@ -1433,9 +1336,8 @@ TestCase {
         verify(dotByUuid(indicator, ids[2]).active, "the global current is the active dot on older Plasma");
     }
 
-    // --- bind-don't-cache for the names / tooltips arrays --------------------------
-    // The existing tooltip tests set the arrays at creation; these mutate them on a LIVE indicator and
-    // assert the dots update (a cached copy would not).
+    // bind-don't-cache for the names / tooltips arrays: mutate them on a LIVE indicator and assert the
+    // dots update (a cached copy would not).
     function test_reactiveDesktopNamesMutation() {
         const vdi = makeMock(ids, currentUuid, ["One", "Two", "Three"]);
         const indicator = makeIndicator(vdi);
@@ -1455,11 +1357,8 @@ TestCase {
         tryCompare(dotByUuid(indicator, ids[1]), "tooltipText", "x1", 2000, "the dot's window-list subText updates reactively");
     }
 
-    // --- scroll: positive (wheel-up) remainder carry ------------------------------
-    // Symmetric to test_wheelAccumulatorCarriesNegativeRemainder: +200 steps once and carries +80, so a
-    // following +40 completes the next notch. If the remainder were dropped, +40 would be sub-notch and
-    // never switch. (Like the negative case, the mock's current is unchanged by the signal, so both steps
-    // target the same neighbour — we assert the count and the carried remainder, not the second target.)
+    // scroll: positive (wheel-up) remainder carry — symmetric to the negative case: +200 steps once and
+    // carries +80, so a following +40 completes the next notch (we assert the count and carried remainder).
     function test_wheelPositiveRemainderCarry() {
         const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true });
         switchSpy.target = indicator;
@@ -1474,9 +1373,8 @@ TestCase {
         compare(switchSpy.count, 2, "the carried remainder completes a second notch");
     }
 
-    // The active capsule stays full strength on hover IN THE COMPOSED STRIP (the standalone-dot analogue is
-    // test_activeCapsuleFullStrengthHoverNoEffect) — hover affects inactive dots only, even through the
-    // behind-dots wheel layer.
+    // The active capsule stays full strength on hover IN THE COMPOSED STRIP — hover affects inactive dots
+    // only, even through the behind-dots wheel layer.
     function test_activeCapsuleNoHoverEffectInComposition() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const capsule = dotByUuid(indicator, currentUuid);
@@ -1489,11 +1387,8 @@ TestCase {
         fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule in the strip");
     }
 
-    // --- tooltip routing THROUGH the composed strip (not just the dot properties) ----------
-    // The tests above assert each dot's desktopName/tooltipText/showTooltips PROPERTIES; these reach
-    // into each dot's actual PlasmaCore.ToolTipArea (located by the shared isTooltip predicate) and
-    // assert the strip-level data lands on mainText/subText/active/textFormat — the standalone-dot
-    // analogues are tst_workspacedot.qml::{test_tooltipShowsDesktopName,test_tooltipShowsSubText,...}.
+    // tooltip routing THROUGH the composed strip (not just the dot properties): reach into each dot's
+    // actual PlasmaCore.ToolTipArea and assert the strip-level data lands on mainText/subText/active/textFormat.
 
     function test_tooltipAreaRoutesNameAndSubTextThroughStrip() {
         const names = ["One", "Two", "Three"];
@@ -1514,8 +1409,7 @@ TestCase {
             verify(!Elements.tooltipOf(dotByUuid(indicator, ids[j])).active, "ToolTipArea inactive once showTooltips is off");
     }
 
-    // The ToolTipArea data follows the GLOBAL index across grid lines (mirrors test_tooltipTextMapsAcrossLines),
-    // proving the globalIndex mapping reaches the actual tooltip, not just the dot's plain property.
+    // The ToolTipArea data follows the GLOBAL index across grid lines (the mapping reaches the actual tooltip).
     function test_tooltipAreaMapsAcrossGridLines() {
         const names = ["n0", "n1", "n2", "n3"];
         const tips = ["t0", "t1", "t2", "t3"];
@@ -1527,10 +1421,9 @@ TestCase {
         }
     }
 
-    // --- accessibility THROUGH the composed strip (per-screen + multi-line) -----------------
-    // Accessible.role/name/checked are unit-tested on a lone dot (tst_workspacedot.qml); these verify
-    // they hold once the dots are composed and driven by the live source — in particular that the
-    // CHECKED dot is THIS screen's current (per-screen, Plasma 6.7), not the global current.
+    // accessibility THROUGH the composed strip (per-screen + multi-line): role/name/checked are unit-tested
+    // on a lone dot; these verify they hold once composed and driven live — the CHECKED dot is THIS screen's
+    // current, not the global current.
 
     function test_accessibleCheckedTracksPerScreenActiveDot() {
         const vdi = makeMock(ids, ids[0], ["One", "Two", "Three"]);   // global current = uuid-a
@@ -1555,11 +1448,9 @@ TestCase {
             compare(dotByUuid(indicator, fourIds[i]).Accessible.name, names[i], "accessible name keeps its global index across lines");
     }
 
-    // --- runtime form-factor flip (horizontal <-> vertical on a LIVE indicator) -------------
-    // Every other vertical test sets `vertical` at construction; this toggles it on a running strip
-    // (a panel re-docked from a top/bottom edge to a side edge) and asserts the major/cross axes swap:
-    // the capsule's long axis flips width->height and the Layout major/cross hints swap with it. Ample
-    // room on BOTH axes (400x400) so scale-to-fit never changes the dot/pill sizes across the flip.
+    // runtime form-factor flip (horizontal <-> vertical on a LIVE indicator): toggling `vertical` on a
+    // running strip (a panel re-docked to a side edge) swaps the major/cross axes — the capsule's long axis
+    // flips width->height and the Layout hints swap with it. Ample room (400x400) so sizes don't shrink.
     function test_runtimeFormFactorFlip() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 400, height: 400 });
         const cap = dotByUuid(indicator, currentUuid);
@@ -1580,11 +1471,8 @@ TestCase {
         verify(maxW < 0 || maxW > indicator.implicitWidth, "cross (width) axis is now free to fill the panel thickness");
     }
 
-    // --- reactive behaviour-flag toggling (enableScroll / invertScroll / scrollWrap) --------
-    // Only showTooltips was toggled live so far; the scroll flags were set at construction. These flip
-    // each one on a running indicator and assert the scroll behaviour changes mid-session (the index
-    // math is unit-tested; here it's the live wiring). handleWheel() returns before touching the
-    // accumulator when disabled, so a disabled wheel leaves no carried remainder.
+    // reactive behaviour-flag toggling (enableScroll / invertScroll / scrollWrap): flip each on a running
+    // indicator and assert the scroll behaviour changes mid-session (the index math is unit-tested).
 
     function test_enableScrollToggledLive() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: false });
@@ -1605,8 +1493,7 @@ TestCase {
     }
 
     function test_invertScrollToggledLive() {
-        // current stays ids[1] throughout (the mock isn't moved by the signal), so both steps compute
-        // from the middle desktop — only the direction changes when invert flips.
+        // current stays ids[1] throughout, so both steps compute from the middle — only the direction flips.
         const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: false });
         switchSpy.target = indicator;
         switchSpy.clear();
@@ -1634,11 +1521,8 @@ TestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "and it wraps to the first desktop");
     }
 
-    // --- followThemeColors live toggle AT THE INDICATOR LEVEL --------------------------------
-    // test_colorsFlowThrough sets it at creation; this toggles it on a running strip and asserts the
-    // dots' circle colours switch theme<->custom (the colour Behavior animates, so poll). The
-    // standalone-dot analogues are tst_workspacedot.qml::{test_followThemeColorsUsesTheme,
-    // test_customColorsWhenNotFollowingTheme}.
+    // followThemeColors live toggle at the indicator level: toggle it on a running strip and assert the
+    // dots' colours switch theme<->custom (the colour Behavior animates, so poll).
     function test_followThemeColorsToggledLive() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             followThemeColors: true, activeColor: "#ff0000", inactiveColor: "#00ff00"
