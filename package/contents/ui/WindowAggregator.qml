@@ -4,11 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The window aggregator — a non-visual Item (Loader.item must be a QQuickItem). ONE unfiltered public
- * TasksModel feeds BOTH features from a single snapshot via pure JS (Logic.groupWindowsByDesktop for the
- * tooltip window list, Logic.computeDesktopOccupancy for dynamic workspaces), so the grouping stays
- * headless-unit-tested. The desktop set is INJECTED as `virtualDesktopInfo`; i18n + HTML formatting stays
- * here (logic.js is i18n-free), so this file is e2e-only. See CLAUDE.md "Window-list tooltip".
+ * The window aggregator — a non-visual Item. ONE unfiltered public TasksModel feeds BOTH the tooltip
+ * window list and dynamic-workspace occupancy from a single snapshot via pure JS. The desktop set is
+ * INJECTED as `virtualDesktopInfo`; i18n + HTML formatting stays here (logic.js is i18n-free), so e2e-only.
  */
 pragma ComponentBehavior: Bound
 
@@ -24,20 +22,14 @@ Item {
     // The read source (a VirtualDesktopInfo), injected by main.qml. Null-safe throughout (transiently absent).
     property var virtualDesktopInfo: null
 
-    // Does the user want the per-dot window-list tooltip? Injected as (showTooltips && showWindowList).
-    // When false the aggregator is live only for dynamic-workspace occupancy, so we skip ALL tooltip work
-    // — the rebuild TRIGGERS (relevantRoles drops the title/minimise roles) and the HTML formatting
-    // (rebuild() leaves desktopTooltips empty). main.qml discards the strings anyway, so this only removes
-    // waste. Defaults true so the aggregator is self-contained.
+    // The per-dot window-list tooltip wanted? Injected as (showTooltips && showWindowList). When false the
+    // aggregator is live only for occupancy, skipping tooltip work (drops title/minimise roles; empty tooltips).
     property bool windowListActive: true
 
     property var desktopTooltips: []
     property var desktopOccupancy: []
 
-    // One materialised TasksModel row, a NAMED inline component so objectAt(i) can be `as`-cast for typed
-    // (lint-clean) role access (the stock pager's `itemAt(i) as WindowDelegate` idiom). The capitalised
-    // roles aren't valid lowercase identifiers, so read them off the var `model` (only lowercase `display`
-    // can be a required property).
+    // One materialised TasksModel row, a NAMED inline component so objectAt(i) can be `as`-cast for typed role access (capitalised roles read off `model`).
     component WindowRow: QtObject {
         required property var model
         required property string display                  // window title (Qt::DisplayRole)
@@ -59,10 +51,8 @@ Item {
         activity: activityInfo.currentActivity
     }
 
-    // The role ints rebuild() reads (PUBLIC enum). dataChanged for any OTHER role is skipped — notably
-    // IsActive, emitted on EVERY focus change. CONDITIONAL on windowListActive: occupancy needs only the
-    // four desktop/window roles; the list also needs title + IsMinimized, so when off we drop those two and
-    // rename/minimise churn no longer wakes a discarded rebuild (onWindowListActiveChanged forces the flip).
+    // The role ints rebuild() reads (PUBLIC enum); other roles are skipped (notably the IsActive focus churn).
+    // CONDITIONAL on windowListActive: occupancy needs only the four desktop/window roles (off → drop title + IsMinimized).
     readonly property var relevantRoles: aggregator.windowListActive ? [
         Qt.DisplayRole,
         TaskManager.AbstractTasksModel.VirtualDesktops,
@@ -87,9 +77,7 @@ Item {
         onObjectRemoved: aggregator.scheduleRebuild()
     }
 
-    // Rebuild when a role rebuild() reads changes (filtered against relevantRoles — an empty roles list is
-    // Qt's "all changed"), on a full reset, or when the desktop SET changes (index alignment shifts). All
-    // funnel through the debounced scheduleRebuild.
+    // Rebuild on a relevant role change, a full reset, or a desktop-SET change. All funnel through the debounced scheduleRebuild.
     Connections {
         target: tasksModel
         function onDataChanged(topLeft, bottomRight, roles) {
@@ -107,15 +95,13 @@ Item {
         }
     }
 
-    // Coalesce a burst of change signals into ONE rebuild per frame. No loop: rows read the model,
-    // rebuild() writes desktopTooltips, the dots only read it.
+    // Coalesce a burst of change signals into ONE rebuild per frame. No loop: rows read the model, rebuild() writes, the dots only read.
     function scheduleRebuild() {
         Qt.callLater(aggregator.rebuild);
     }
 
-    // Snapshot the materialised rows into a plain JS array, group per desktop (pure logic.js), then format
-    // each summary. `as WindowRow` gives typed access; normalise VirtualDesktops to plain strings so the
-    // UUID compare can't silently miss (variant wrappers).
+    // Snapshot the materialised rows into a plain JS array, group per desktop (pure logic.js), then format each
+    // summary. `as WindowRow` gives typed access; normalise VirtualDesktops to plain strings (variant wrappers).
     function rebuild() {
         let windows = [];
         for (let i = 0; i < winInstantiator.count; ++i) {
@@ -132,9 +118,7 @@ Item {
             });
         }
         const ids = aggregator.virtualDesktopInfo?.desktopIds ?? [];
-        // Two reductions of the SAME snapshot: occupancy ALWAYS feeds dynamic workspaces; the tooltip list
-        // only when windowListActive (else discarded). Compare-before-assign on BOTH (arraysShallowEqual):
-        // a var property notifies on every reassignment, so an identical array would needlessly wake downstream.
+        // Two reductions of the SAME snapshot. Compare-before-assign on BOTH (arraysShallowEqual) avoids waking downstream on an unchanged array.
         const tooltips = aggregator.windowListActive
             ? Logic.groupWindowsByDesktop(windows, ids).map(aggregator.formatSubText)
             : [];
@@ -146,14 +130,12 @@ Item {
             aggregator.desktopOccupancy = occupancy;
     }
 
-    // One window title as escaped rich text, falling back to a localized "Untitled Window". Shared by
-    // formatList and formatSubText so the fallback is written once.
+    // One window title as escaped rich text, falling back to a localized "Untitled Window" (shared fallback).
     function titleHtml(title) {
         return Logic.sanitizeHtml(title.length ? title : i18nc("@item:intext window with no title", "Untitled Window"));
     }
 
-    // One desktop's window list as a rich-text <ul> capped at Logic.windowListMaximum, with an "…and N
-    // other windows" overflow line — the stock pager's generateWindowList.
+    // One desktop's window list as a rich-text <ul> capped at Logic.windowListMaximum + an "…and N other windows" overflow (stock pager's generateWindowList).
     function formatList(titles) {
         const total = titles.length;
         const max = Logic.windowListMaximum(total);
@@ -163,9 +145,8 @@ Item {
         return t;
     }
 
-    // Assemble one desktop's subText from its { visible, minimized } summary — the stock pager's
-    // updateSubTextIfNeeded (single visible → just the title; >1 → "%1 Windows:" header + list; minimised
-    // get their own header + list). The leading <style> kills the <ul>'s default margin.
+    // Assemble one desktop's subText from its { visible, minimized } summary (the stock pager's
+    // updateSubTextIfNeeded). The leading <style> kills the <ul>'s default margin.
     function formatSubText(s) {
         let t = "";
         if (s.visible.length === 1)
@@ -179,8 +160,7 @@ Item {
         return t.length ? "<style>ul { margin: 0; }</style>" + t : "";
     }
 
-    // Toggling the list at runtime changes both what rebuild() produces and which roles trigger it, so
-    // force one rebuild on the flip (ON repopulates, OFF clears to []). Debounced like every other trigger.
+    // Toggling the list at runtime changes both rebuild()'s output and its triggers, so force one rebuild on the flip (ON repopulates, OFF clears).
     onWindowListActiveChanged: aggregator.scheduleRebuild()
 
     Component.onCompleted: aggregator.rebuild()

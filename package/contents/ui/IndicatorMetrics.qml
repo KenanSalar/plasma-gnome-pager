@@ -4,10 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Non-visual dot-strip sizing engine (unit-tested by tst_indicatormetrics). EFFECTIVE sizes shrink
- * to fit a crowded panel, floored at minDotSize; NATURAL/floor extents (the indicator's Layout hints)
- * depend only on requests/grid, never on geometry — keep that split or you get a binding loop.
- * See CLAUDE.md "scale-to-fit" / "independent pill" for the full derivation.
+ * Non-visual dot-strip sizing engine (unit-tested by tst_indicatormetrics). EFFECTIVE sizes shrink to fit
+ * a crowded panel (floored at minDotSize); NATURAL/floor extents (the Layout hints) depend only on
+ * requests/grid, never on geometry — keep that split or you get a binding loop.
  */
 pragma ComponentBehavior: Bound
 

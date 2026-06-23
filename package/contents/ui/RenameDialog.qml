@@ -4,10 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Rename prompt — a panel-native PlasmaCore.Dialog (top-level Window), declared directly (visible:false
- * keeps it cheap). NOT Kirigami.PromptDialog, whose base parents to applicationWindow().overlay —
- * undefined in a plasmoid, so it would clip to the thin panel (robustness.md). View only: the parent
- * sets visualParent/location and owns the DBus write via the accepted() signal (the e2e boundary).
+ * Rename prompt — a panel-native PlasmaCore.Dialog (top-level Window), declared directly. NOT
+ * Kirigami.PromptDialog, whose base parents to applicationWindow().overlay (undefined in a plasmoid → it
+ * would clip to the thin panel). View only: the parent owns visualParent/location and the DBus write.
  */
 pragma ComponentBehavior: Bound
 
@@ -38,8 +37,7 @@ PlasmaCore.Dialog {
         renameField.forceActiveFocus();
     }
 
-    // Sanitize then emit. An empty/whitespace name (sanitize → "") keeps the prompt open rather than
-    // silently doing nothing; the parent re-sanitizes, so the write stays guarded.
+    // Sanitize then emit. An empty/whitespace name (sanitize → "") keeps the prompt open; the parent re-sanitizes, so the write stays guarded.
     function commit() {
         const clean = Logic.sanitizeDesktopName(renameField.text);
         if (clean === "") {

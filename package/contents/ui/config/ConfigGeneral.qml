@@ -4,9 +4,8 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Behavior page, built on ConfigPageBase (KDE header + the shared "Defaults" action). Each
- * `cfg_<key>` alias MUST match a main.xml entry exactly (the dialog wires load/save); `cfg_<key>Default`
- * is injected from the schema. Public Kirigami + QtQuick.Controls only (plasmoid.md). See CLAUDE.md.
+ * The Behavior page, built on ConfigPageBase. Each `cfg_<key>` alias MUST match a main.xml entry exactly
+ * (the dialog wires load/save); `cfg_<key>Default` is injected from the schema.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -39,8 +38,7 @@ ConfigPageBase {
     property string cfg_dynamicNamePrefixDefault
     property int cfg_animationDurationDefault
 
-    // Single source for this page's keys + their compare kind; drives BOTH isModified and the
-    // Defaults reset via ConfigPageBase.fieldChanged/resetField (no hand-synced per-key bodies).
+    // This page's keys + compare kind; drives isModified AND the Defaults reset via ConfigPageBase (no per-key bodies).
     readonly property var configKeys: [
         { n: "enableScroll", t: "bool" },
         { n: "scrollWrap", t: "bool" },

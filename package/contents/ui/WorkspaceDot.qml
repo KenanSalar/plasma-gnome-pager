@@ -4,11 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * One workspace element (GNOME-style REFLOW model — see CLAUDE.md "Visual model"): the element IS
- * the workspace, no overlay. Inactive = dim circle; active = a wider highlighted capsule (the pill).
- * Three states: inactive / inactive+hover (Logic.dotOpacity) / active. Colour, sizing, and the morph
- * arrive as properties from the indicator, with Kirigami-derived defaults so a dot renders standalone
- * and under qmltestrunner.
+ * One workspace element (GNOME-style REFLOW model): the element IS the workspace, no overlay. Inactive =
+ * dim circle; active = a wider highlighted capsule (the pill). Colour, sizing, and the morph arrive as
+ * properties from the indicator (Kirigami-derived defaults so a dot renders standalone and headless).
  */
 pragma ComponentBehavior: Bound
 
@@ -44,8 +42,7 @@ Item {
     readonly property real longExtent: dot.active ? dot.pillWidth : dot.dotSize
     readonly property real crossExtent: dot.active ? dot.pillSize : dot.dotSize
 
-    // Morph duration: configured value, else themed default, and 0 when "reduce animations" is on
-    // (Kirigami.Units.longDuration === 0 always wins). One source of truth for the Behaviors below.
+    // Morph duration: configured value, else themed default, 0 when "reduce animations" is on. One source for the Behaviors below.
     readonly property int effectiveDuration: Logic.effectiveDuration(dot.animationDuration, Kirigami.Units.longDuration)
     readonly property bool morphEnabled: dot.animate && dot.effectiveDuration > 0
 
@@ -53,8 +50,7 @@ Item {
     signal activated   // emitted on click; the indicator turns it into a switch request
 
     // Accessibility: announced to Orca etc. as a button named after the desktop, checkable/checked
-    // mirroring `active` so an AT can tell WHICH dot is current; press routes through activated()
-    // (same path as a click). Kept on the element so a11y stays headless-testable. See CLAUDE.md.
+    // mirroring `active` so an AT can tell WHICH dot is current; press routes through activated() like a click.
     Accessible.role: Accessible.Button
     Accessible.name: dot.desktopName
     Accessible.checkable: true
@@ -65,8 +61,7 @@ Item {
     implicitWidth: capsule.width
     implicitHeight: capsule.height
 
-    // Per-dot tooltip (wrapping the content is the canonical usage). Gated by showTooltips + a
-    // non-empty name (no empty tooltips while names lag ids — robustness.md).
+    // Per-dot tooltip (wrapping the content is canonical). Gated by showTooltips + a non-empty name (no empty tooltips while names lag ids).
     PlasmaCore.ToolTipArea {
         id: tooltip
         anchors.fill: parent
@@ -75,9 +70,8 @@ Item {
         subText: dot.tooltipText
         textFormat: Text.RichText   // window list is an HTML <ul>, like the stock pager
 
-        // The dot/capsule. radius is min(width,height)/2 — orientation-agnostic stadium ends that
-        // never round a long capsule into a lozenge. Size bindings are independent ternaries (no
-        // dependence on own/parent geometry), so no loop with implicitWidth/Height.
+        // The dot/capsule. radius is min(width,height)/2 — orientation-agnostic stadium ends. Size
+        // bindings are independent ternaries (no own/parent geometry), so no loop with implicitWidth/Height.
         Rectangle {
             id: capsule
             width: dot.vertical ? dot.crossExtent : dot.longExtent
@@ -87,9 +81,7 @@ Item {
             color: Logic.dotColor(dot.active, dot.followThemeColors, Kirigami.Theme.highlightColor, Kirigami.Theme.textColor, dot.activeColor, dot.inactiveColor)
             opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.inactiveOpacity, dot.hoverOpacity)
 
-            // Morph, gated by morphEnabled (off on first placement / when animations are disabled).
-            // The major-axis dimension always morphs; the cross axis morphs too when the pill is sized
-            // independently of the dots (pillSize != dotSize), so one OR both of width/height fire.
+            // Morph, gated by morphEnabled. The major axis always morphs; the cross axis too when pillSize != dotSize (so width and/or height fire).
             Behavior on width {
                 enabled: dot.morphEnabled
                 NumberAnimation {

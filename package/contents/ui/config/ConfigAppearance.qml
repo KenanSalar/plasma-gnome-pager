@@ -4,11 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Appearance page, built on ConfigPageBase. The dimensionless ratios use ConfigSlider (real `value`)
- * with a live read-out; dotSize/pillSize are integer sliders where 0 reads "Default"/"Match dots" (the
- * 0 = auto sentinel, resolved in the widget). Colours use org.kde.kquickcontrols.ColorButton — lazy-loaded
- * with the dialog, so the import never affects the always-on widget (robustness.md). Each `cfg_<key>` MUST
- * match a main.xml entry exactly; binds isModified + handles onDefaultsRequested. See CLAUDE.md.
+ * The Appearance page, built on ConfigPageBase. Ratios use ConfigSlider; dotSize/pillSize are integer
+ * sliders where 0 reads "Default"/"Match dots" (the 0 = auto sentinel). Colours use ColorButton, lazy-loaded
+ * with the dialog so the import never affects the always-on widget. Each `cfg_<key>` MUST match main.xml.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -39,8 +37,7 @@ ConfigPageBase {
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
 
-    // This page's keys + compare kind; drives isModified + the Defaults reset via ConfigPageBase
-    // (reals within epsilon, colours via Qt.colorEqual, ints/bools exact — no per-key body).
+    // This page's keys + compare kind; drives isModified + Defaults reset via ConfigPageBase (reals within epsilon, colours via Qt.colorEqual).
     readonly property var configKeys: [
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
@@ -70,8 +67,7 @@ ConfigPageBase {
 
         ConfigSlider {
             id: pillSize
-            // "Thickness" (not "size") to disambiguate from the "Pill length:" slider below — the two
-            // controls are the pill's two axes — and so msgmerge can't fuzzy-collide it with "Pill length:".
+            // "Thickness" (not "size") disambiguates from "Pill length:" below — the pill's two axes (also avoids an msgmerge fuzzy collision).
             label: i18n("Pill thickness:")
             from: 0
             to: 64

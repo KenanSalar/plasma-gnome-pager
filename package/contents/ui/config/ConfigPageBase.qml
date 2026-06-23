@@ -4,9 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Shared skeleton for every settings page: a Kirigami.ScrollablePage (robustness.md allowlist) for the KDE
- * header + scrolling, plus the "Defaults" button the Plasma footer lacks (defined ONCE here). A derived
- * page declares `configKeys` { n, t } and binds isModified/onDefaultsRequested off the helpers below.
+ * Shared skeleton for every settings page: a Kirigami.ScrollablePage for the KDE header + scrolling, plus
+ * the "Defaults" button the Plasma footer lacks (defined ONCE here). A derived page declares `configKeys`
+ * { n, t } and binds isModified/onDefaultsRequested off the helpers below.
  */
 import QtQuick
 import org.kde.kirigami as Kirigami
@@ -23,8 +23,7 @@ Kirigami.ScrollablePage {
     // Tolerance for real-valued "differs from default": SnapAlways can land a value a ULP off the default.
     readonly property real epsilon: 1e-9
 
-    // Does cfg_<name> differ from cfg_<name>Default? Type-aware: reals within epsilon, colours via
-    // Qt.colorEqual (QColor wrappers compare by identity under !==), else exact. `page` is the derived page.
+    // Does cfg_<name> differ from cfg_<name>Default? Type-aware: reals within epsilon, colours via Qt.colorEqual, else exact.
     function fieldChanged(page, name, kind) {
         var a = page["cfg_" + name];
         var b = page["cfg_" + name + "Default"];
