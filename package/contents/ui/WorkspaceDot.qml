@@ -88,7 +88,8 @@ Item {
             opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.inactiveOpacity, dot.hoverOpacity)
 
             // Morph, gated by morphEnabled (off on first placement / when animations are disabled).
-            // Only the major-axis dimension changes in a given orientation, so one of width/height fires.
+            // The major-axis dimension always morphs; the cross axis morphs too when the pill is sized
+            // independently of the dots (pillSize != dotSize), so one OR both of width/height fire.
             Behavior on width {
                 enabled: dot.morphEnabled
                 NumberAnimation {
