@@ -299,12 +299,15 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > The new name comes back through the live `desktopNames` binding — **no cache** (the read/write split).
 > The name is validated by pure `logic.js::sanitizeDesktopName` (trim, reject empty/whitespace → `""`
 > no-op sentinel, cap length); unit-tested. Text entry is a **`PlasmaCore.Dialog`** (TextField +
-> Cancel/Rename, positioned by `visualParent: root.fullRepresentationItem` + `location: Plasmoid.location`
-> + `hideOnWindowDeactivate`, the stock `AppletAlternatives` idiom) **declared directly** with
-> `visible:false` — *not* wrapped in a `Loader` (a `Loader` is for `Item`s; a `Dialog` is a top-level
+> Cancel/Rename + `hideOnWindowDeactivate`, the stock `AppletAlternatives` idiom) **declared directly**
+> with `visible:false` — *not* wrapped in a `Loader` (a `Loader` is for `Item`s; a `Dialog` is a top-level
 > `Window`, kept cheap by not realising a surface until shown) and *not* `Kirigami.PromptDialog`, whose
 > base `Kirigami.Dialog` parents to `applicationWindow().overlay` — **undefined in a plasmoid**, so it
-> would clip to the thin panel (robustness.md). The dialog + action + DBus live in `main.qml` (e2e-only).
+> would clip to the thin panel (robustness.md). The dialog *view* is its own **`RenameDialog.qml`** (the
+> directly-declared `PlasmaCore.Dialog`, exposing `signal accepted(uuid, name)`); `main.qml` instantiates
+> it, sets `visualParent: root.fullRepresentationItem` + `location: Plasmoid.location`, and turns
+> `accepted` into the DBus write. The **action + DBus stay in `main.qml`** (the e2e boundary);
+> `RenameDialog.qml` is view-only and likewise e2e-only (a top-level `Window`, not headless-testable).
 
 > **Gotcha (learned the hard way) — scroll: a `MouseArea { acceptedButtons: Qt.NoButton; onWheel }`
 > *behind* the dots, NOT a `WheelHandler`.** A `WheelHandler` did **not** deliver wheel reliably in
@@ -585,9 +588,8 @@ thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`
 > (`0 = match the dots` → the effective `dotSize`, via `pillThicknessRatio == 1`), and
 > `animationDuration` default to `0` meaning "auto", and the sentinel is resolved **inside the
 > components** (`IndicatorMetrics`'s `dotSize`/`pillSize`, and `Logic.effectiveDuration` for the morph) —
-> NOT in `main.qml`, because the components are the headless-tested rendering layer (`main.qml` does import
-> Kirigami, but only for the rename dialog's spacing, and is not itself headless-testable).
-> `effectiveDuration` also
+> NOT in `main.qml`, because the components are the headless-tested rendering layer (`main.qml` is the
+> e2e boundary, not itself headless-testable). `effectiveDuration` also
 > folds in the reduce-animations guard (`Kirigami.Units.longDuration === 0` always wins → instant),
 > so `animationDuration` overrides the duration but can never re-enable motion the user turned off.
 > The dimensionless ratios (`spacingFactor`/`pillWidthFactor`/`inactiveOpacity`/`hoverOpacity`) are

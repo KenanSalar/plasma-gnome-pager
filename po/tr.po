@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-21 14:47+0200\n"
+"POT-Creation-Date: 2026-06-23 09:37+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Turkish\n"
@@ -16,193 +16,230 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: package/contents/config/config.qml:16
+#: package/contents/config/config.qml:14
 #, kde-format
 msgid "Behavior"
 msgstr "Davranış"
 
-#: package/contents/config/config.qml:21
+#: package/contents/config/config.qml:19
 #, kde-format
 msgid "Appearance"
 msgstr "Görünüm"
 
-#: package/contents/ui/config/ConfigAppearance.qml:81
+#: package/contents/ui/config/ConfigAppearance.qml:63
 #, kde-format
 msgid "Dot size:"
 msgstr "Nokta boyutu:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:68 package/contents/ui/config/ConfigGeneral.qml:129
 #, kde-format
 msgid "Default"
 msgstr "Öntanımlı"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigAppearance.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:68 package/contents/ui/config/ConfigAppearance.qml:80
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:93
+#: package/contents/ui/config/ConfigAppearance.qml:75
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Hap kalınlığı:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:80
 #, kde-format
 msgid "Match dots"
 msgstr "Noktalarla eşleştir"
 
-#: package/contents/ui/config/ConfigAppearance.qml:103
+#: package/contents/ui/config/ConfigAppearance.qml:85
 #, kde-format
 msgid "Spacing:"
 msgstr "Boşluk:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:107
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× nokta"
 
-#: package/contents/ui/config/ConfigAppearance.qml:112
+#: package/contents/ui/config/ConfigAppearance.qml:94
 #, kde-format
 msgid "Pill length:"
 msgstr "Hap uzunluğu:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:117
+#: package/contents/ui/config/ConfigAppearance.qml:99
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× hap"
 
-#: package/contents/ui/config/ConfigAppearance.qml:122
+#: package/contents/ui/config/ConfigAppearance.qml:104
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Etkin olmayan matlık:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:131
+#: package/contents/ui/config/ConfigAppearance.qml:113
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Üzerine gelince matlık:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:126
 #, kde-format
 msgid "Colors:"
 msgstr "Renkler:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:145
+#: package/contents/ui/config/ConfigAppearance.qml:127
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Renk şemasını izle"
 
-#: package/contents/ui/config/ConfigAppearance.qml:149
+#: package/contents/ui/config/ConfigAppearance.qml:131
 #, kde-format
 msgid "Active desktop:"
 msgstr "Etkin masaüstü:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:155
+#: package/contents/ui/config/ConfigAppearance.qml:137
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Etkin olmayan masaüstü:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:76
+#: package/contents/ui/config/ConfigGeneral.qml:64
 #, kde-format
 msgid "Mouse:"
 msgstr "Fare:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:77
+#: package/contents/ui/config/ConfigGeneral.qml:65
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Masaüstlerini değiştirmek için sayfalayıcının üzerinde kaydır"
 
-#: package/contents/ui/config/ConfigGeneral.qml:81
+#: package/contents/ui/config/ConfigGeneral.qml:69
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "İlk ve son masaüstünde başa dön"
 
-#: package/contents/ui/config/ConfigGeneral.qml:86
+#: package/contents/ui/config/ConfigGeneral.qml:74
 #, kde-format
 msgid "Invert the scroll direction"
-msgstr ""
+msgstr "Kaydırma yönünü tersine çevir"
 
-#: package/contents/ui/config/ConfigGeneral.qml:91
+#: package/contents/ui/config/ConfigGeneral.qml:79
 #, kde-format
 msgid "Tooltips:"
 msgstr "Araç ipuçları:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:92
+#: package/contents/ui/config/ConfigGeneral.qml:80
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Üzerine gelince masaüstü adını göster"
 
-#: package/contents/ui/config/ConfigGeneral.qml:96
+#: package/contents/ui/config/ConfigGeneral.qml:84
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Açık pencereleri araç ipucunda listele"
 
-#: package/contents/ui/config/ConfigGeneral.qml:101
+#: package/contents/ui/config/ConfigGeneral.qml:89
 #, kde-format
 msgid "Menu:"
 msgstr "Menü:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:102
+#: package/contents/ui/config/ConfigGeneral.qml:90
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Sağ tık menüsünden masaüstü ekle ve kaldır"
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
+#: package/contents/ui/config/ConfigGeneral.qml:96
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Geçerli masaüstünü sağ tık menüsünden yeniden adlandır"
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
+#: package/contents/ui/config/ConfigGeneral.qml:100
 #, kde-format
 msgid "Dynamic desktops:"
 msgstr "Dinamik masaüstleri:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:115
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "Masaüstlerini otomatik olarak ekle ve kaldır (GNOME tarzı)"
 
-#: package/contents/ui/config/ConfigGeneral.qml:119
+#: package/contents/ui/config/ConfigGeneral.qml:105
 #, kde-format
 msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
 msgstr "Etkinken masaüstleri otomatik olarak yönetilir — menüdeki Ekle/Kaldır seçenekleri devre dışı bırakılır."
 
-#: package/contents/ui/config/ConfigGeneral.qml:129
+#: package/contents/ui/config/ConfigGeneral.qml:115
 #, kde-format
 msgid "New desktop name:"
 msgstr "Yeni masaüstü adı:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:133 package/contents/ui/main.qml:453
+#. i18n default base name, passed IN so the controller stays i18n-free. Never empty — KWin drops
+#. createDesktop on an empty name.
+#: package/contents/ui/config/ConfigGeneral.qml:118 package/contents/ui/main.qml:196
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "Masaüstü"
 
-#: package/contents/ui/config/ConfigGeneral.qml:139
+#: package/contents/ui/config/ConfigGeneral.qml:124
 #, kde-format
 msgid "Animation duration:"
 msgstr "Canlandırma süresi:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:144
+#: package/contents/ui/config/ConfigGeneral.qml:129
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
 msgstr[0] "%1 ms"
 msgstr[1] "%1 ms"
 
-#: package/contents/ui/config/ConfigPageBase.qml:33
+#: package/contents/ui/config/ConfigPageBase.qml:48
 #, kde-format
 msgid "Defaults"
 msgstr "Öntanımlılar"
 
-#: package/contents/ui/main.qml:281 package/contents/ui/main.qml:294
+#: package/contents/ui/main.qml:173
+#, kde-format
+msgid "New Desktop"
+msgstr "Yeni masaüstü"
+
+#: package/contents/ui/main.qml:233
+#, kde-format
+msgid "Add Desktop"
+msgstr "Masaüstü ekle"
+
+#: package/contents/ui/main.qml:241
+#, kde-format
+msgid "Remove Last Desktop"
+msgstr "Son masaüstünü kaldır"
+
+#: package/contents/ui/main.qml:249
+#, kde-format
+msgid "Rename Current Desktop…"
+msgstr "Geçerli masaüstünü yeniden adlandır…"
+
+#: package/contents/ui/RenameDialog.qml:56
+#, kde-format
+msgid "Rename desktop:"
+msgstr "Masaüstünü yeniden adlandır:"
+
+#: package/contents/ui/RenameDialog.qml:70
+#, kde-format
+msgid "Cancel"
+msgstr "İptal"
+
+#: package/contents/ui/RenameDialog.qml:75
+#, kde-format
+msgid "Rename"
+msgstr "Yeniden adlandır"
+
+#: package/contents/ui/WindowAggregator.qml:152
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Başlıksız pencere"
 
-#: package/contents/ui/main.qml:283
+#: package/contents/ui/WindowAggregator.qml:162
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -210,7 +247,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… ve %1 pencere daha"
 msgstr[1] "… ve %1 pencere daha"
 
-#: package/contents/ui/main.qml:296
+#: package/contents/ui/WindowAggregator.qml:174
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -218,45 +255,10 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 pencere:"
 msgstr[1] "%1 pencere:"
 
-#: package/contents/ui/main.qml:300
+#: package/contents/ui/WindowAggregator.qml:178
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
 msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 simge durumuna küçültülmüş pencere:"
 msgstr[1] "%1 simge durumuna küçültülmüş pencere:"
-
-#: package/contents/ui/main.qml:353
-#, kde-format
-msgid "New Desktop"
-msgstr "Yeni masaüstü"
-
-#: package/contents/ui/main.qml:504
-#, kde-format
-msgid "Add Desktop"
-msgstr "Masaüstü ekle"
-
-#: package/contents/ui/main.qml:512
-#, kde-format
-msgid "Remove Last Desktop"
-msgstr "Son masaüstünü kaldır"
-
-#: package/contents/ui/main.qml:520
-#, kde-format
-msgid "Rename Current Desktop…"
-msgstr "Geçerli masaüstünü yeniden adlandır…"
-
-#: package/contents/ui/main.qml:570
-#, kde-format
-msgid "Rename desktop:"
-msgstr "Masaüstünü yeniden adlandır:"
-
-#: package/contents/ui/main.qml:584
-#, kde-format
-msgid "Cancel"
-msgstr "İptal"
-
-#: package/contents/ui/main.qml:589
-#, kde-format
-msgid "Rename"
-msgstr "Yeniden adlandır"

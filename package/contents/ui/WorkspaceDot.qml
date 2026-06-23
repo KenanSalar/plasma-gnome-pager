@@ -23,7 +23,7 @@ Item {
 
     // Inputs supplied by WorkspaceIndicator's Repeater delegate (with sane defaults).
     property bool active: false
-    property real dotSize: Kirigami.Units.iconSizes.small / 2   // inactive circle diameter
+    property real dotSize: Kirigami.Units.iconSizes.small / 2
     property real pillSize: Kirigami.Units.iconSizes.small / 2  // active-pill thickness, sized independently of the dot
     property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor   // capsule length / pill thickness
     readonly property real pillWidth: dot.pillSize * dot.pillWidthFactor

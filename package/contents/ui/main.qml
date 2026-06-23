@@ -10,14 +10,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts                            // rename dialog layout
 
 import org.kde.plasma.plasmoid
 
 // Public, stable imports only — never org.kde.plasma.private.* (robustness.md).
-import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action + PlasmaCore.Dialog
-import org.kde.plasma.components as PlasmaComponents3  // rename dialog controls
-import org.kde.kirigami as Kirigami              // Units (rename dialog spacing)
+import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action + PlasmaCore.Types
 import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksModel/ActivityInfo (read)
 import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
 
@@ -258,68 +255,12 @@ PlasmoidItem {
         }
     ]
 
-    // Rename prompt — a panel-native PlasmaCore.Dialog (top-level Window), declared directly (visible:false
-    // keeps it cheap). NOT Kirigami.PromptDialog, whose base parents to applicationWindow().overlay —
-    // undefined in a plasmoid, so it would clip to the thin panel (robustness.md).
-    PlasmaCore.Dialog {
+    // Rename prompt — the view lives in RenameDialog.qml; here we only place it (visualParent/location)
+    // and turn its accepted() into the KWin write. The action + DBus stay in main.qml (the e2e boundary).
+    RenameDialog {
         id: renameDialog
-
-        property string targetUuid: ""
-
-        visible: false
         visualParent: root.fullRepresentationItem
         location: Plasmoid.location
-        hideOnWindowDeactivate: true            // click-away cancels
-
-        // Prefill with the current name, select-all and focus for immediate typing.
-        function openFor(uuid, currentName) {
-            renameDialog.targetUuid = uuid;
-            renameField.text = currentName;
-            renameDialog.visible = true;
-            renameField.selectAll();
-            renameField.forceActiveFocus();
-        }
-
-        // Commit then close. An empty/whitespace name (sanitize → "") keeps the prompt open rather than
-        // silently doing nothing; renameDesktop re-sanitizes, so the write stays guarded.
-        function commit() {
-            const clean = Logic.sanitizeDesktopName(renameField.text);
-            if (clean === "") {
-                return;
-            }
-            root.renameDesktop(renameDialog.targetUuid, clean);
-            renameDialog.visible = false;
-        }
-
-        mainItem: ColumnLayout {
-            spacing: Kirigami.Units.smallSpacing
-
-            PlasmaComponents3.Label {
-                text: i18n("Rename desktop:")
-            }
-            PlasmaComponents3.TextField {
-                id: renameField
-                Layout.fillWidth: true
-                Layout.minimumWidth: Kirigami.Units.gridUnit * 12
-                onAccepted: renameDialog.commit()
-                Keys.onEscapePressed: renameDialog.visible = false
-            }
-            RowLayout {
-                Layout.alignment: Qt.AlignRight
-                spacing: Kirigami.Units.smallSpacing
-
-                PlasmaComponents3.Button {
-                    text: i18n("Cancel")
-                    icon.name: "dialog-cancel"
-                    onClicked: renameDialog.visible = false
-                }
-                PlasmaComponents3.Button {
-                    text: i18n("Rename")
-                    icon.name: "edit-rename"
-                    enabled: renameField.text.trim().length > 0
-                    onClicked: renameDialog.commit()
-                }
-            }
-        }
+        onAccepted: (uuid, name) => root.renameDesktop(uuid, name)
     }
 }

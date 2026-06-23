@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-21 14:47+0200\n"
+"POT-Creation-Date: 2026-06-23 09:37+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Russian\n"
@@ -16,27 +16,27 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: package/contents/config/config.qml:16
+#: package/contents/config/config.qml:14
 #, kde-format
 msgid "Behavior"
 msgstr "Поведение"
 
-#: package/contents/config/config.qml:21
+#: package/contents/config/config.qml:19
 #, kde-format
 msgid "Appearance"
 msgstr "Внешний вид"
 
-#: package/contents/ui/config/ConfigAppearance.qml:81
+#: package/contents/ui/config/ConfigAppearance.qml:63
 #, kde-format
 msgid "Dot size:"
 msgstr "Размер точки:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigGeneral.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:68 package/contents/ui/config/ConfigGeneral.qml:129
 #, kde-format
 msgid "Default"
 msgstr "По умолчанию"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86 package/contents/ui/config/ConfigAppearance.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:68 package/contents/ui/config/ConfigAppearance.qml:80
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
@@ -44,148 +44,150 @@ msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 msgstr[2] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:93
+#: package/contents/ui/config/ConfigAppearance.qml:75
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Толщина капсулы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:80
 #, kde-format
 msgid "Match dots"
 msgstr "Как у точек"
 
-#: package/contents/ui/config/ConfigAppearance.qml:103
+#: package/contents/ui/config/ConfigAppearance.qml:85
 #, kde-format
 msgid "Spacing:"
 msgstr "Интервал:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:107
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× точка"
 
-#: package/contents/ui/config/ConfigAppearance.qml:112
+#: package/contents/ui/config/ConfigAppearance.qml:94
 #, kde-format
 msgid "Pill length:"
 msgstr "Длина капсулы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:117
+#: package/contents/ui/config/ConfigAppearance.qml:99
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× капсула"
 
-#: package/contents/ui/config/ConfigAppearance.qml:122
+#: package/contents/ui/config/ConfigAppearance.qml:104
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Непрозрачность неактивных:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:131
+#: package/contents/ui/config/ConfigAppearance.qml:113
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Непрозрачность при наведении:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:126
 #, kde-format
 msgid "Colors:"
 msgstr "Цвета:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:145
+#: package/contents/ui/config/ConfigAppearance.qml:127
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Следовать цветовой схеме"
 
-#: package/contents/ui/config/ConfigAppearance.qml:149
+#: package/contents/ui/config/ConfigAppearance.qml:131
 #, kde-format
 msgid "Active desktop:"
 msgstr "Активный рабочий стол:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:155
+#: package/contents/ui/config/ConfigAppearance.qml:137
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Неактивный рабочий стол:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:76
+#: package/contents/ui/config/ConfigGeneral.qml:64
 #, kde-format
 msgid "Mouse:"
 msgstr "Мышь:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:77
+#: package/contents/ui/config/ConfigGeneral.qml:65
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Прокручивать над виджетом для переключения рабочих столов"
 
-#: package/contents/ui/config/ConfigGeneral.qml:81
+#: package/contents/ui/config/ConfigGeneral.qml:69
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "Зацикливать на первом и последнем рабочем столе"
 
-#: package/contents/ui/config/ConfigGeneral.qml:86
+#: package/contents/ui/config/ConfigGeneral.qml:74
 #, kde-format
 msgid "Invert the scroll direction"
-msgstr ""
+msgstr "Инвертировать направление прокрутки"
 
-#: package/contents/ui/config/ConfigGeneral.qml:91
+#: package/contents/ui/config/ConfigGeneral.qml:79
 #, kde-format
 msgid "Tooltips:"
 msgstr "Подсказки:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:92
+#: package/contents/ui/config/ConfigGeneral.qml:80
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Показывать имя рабочего стола при наведении"
 
-#: package/contents/ui/config/ConfigGeneral.qml:96
+#: package/contents/ui/config/ConfigGeneral.qml:84
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Показывать список открытых окон в подсказке"
 
-#: package/contents/ui/config/ConfigGeneral.qml:101
+#: package/contents/ui/config/ConfigGeneral.qml:89
 #, kde-format
 msgid "Menu:"
 msgstr "Меню:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:102
+#: package/contents/ui/config/ConfigGeneral.qml:90
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Добавлять и удалять рабочие столы из контекстного меню"
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
+#: package/contents/ui/config/ConfigGeneral.qml:96
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Переименовывать текущий рабочий стол из контекстного меню"
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
+#: package/contents/ui/config/ConfigGeneral.qml:100
 #, kde-format
 msgid "Dynamic desktops:"
 msgstr "Динамические рабочие столы:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:115
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "Автоматически добавлять и удалять рабочие столы (в стиле GNOME)"
 
-#: package/contents/ui/config/ConfigGeneral.qml:119
+#: package/contents/ui/config/ConfigGeneral.qml:105
 #, kde-format
 msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
 msgstr "Когда включено, рабочие столы управляются автоматически — пункты меню «Добавить/Удалить» отключены."
 
-#: package/contents/ui/config/ConfigGeneral.qml:129
+#: package/contents/ui/config/ConfigGeneral.qml:115
 #, kde-format
 msgid "New desktop name:"
 msgstr "Имя новых рабочих столов:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:133 package/contents/ui/main.qml:453
+#. i18n default base name, passed IN so the controller stays i18n-free. Never empty — KWin drops
+#. createDesktop on an empty name.
+#: package/contents/ui/config/ConfigGeneral.qml:118 package/contents/ui/main.qml:196
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "Рабочий стол"
 
-#: package/contents/ui/config/ConfigGeneral.qml:139
+#: package/contents/ui/config/ConfigGeneral.qml:124
 #, kde-format
 msgid "Animation duration:"
 msgstr "Длительность анимации:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:144
+#: package/contents/ui/config/ConfigGeneral.qml:129
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -193,18 +195,53 @@ msgstr[0] "%1 ms"
 msgstr[1] "%1 ms"
 msgstr[2] "%1 ms"
 
-#: package/contents/ui/config/ConfigPageBase.qml:33
+#: package/contents/ui/config/ConfigPageBase.qml:48
 #, kde-format
 msgid "Defaults"
 msgstr "По умолчанию"
 
-#: package/contents/ui/main.qml:281 package/contents/ui/main.qml:294
+#: package/contents/ui/main.qml:173
+#, kde-format
+msgid "New Desktop"
+msgstr "Новый рабочий стол"
+
+#: package/contents/ui/main.qml:233
+#, kde-format
+msgid "Add Desktop"
+msgstr "Добавить рабочий стол"
+
+#: package/contents/ui/main.qml:241
+#, kde-format
+msgid "Remove Last Desktop"
+msgstr "Удалить последний рабочий стол"
+
+#: package/contents/ui/main.qml:249
+#, kde-format
+msgid "Rename Current Desktop…"
+msgstr "Переименовать текущий рабочий стол…"
+
+#: package/contents/ui/RenameDialog.qml:56
+#, kde-format
+msgid "Rename desktop:"
+msgstr "Переименовать рабочий стол:"
+
+#: package/contents/ui/RenameDialog.qml:70
+#, kde-format
+msgid "Cancel"
+msgstr "Отмена"
+
+#: package/contents/ui/RenameDialog.qml:75
+#, kde-format
+msgid "Rename"
+msgstr "Переименовать"
+
+#: package/contents/ui/WindowAggregator.qml:152
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Окно без заголовка"
 
-#: package/contents/ui/main.qml:283
+#: package/contents/ui/WindowAggregator.qml:162
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -213,7 +250,7 @@ msgstr[0] "… и ещё %1 окно"
 msgstr[1] "… и ещё %1 окна"
 msgstr[2] "… и ещё %1 окон"
 
-#: package/contents/ui/main.qml:296
+#: package/contents/ui/WindowAggregator.qml:174
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -222,7 +259,7 @@ msgstr[0] "%1 окно:"
 msgstr[1] "%1 окна:"
 msgstr[2] "%1 окон:"
 
-#: package/contents/ui/main.qml:300
+#: package/contents/ui/WindowAggregator.qml:178
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
@@ -230,38 +267,3 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 свёрнутое окно:"
 msgstr[1] "%1 свёрнутых окна:"
 msgstr[2] "%1 свёрнутых окон:"
-
-#: package/contents/ui/main.qml:353
-#, kde-format
-msgid "New Desktop"
-msgstr "Новый рабочий стол"
-
-#: package/contents/ui/main.qml:504
-#, kde-format
-msgid "Add Desktop"
-msgstr "Добавить рабочий стол"
-
-#: package/contents/ui/main.qml:512
-#, kde-format
-msgid "Remove Last Desktop"
-msgstr "Удалить последний рабочий стол"
-
-#: package/contents/ui/main.qml:520
-#, kde-format
-msgid "Rename Current Desktop…"
-msgstr "Переименовать текущий рабочий стол…"
-
-#: package/contents/ui/main.qml:570
-#, kde-format
-msgid "Rename desktop:"
-msgstr "Переименовать рабочий стол:"
-
-#: package/contents/ui/main.qml:584
-#, kde-format
-msgid "Cancel"
-msgstr "Отмена"
-
-#: package/contents/ui/main.qml:589
-#, kde-format
-msgid "Rename"
-msgstr "Переименовать"
