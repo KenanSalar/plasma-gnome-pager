@@ -4,11 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Appearance page, built on ConfigPageBase. The dimensionless ratios use ConfigSlider (real `value`)
- * with a live read-out; dotSize/pillSize are integer sliders where 0 reads "Default"/"Match dots" (the
- * 0 = auto sentinel, resolved in the widget). Colours use org.kde.kquickcontrols.ColorButton — lazy-loaded
- * with the dialog, so the import never affects the always-on widget (robustness.md). Each `cfg_<key>` MUST
- * match a main.xml entry exactly; binds isModified + handles onDefaultsRequested. See CLAUDE.md.
+ * The Appearance page, built on ConfigPageBase. Ratios use ConfigSlider; dotSize/pillSize are integer
+ * sliders where 0 reads "Default"/"Match dots" (the 0 = auto sentinel). Colours use ColorButton, lazy-loaded
+ * with the dialog so the import never affects the always-on widget. Each `cfg_<key>` MUST match main.xml.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -24,9 +22,13 @@ ConfigPageBase {
     property alias cfg_pillWidthFactor: pillWidthFactor.value
     property alias cfg_inactiveOpacity: inactiveOpacity.value
     property alias cfg_hoverOpacity: hoverOpacity.value
+    property alias cfg_showOccupancy: showOccupancy.checked
+    property alias cfg_occupancyStyle: occupancyStyle.currentIndex
+    property alias cfg_occupiedOpacity: occupiedOpacity.value
     property alias cfg_followThemeColors: followThemeColors.checked
     property alias cfg_activeColor: activeColor.color
     property alias cfg_inactiveColor: inactiveColor.color
+    property alias cfg_occupiedColor: occupiedColor.color
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property int cfg_dotSizeDefault
@@ -35,27 +37,31 @@ ConfigPageBase {
     property real cfg_pillWidthFactorDefault
     property real cfg_inactiveOpacityDefault
     property real cfg_hoverOpacityDefault
+    property bool cfg_showOccupancyDefault
+    property int cfg_occupancyStyleDefault
+    property real cfg_occupiedOpacityDefault
     property bool cfg_followThemeColorsDefault
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
+    property color cfg_occupiedColorDefault
 
-    // This page's keys + compare kind; drives isModified + the Defaults reset via ConfigPageBase
-    // (reals within epsilon, colours via Qt.colorEqual, ints/bools exact — no per-key body).
-    readonly property var configKeys: [
+    // This page's keys + compare kind; ConfigPageBase binds isModified + the Defaults reset off it
+    // (reals within epsilon, colours via Qt.colorEqual).
+    configKeys: [
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
         { n: "spacingFactor", t: "real" },
         { n: "pillWidthFactor", t: "real" },
         { n: "inactiveOpacity", t: "real" },
         { n: "hoverOpacity", t: "real" },
+        { n: "showOccupancy", t: "bool" },
+        { n: "occupancyStyle", t: "int" },
+        { n: "occupiedOpacity", t: "real" },
         { n: "followThemeColors", t: "bool" },
         { n: "activeColor", t: "color" },
-        { n: "inactiveColor", t: "color" }
+        { n: "inactiveColor", t: "color" },
+        { n: "occupiedColor", t: "color" }
     ]
-
-    // True when any key differs from its default (gates the base's Defaults action).
-    isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
-    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     Kirigami.FormLayout {
         ConfigSlider {
@@ -70,8 +76,7 @@ ConfigPageBase {
 
         ConfigSlider {
             id: pillSize
-            // "Thickness" (not "size") to disambiguate from the "Pill length:" slider below — the two
-            // controls are the pill's two axes — and so msgmerge can't fuzzy-collide it with "Pill length:".
+            // "Thickness" (not "size") disambiguates from "Pill length:" below — the pill's two axes (also avoids an msgmerge fuzzy collision).
             label: i18n("Pill thickness:")
             from: 0
             to: 64
@@ -117,6 +122,28 @@ ConfigPageBase {
             format: v => Math.round(v * 100) + "%"
         }
 
+        QQC2.CheckBox {
+            id: showOccupancy
+            Kirigami.FormData.label: i18n("Occupied desktops:")
+            text: i18n("Highlight desktops with open windows")
+        }
+        QQC2.ComboBox {
+            id: occupancyStyle
+            Kirigami.FormData.label: i18n("Indicator style:")
+            enabled: showOccupancy.checked
+            // Order MUST match Logic.OCCUPANCY / main.xml occupancyStyle (currentIndex is stored as the index).
+            model: [i18n("Filled"), i18n("Inner dot"), i18n("Hollow ring")]
+        }
+        ConfigSlider {
+            id: occupiedOpacity
+            label: i18n("Occupied opacity:")
+            enabled: showOccupancy.checked   // every indicator style uses the occupied-marker opacity
+            from: 0.0
+            to: 1.0
+            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
+            format: v => Math.round(v * 100) + "%"
+        }
+
         Item {
             Kirigami.FormData.isSection: true   // a little vertical breathing room before the colours
         }
@@ -136,6 +163,12 @@ ConfigPageBase {
             id: inactiveColor
             Kirigami.FormData.label: i18n("Inactive desktop:")
             enabled: !followThemeColors.checked
+            showAlphaChannel: false
+        }
+        KQuickControls.ColorButton {
+            id: occupiedColor
+            Kirigami.FormData.label: i18n("Occupied desktop:")
+            enabled: !followThemeColors.checked   // the occupied marker; theme accent is used while following the scheme
             showAlphaChannel: false
         }
     }

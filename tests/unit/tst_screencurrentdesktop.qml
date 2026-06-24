@@ -29,14 +29,14 @@ TestCase {
         id: vdiComponent
         Shared.VdiMock {}
     }
-    // A source WITHOUT the per-screen API (older Plasma): the per-screen signal exists (so Connections
-    // resolves) but currentDesktopByScreenName does NOT, exercising the typeof guard.
+    // A source WITHOUT the per-screen API (older Plasma 6.5/6.6): NEITHER the per-screen method
+    // currentDesktopByScreenName NOR the currentDesktopForScreenChanged signal exists. The resolver tolerates
+    // the absent signal (its per-screen Connections sets ignoreUnknownSignals) and degrades via the typeof guard.
     Component {
         id: legacyVdiComponent
         QtObject {
             property var desktopIds: []
             property string currentDesktop: ""
-            signal currentDesktopForScreenChanged(string screenName)
         }
     }
 

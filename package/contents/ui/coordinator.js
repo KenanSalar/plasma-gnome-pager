@@ -4,10 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Cross-instance coordination for dynamic workspaces. The desktop SET is GLOBAL, so management must be a
- * SINGLE global behaviour: plasmashell runs every panel in ONE QML engine and a `.pragma library` is one
- * instance per engine, so the module state below is SHARED across all pagers (the only pure-QML way — no
- * private imports, no C++). Provides SETTING SYNC + SINGLE-WRITER election (lowest token writes). See CLAUDE.md.
+ * Cross-instance coordination for dynamic workspaces. plasmashell runs every panel in ONE QML engine and a
+ * `.pragma library` is one instance per engine, so the module state below is SHARED across all pagers (the
+ * only pure-QML way). Provides SETTING SYNC + SINGLE-WRITER election (lowest token writes).
  */
 .pragma library
 .import "logic.js" as Logic

@@ -29,6 +29,11 @@
         <entry name="invertScroll" type="Bool">
             <default>false</default>
         </entry>
+        <!-- What clicking the ALREADY-CURRENT desktop does. Index mirrors Logic.PILL_CLICK_ACTION + the combo
+             order: 0 = None, 1 = Show Desktop, 2 = Overview, 3 = Grid. Clicking an inactive dot still switches. -->
+        <entry name="pillClickAction" type="Int">
+            <default>0</default>
+        </entry>
         <!-- Show the desktop name in a tooltip on hover. -->
         <entry name="showTooltips" type="Bool">
             <default>true</default>
@@ -84,7 +89,20 @@
         <entry name="hoverOpacity" type="Double">
             <default>0.8</default>
         </entry>
-        <!-- Follow the color scheme; when false, use activeColor / inactiveColor below. -->
+        <!-- Brighten the dots of desktops that hold windows (occupied), so they stand out from empty ones. -->
+        <entry name="showOccupancy" type="Bool">
+            <default>false</default>
+        </entry>
+        <!-- Opacity of the occupied marker (every occupancyStyle uses it; only when showOccupancy is on). -->
+        <entry name="occupiedOpacity" type="Double">
+            <default>0.7</default>
+        </entry>
+        <!-- How an occupied dot is marked (showOccupancy on). Index mirrors Logic.OCCUPANCY + the combo order:
+             0 = Filled (whole dot), 1 = Inner dot, 2 = Hollow ring. All use occupiedOpacity + the occupied colour. -->
+        <entry name="occupancyStyle" type="Int">
+            <default>0</default>
+        </entry>
+        <!-- Follow the color scheme; when false, use activeColor / inactiveColor / occupiedColor below. -->
         <entry name="followThemeColors" type="Bool">
             <default>true</default>
         </entry>
@@ -95,6 +113,10 @@
         <!-- Custom inactive-dot colour (used only when followThemeColors is false). -->
         <entry name="inactiveColor" type="Color">
             <default>#eff0f1</default>
+        </entry>
+        <!-- Custom occupied-marker colour (used only when followThemeColors is false; else the theme accent). -->
+        <entry name="occupiedColor" type="Color">
+            <default>#3daee9</default>
         </entry>
     </group>
 </kcfg>

@@ -41,9 +41,17 @@ the same widget, transposed:
   pager, or KWin settings update the widget immediately (state is never cached).
 - **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
   wrap-around and optional inverted direction); hi-res/touchpad sub-notches are accumulated.
+- **Click the current desktop** — optional (default off): clicking the highlighted current
+  desktop can trigger **Show Desktop**, **Overview**, or **Grid** (it toggles the matching KWin
+  action); clicking any other desktop still just switches to it.
 - **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
   and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
   (sourced from the public `TasksModel`).
+- **Occupied-desktop indicator** — optional (default off): mark desktops that hold windows so they
+  stand out from empty ones (a GNOME / i3-style "occupied" cue). Choose the style — **filled** dot,
+  an **inner dot**, or a **hollow ring** on top — with a configurable colour and opacity. On
+  multi-monitor setups each pager reflects *its* monitor (a desktop is "occupied" only if a window
+  on it is on that screen), matching the per-screen current desktop below.
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
 - **Dynamic workspaces (GNOME-style)** — optional (default off): automatically keeps exactly one
@@ -137,6 +145,7 @@ restart; the defaults give the intended GNOME look out of the box.
 | `enableScroll` | `true` | Scroll over the strip to switch desktops. |
 | `scrollWrap` | `false` | When scrolling past the first/last desktop, wrap around (else clamp). |
 | `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
+| `pillClickAction` | `Nothing` | Action when clicking the highlighted **current** desktop: Show Desktop, Overview, or Grid (it toggles the matching KWin action). Clicking any other desktop still just switches to it. |
 | `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
 | `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. Disabled (greyed out, entries hidden) while `dynamicWorkspaces` is on, since the two manage desktops in conflicting ways. |
@@ -155,9 +164,13 @@ restart; the defaults give the intended GNOME look out of the box.
 | `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
 | `inactiveOpacity` | `0.45` | Opacity of an inactive (dim) dot. |
 | `hoverOpacity` | `0.8` | Opacity an inactive dot brightens to on hover. |
-| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour). When off, use the two colours below. |
+| `showOccupancy` | `false` | Mark desktops that hold windows so they stand out from empty ones. |
+| `occupancyStyle` | `Filled` | How an occupied desktop is marked: **Filled** (the whole dot), **Inner dot** (a dot on top), or **Hollow ring** (a ring on top). Only when `showOccupancy` is on. |
+| `occupiedOpacity` | `0.7` | Opacity of the occupied marker (every style uses it); only when `showOccupancy` is on. |
+| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the three colours below. |
 | `activeColor` | `#3daee9` | Custom active-capsule colour (used only when `followThemeColors` is off). |
 | `inactiveColor` | `#eff0f1` | Custom inactive-dot colour (used only when `followThemeColors` is off). |
+| `occupiedColor` | `#3daee9` | Custom occupied-marker colour (used only when `followThemeColors` is off). |
 
 The **multi-row grid** and the **per-screen current desktop** are not settings — they
 auto-mirror KWin (System Settings → Virtual Desktops → "Rows", and the per-output desktop
@@ -195,7 +208,7 @@ plasma-gnome-pager/
             ├── main.qml              # PlasmoidItem root: data source, DBus helpers, actions
             ├── WorkspaceIndicator.qml # the dot strip (row / column / grid + reflow)
             ├── WorkspaceDot.qml       # one element (dot ⇄ capsule morph + tooltip)
-            ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace occupancy
+            ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace (global) & indicator (per-screen) occupancy
             ├── DynamicWorkspacesController.qml # GNOME-style auto add/remove of one empty trailing desktop
             ├── logic.js               # pure, unit-tested branching logic (no Plasma deps)
             ├── coordinator.js         # shared cross-panel state: dynamic-workspaces global sync + writer election

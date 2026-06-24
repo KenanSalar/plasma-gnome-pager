@@ -142,40 +142,87 @@ TestCase {
         fuzzyCompare(r.remainder, data.rem, 0.001, data.tag + " remainder");
     }
 
-    // --- dotOpacity: active is full strength; hover brightens inactive only ---------
+    // --- dotOpacity: active > hover > occupied-marker(Filled/Ring) > dim (empty, or the InnerDot body) ---
     function test_dotOpacity_data() {
+        var F = Logic.OCCUPANCY.Filled;
         return [
-            { tag: "idle", active: false, hovered: false, exp: 0.45 },
-            { tag: "hovered", active: false, hovered: true, exp: 0.8 },
-            { tag: "active-not-hovered", active: true, hovered: false, exp: 1.0 },
-            { tag: "active-and-hovered", active: true, hovered: true, exp: 1.0 }
+            { tag: "idle", active: false, hovered: false, occupied: false, style: F, exp: 0.45 },
+            { tag: "hovered", active: false, hovered: true, occupied: false, style: F, exp: 0.8 },
+            { tag: "active-not-hovered", active: true, hovered: false, occupied: false, style: F, exp: 1.0 },
+            { tag: "active-and-hovered", active: true, hovered: true, occupied: false, style: F, exp: 1.0 },
+            { tag: "occupied-filled", active: false, hovered: false, occupied: true, style: F, exp: 0.7 },
+            { tag: "occupied-and-hovered", active: false, hovered: true, occupied: true, style: F, exp: 0.8 },
+            { tag: "occupied-and-active", active: true, hovered: false, occupied: true, style: F, exp: 1.0 },
+            // InnerDot and Ring keep a DIM body — their markers are overlays that carry occupiedOpacity themselves.
+            { tag: "occupied-ring-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: 0.45 },
+            { tag: "occupied-innerdot-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: 0.45 }
         ];
     }
     function test_dotOpacity(data) {
-        fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, 0.45, 0.8), data.exp, 0.001, data.tag);
+        fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, data.occupied, data.style, 0.45, 0.8, 0.7), data.exp, 0.001, data.tag);
     }
 
-    // The opacities are parameters, not constants: a non-default inactive/hover pair flows through
-    // for the inactive states, while the active capsule is always 1.0 regardless of either argument.
+    // The opacities are parameters, not constants: a non-default inactive/hover/occupied triple flows
+    // through, and the tier order holds (active > hover > occupied-marker > dim).
     function test_dotOpacityCustomRatios() {
-        fuzzyCompare(Logic.dotOpacity(false, false, 0.2, 0.9), 0.2, 0.001, "idle uses the given inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, true, 0.2, 0.9), 0.9, 0.001, "hover uses the given hoverOpacity");
-        fuzzyCompare(Logic.dotOpacity(true, false, 0.2, 0.9), 1.0, 0.001, "active is full strength, ignoring inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(true, true, 0.2, 0.9), 1.0, 0.001, "active+hover is full strength, ignoring hoverOpacity");
+        var F = Logic.OCCUPANCY.Filled;
+        fuzzyCompare(Logic.dotOpacity(false, false, false, F, 0.2, 0.9, 0.6), 0.2, 0.001, "idle uses the given inactiveOpacity");
+        fuzzyCompare(Logic.dotOpacity(false, true, false, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover uses the given hoverOpacity");
+        fuzzyCompare(Logic.dotOpacity(false, false, true, F, 0.2, 0.9, 0.6), 0.6, 0.001, "occupied (Filled) uses occupiedOpacity");
+        fuzzyCompare(Logic.dotOpacity(false, true, true, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover beats occupied");
+        fuzzyCompare(Logic.dotOpacity(true, false, false, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active is full strength, ignoring inactiveOpacity");
+        fuzzyCompare(Logic.dotOpacity(true, true, true, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active beats hover and occupied");
+        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.Ring, 0.2, 0.9, 0.6), 0.2, 0.001, "Ring body stays dim (the ring overlay carries the opacity)");
+        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.InnerDot, 0.2, 0.9, 0.6), 0.2, 0.001, "InnerDot body stays dim (the inner dot carries the opacity)");
     }
 
-    // --- dotColor: follow the theme, or use custom colours (the 2×2 branch) ---------
-    // Distinct string sentinels stand in for the four colours so each branch is identifiable.
+    // --- dotColor: resolves the dot BODY colour from three pre-resolved colours (active / inactive / occupied) ---
+    // Distinct string sentinels stand in for the colours so each branch is identifiable.
     function test_dotColor_data() {
+        var F = Logic.OCCUPANCY.Filled;
         return [
-            { tag: "theme-active", active: true, follow: true, exp: "themeActive" },
-            { tag: "theme-inactive", active: false, follow: true, exp: "themeInactive" },
-            { tag: "custom-active", active: true, follow: false, exp: "customActive" },
-            { tag: "custom-inactive", active: false, follow: false, exp: "customInactive" }
+            { tag: "active", active: true, occupied: false, style: F, exp: "active" },
+            { tag: "empty-inactive", active: false, occupied: false, style: F, exp: "inactive" },
+            // Filled: the occupied dot BODY takes the occupied colour.
+            { tag: "filled-occupied", active: false, occupied: true, style: F, exp: "occupied" },
+            // InnerDot / Ring: the BODY stays the inactive colour (the marker is the inner dot / the border).
+            { tag: "innerdot-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: "inactive" },
+            { tag: "ring-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: "inactive" }
         ];
     }
     function test_dotColor(data) {
-        compare(Logic.dotColor(data.active, data.follow, "themeActive", "themeInactive", "customActive", "customInactive"), data.exp, data.tag);
+        compare(Logic.dotColor(data.active, data.occupied, data.style, "active", "inactive", "occupied"), data.exp, data.tag);
+    }
+
+    // --- occupancy styles: the shape predicates + the index mapping (mirrors main.xml / the combo order) ---
+    function test_occupancyConstants() {
+        compare(Logic.OCCUPANCY.Filled, 0, "Filled is index 0 (the default)");
+        compare(Logic.OCCUPANCY.InnerDot, 1, "InnerDot is index 1");
+        compare(Logic.OCCUPANCY.Ring, 2, "Ring is index 2");
+    }
+
+    // Pill-click action indices mirror main.xml pillClickAction + the ConfigGeneral combo order.
+    function test_pillClickConstants() {
+        compare(Logic.PILL_CLICK_ACTION.None, 0, "None is index 0 (the default)");
+        compare(Logic.PILL_CLICK_ACTION.ShowDesktop, 1, "ShowDesktop is index 1");
+        compare(Logic.PILL_CLICK_ACTION.Overview, 2, "Overview is index 2");
+        compare(Logic.PILL_CLICK_ACTION.Grid, 3, "Grid is index 3");
+    }
+
+    // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring style shows the ring overlay.
+    function test_ringOverlayVisible() {
+        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring), "Ring + inactive + occupied → ring overlay");
+        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring), "Ring + empty → no overlay");
+        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring), "Ring + active → no overlay (it's the pill)");
+        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled), "non-Ring style → no ring overlay");
+    }
+
+    // innerDotVisible: ONLY an occupied inactive dot in the InnerDot style shows the centre dot.
+    function test_innerDotVisible() {
+        verify(Logic.innerDotVisible(false, true, Logic.OCCUPANCY.InnerDot), "InnerDot + inactive + occupied → centre dot");
+        verify(!Logic.innerDotVisible(false, false, Logic.OCCUPANCY.InnerDot), "InnerDot + empty → no centre dot");
+        verify(!Logic.innerDotVisible(true, true, Logic.OCCUPANCY.InnerDot), "InnerDot + active → no centre dot (it's the pill)");
+        verify(!Logic.innerDotVisible(false, true, Logic.OCCUPANCY.Ring), "non-InnerDot style → no centre dot");
     }
 
     // --- effectiveDuration: override vs themed default, reduce-animations always wins ---
@@ -617,6 +664,92 @@ TestCase {
         compare(JSON.stringify(Logic.computeDesktopOccupancy(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- windowOccupiesDesktopOnScreen: per-screen occupancy (Plasma 6.7 per-output desktops) -------
+    // windowOccupiesDesktop AND the window's OUTPUT origin (x,y) matches the pager's. Origin-only match
+    // tolerates per-output scaling (different size, same top-left). NEVER drops a window: an unknown target
+    // rect or an unknown own screen counts everywhere (degrades to global). The desktop exclusions still win.
+    function test_windowOccupiesDesktopOnScreen_data() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };       // monitor 1
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };    // monitor 2 (different origin)
+        const Ahidpi = { x: 0, y: 0, width: 3840, height: 2160 };  // same origin as A, larger size (scaling)
+        const occ = function (desktops, screen, opts) {
+            opts = opts || {};
+            return {
+                isWindow: opts.isWindow !== false, onAll: opts.onAll === true,
+                skipPager: opts.skipPager === true, minimized: opts.minimized === true,
+                desktops: desktops, screen: screen
+            };
+        };
+        return [
+            // on the desktop AND on this output → occupies; on another output → does not.
+            { tag: "same-screen-occupies", window: occ(["a"], A), uuid: "a", rect: A, exp: true },
+            { tag: "other-screen-excluded", window: occ(["a"], B), uuid: "a", rect: A, exp: false },
+            // origin matches but size differs (fractional/per-output scaling) → still this screen.
+            { tag: "origin-match-different-size", window: occ(["a"], A), uuid: "a", rect: Ahidpi, exp: true },
+            // unknown TARGET rect (pager not yet placed) → counts everywhere (global fallback).
+            { tag: "null-target-rect-global", window: occ(["a"], B), uuid: "a", rect: null, exp: true },
+            { tag: "zero-target-rect-global", window: occ(["a"], B), uuid: "a", rect: { x: 0, y: 0, width: 0, height: 0 }, exp: true },
+            // unknown OWN screen (e.g. a window with no geometry) → counts everywhere (never dropped).
+            { tag: "null-own-screen-counts", window: occ(["a"], null), uuid: "a", rect: A, exp: true },
+            { tag: "zero-own-screen-counts", window: occ(["a"], { x: 5, y: 5, width: 0, height: 0 }), uuid: "a", rect: A, exp: true },
+            // the desktop predicate still gates: a miss / exclusion is false even on the matching screen.
+            { tag: "desktops-miss-on-screen", window: occ(["b"], A), uuid: "a", rect: A, exp: false },
+            { tag: "on-all-excluded-on-screen", window: occ(["a"], A, { onAll: true }), uuid: "a", rect: A, exp: false },
+            { tag: "skip-pager-excluded-on-screen", window: occ(["a"], A, { skipPager: true }), uuid: "a", rect: A, exp: false },
+            { tag: "non-window-excluded-on-screen", window: occ(["a"], A, { isWindow: false }), uuid: "a", rect: A, exp: false },
+            // a minimized window still occupies (matches windowOccupiesDesktop), localized to its screen.
+            { tag: "minimized-still-counts-on-screen", window: occ(["a"], A, { minimized: true }), uuid: "a", rect: A, exp: true }
+        ];
+    }
+    function test_windowOccupiesDesktopOnScreen(data) {
+        var result = Logic.windowOccupiesDesktopOnScreen(data.window, data.uuid, data.rect);
+        compare(result, data.exp, data.tag);
+        compare(typeof result, "boolean", data.tag + " (strict boolean)");
+    }
+
+    // --- computeDesktopOccupancyForScreen: per-screen per-desktop boolean[] ---------------------------
+    // Index-aligned with desktopIds, counting only windows on the pager's output. An unknown screenRect
+    // returns the IDENTICAL array to computeDesktopOccupancy (single-monitor / pre-placement == global).
+    function test_computeDesktopOccupancyForScreen_data() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };
+        const Ahidpi = { x: 0, y: 0, width: 3840, height: 2160 };
+        const occ = function (desktops, screen) {
+            return { isWindow: true, onAll: false, skipPager: false, minimized: false, desktops: desktops, screen: screen };
+        };
+        return [
+            // degenerate inputs degrade safely, like the global variant.
+            { tag: "empty-ids", windows: [occ(["a"], A)], ids: [], rect: A, exp: [] },
+            // a window on desktop a/monitor A and one on b/monitor B, viewed from each monitor.
+            { tag: "from-screen-A", windows: [occ(["a"], A), occ(["b"], B)], ids: ["a", "b"], rect: A, exp: [true, false] },
+            { tag: "from-screen-B", windows: [occ(["a"], A), occ(["b"], B)], ids: ["a", "b"], rect: B, exp: [false, true] },
+            // origin-match with a different size (scaling) still occupies on this screen.
+            { tag: "different-size-origin", windows: [occ(["a"], A)], ids: ["a"], rect: Ahidpi, exp: [true] },
+            // a window with no own screen counts on every monitor (errs safe).
+            { tag: "unknown-own-screen-everywhere", windows: [occ(["a"], null)], ids: ["a"], rect: B, exp: [true] },
+            // index alignment across three desktops: only the matching desktop+screen pins.
+            { tag: "index-alignment", windows: [occ(["b"], A)], ids: ["a", "b", "c"], rect: A, exp: [false, true, false] }
+        ];
+    }
+    function test_computeDesktopOccupancyForScreen(data) {
+        compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(data.windows, data.ids, data.rect)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // The degradation contract pinned exactly: an unknown screenRect (null or zero-size) returns the SAME
+    // array computeDesktopOccupancy would (so single-monitor and pre-placement frames are byte-for-byte global).
+    function test_computeDesktopOccupancyForScreenDegradesToGlobal() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };
+        const occ = function (desktops, screen) {
+            return { isWindow: true, onAll: false, skipPager: false, minimized: false, desktops: desktops, screen: screen };
+        };
+        const windows = [occ(["a"], A), occ(["b"], B)];
+        const ids = ["a", "b", "c"];
+        const global = JSON.stringify(Logic.computeDesktopOccupancy(windows, ids));
+        compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(windows, ids, null)), global, "null screenRect == global");
+        compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(windows, ids, { x: 0, y: 0, width: 0, height: 0 })), global, "zero screenRect == global");
+    }
+
     // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
     // One action per call; reactive re-triggering converges to exactly one trailing empty. Only the
     // TRAILING run is managed (empty middles are left alone); transient/length-mismatch frames are no-ops.
@@ -725,6 +858,7 @@ TestCase {
             { tag: "enableScroll", key: "enableScroll", exp: true },
             { tag: "scrollWrap", key: "scrollWrap", exp: false },
             { tag: "invertScroll", key: "invertScroll", exp: false },
+            { tag: "pillClickAction", key: "pillClickAction", exp: 0 },
             { tag: "showTooltips", key: "showTooltips", exp: true },
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
@@ -738,9 +872,13 @@ TestCase {
             { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
             { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
+            { tag: "showOccupancy", key: "showOccupancy", exp: false },
+            { tag: "occupiedOpacity", key: "occupiedOpacity", exp: 0.7 },
+            { tag: "occupancyStyle", key: "occupancyStyle", exp: 0 },
             { tag: "followThemeColors", key: "followThemeColors", exp: true },
             { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
             { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
+            { tag: "occupiedColor", key: "occupiedColor", exp: "#3daee9" },
             { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
         ];
     }
@@ -762,9 +900,10 @@ TestCase {
         var expected = ["activeColor", "animationDuration", "dotSize", "dynamicNamePrefix",
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
-                        "inactiveOpacity", "invertScroll", "pillSize", "pillWidthFactor", "scrollWrap",
-                        "showTooltips", "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 20, "DEFAULTS has exactly 20 keys");
+                        "inactiveOpacity", "invertScroll", "occupancyStyle", "occupiedColor", "occupiedOpacity",
+                        "pillClickAction", "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
+                        "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
+        compare(keys.length, 25, "DEFAULTS has exactly 25 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
@@ -896,5 +1035,60 @@ TestCase {
         // sanitizeDesktopName caps at 100 chars; the spec must carry the capped name.
         var longName = new Array(150).join("a");   // 149 'a's
         compare(Logic.renameSpec("uuid-a", longName).args[1].v.length, 100, "renameSpec caps the name at 100 chars");
+    }
+
+    // invokeShortcutSpec: the kglobalaccel invokeShortcut(string) shape (null for a falsy name).
+    function test_invokeShortcutSpec_data() {
+        return [
+            { tag: "empty-name-null", name: "", exp: null },
+            { tag: "undefined-name-null", name: undefined, exp: null },
+            {
+                tag: "valid", name: "Overview",
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Overview" }]
+                }
+            }
+        ];
+    }
+    function test_invokeShortcutSpec(data) {
+        compare(JSON.stringify(Logic.invokeShortcutSpec(data.name)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // pillClickSpec: the pill-click action -> KWin shortcut spec. None / unknown -> null (safe no-op); the
+    // active actions toggle KWin shortcuts by their exact unique names ("Grid" -> "Grid View").
+    function test_pillClickSpec_data() {
+        return [
+            { tag: "None-null", action: Logic.PILL_CLICK_ACTION.None, exp: null },
+            { tag: "unknown-null", action: 99, exp: null },
+            {
+                tag: "ShowDesktop", action: Logic.PILL_CLICK_ACTION.ShowDesktop,
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Show Desktop" }]
+                }
+            },
+            {
+                tag: "Overview", action: Logic.PILL_CLICK_ACTION.Overview,
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Overview" }]
+                }
+            },
+            {
+                tag: "Grid", action: Logic.PILL_CLICK_ACTION.Grid,
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Grid View" }]
+                }
+            }
+        ];
+    }
+    function test_pillClickSpec(data) {
+        compare(JSON.stringify(Logic.pillClickSpec(data.action)), JSON.stringify(data.exp), data.tag);
     }
 }

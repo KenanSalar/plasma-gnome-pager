@@ -4,11 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * GNOME-style dynamic-workspaces controller — a non-visual Item, extracted from main.qml as one
- * headless-testable unit (imports only QtQuick + the pure .js tiers). When enabled, keep one empty trailing
- * desktop by issuing ONE KWin add/remove per cycle (Logic.dynamicWorkspacePlan). The desktop SET is global,
- * so this is a single GLOBAL behaviour coordinated via coordinator.js: setting SYNC + single-WRITER election
- * (else panels double-add then trim = a flash). Inputs IN as plain values, effects OUT as signals. See CLAUDE.md.
+ * GNOME-style dynamic-workspaces controller — a non-visual Item (QtQuick + pure .js only, headless-tested).
+ * When enabled, keep one empty trailing desktop via ONE KWin add/remove per cycle. The desktop SET is
+ * global, so coordinator.js does setting SYNC + single-WRITER election (else panels double-add → a flash).
  */
 pragma ComponentBehavior: Bound
 
@@ -36,8 +34,7 @@ Item {
     // Internal state.
     property bool dynBusy: false
     property int dynToken: 0
-    // Busy-lock fallback: suppress re-firing after our own write until desktopIdsChanged confirms it.
-    // Longer than KWin's round-trip (which normally clears the lock first) but short enough not to wedge.
+    // Liveness fallback only — the real lock-clear is vdi.desktopIdsChanged below.
     readonly property int busyFallbackMs: 750
 
     Timer {
@@ -46,9 +43,8 @@ Item {
         onTriggered: controller.dynBusy = false
     }
 
-    // Join the coordinator (registering syncConfigRequested as the push channel). Adopt the global if a
-    // sibling seeded it, else seed it from our value. Then evaluate once (the last desktop may already be
-    // occupied at startup). Leave on teardown so a removed panel stops counting in the election.
+    // Join the coordinator (syncConfigRequested is the push channel). Adopt the global if a sibling seeded
+    // it, else seed it from our value, then evaluate once. Leave on teardown (stop counting in the election).
     Component.onCompleted: {
         controller.dynToken = Coordinator.join((en, pf) => controller.syncConfigRequested(en, pf));
         if (Coordinator.haveGlobal())
@@ -59,10 +55,9 @@ Item {
     }
     Component.onDestruction: Coordinator.leave(controller.dynToken)
 
-    // Our setting changed: if it differs from the global WE changed it → publish to every panel; if it
-    // matches, this was a sync echo → just re-evaluate. Guarded against the pre-join window — config
-    // bindings (and onChanged) fire before Component.onCompleted, so dynToken is still 0; publishing then
-    // registers a phantom value that stalls the real writer (a previously-real bug).
+    // Our setting changed: if it differs from the global WE changed it → publish to every panel; else it's
+    // a sync echo → just re-evaluate. Guard the pre-join window (dynToken 0): config onChanged fires before
+    // Component.onCompleted, and publishing then registers a phantom value that stalls the real writer.
     function publishDynamicConfig() {
         if (controller.dynToken === 0)
             return;
@@ -80,8 +75,7 @@ Item {
         Qt.callLater(controller.evaluateDynamic);
     }
 
-    // Compute and dispatch the single action for the freshest state, or nothing. Only the elected writer
-    // acts (Coordinator.isWriter), so panels never double-add.
+    // Compute and dispatch the single action for the freshest state, or nothing. Only the elected writer acts (panels never double-add).
     function evaluateDynamic() {
         if (!controller.dynamicEnabled || controller.dynBusy)
             return;
@@ -93,8 +87,7 @@ Item {
             return;
         let spec = null;
         if (plan.kind === "add") {
-            // Name "<prefix> N" (prefix synced across panels). position == current count (append), so the
-            // new desktop's number is pos + 1.
+            // Name "<prefix> N" (prefix synced across panels); position == current count (append), so the number is pos + 1.
             const pos = controller.virtualDesktopInfo?.numberOfDesktops ?? ids.length;
             spec = Logic.addSpec(pos, Logic.formatDynamicDesktopName(controller.namePrefix, pos + 1, controller.defaultPrefix));
         } else if (plan.kind === "remove") {
@@ -108,14 +101,12 @@ Item {
         dynBusyTimer.restart();
     }
 
-    // Triggers: occupancy flips (window opened/closed/moved), and our own setting changing (route through
-    // publishDynamicConfig so the global stays in sync before we act).
+    // Triggers: occupancy flips, and our own setting changing (routed through publishDynamicConfig so the global syncs before we act).
     onDesktopOccupancyChanged: controller.scheduleDynamic()
     onDynamicEnabledChanged: controller.publishDynamicConfig()
     onNamePrefixChanged: controller.publishDynamicConfig()
 
-    // The desktop SET changing is also the signal that OUR add/remove landed → clear the lock and
-    // re-evaluate (so a multi-step trim converges over a few cycles).
+    // The desktop SET changing is also the signal that OUR add/remove landed → clear the lock and re-evaluate (multi-step trim converges over cycles).
     Connections {
         target: controller.virtualDesktopInfo
         function onDesktopIdsChanged() {
