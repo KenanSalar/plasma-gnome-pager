@@ -289,6 +289,53 @@ function computeDesktopOccupancy(windows, desktopIds) {
     return out;
 }
 
+// A usable screen rect: present with a positive size. A null/zero rect means "don't know" → callers
+// fall back to GLOBAL (screen-agnostic) occupancy rather than hiding windows (robustness.md).
+function isValidScreenRect(r) {
+    return !!r && r.width > 0 && r.height > 0;
+}
+
+// Per-screen occupancy (Plasma 6.7 "switch desktops independently per screen"): a window only marks a
+// desktop occupied on the pager whose monitor it is physically on. Extends windowOccupiesDesktop with a
+// screen-ORIGIN match (each output has a unique top-left; width/height can differ between the window's
+// reported screen rect and the pager's under per-output scaling, so compare (x,y) only — integers, exact).
+// NEVER drops a window: an unknown target rect (pager not placed) OR an unknown own screen (e.g. a window
+// with no geometry) counts everywhere, degrading to the global behaviour.
+function windowOccupiesDesktopOnScreen(window, uuid, screenRect) {
+    if (!windowOccupiesDesktop(window, uuid))
+        return false;
+    if (!isValidScreenRect(screenRect))
+        return true;
+    var ws = window.screen;
+    if (!isValidScreenRect(ws))
+        return true;
+    return ws.x === screenRect.x && ws.y === screenRect.y;
+}
+
+// Per-desktop occupancy boolean[] for ONE pager's screen, index-aligned with `desktopIds`. An unknown
+// `screenRect` delegates to computeDesktopOccupancy → the byte-identical GLOBAL array, so single-monitor
+// setups and pre-placement frames behave exactly as before (no per-screen difference).
+function computeDesktopOccupancyForScreen(windows, desktopIds, screenRect) {
+    if (!desktopIds || desktopIds.length === 0)
+        return [];
+    if (!isValidScreenRect(screenRect))
+        return computeDesktopOccupancy(windows, desktopIds);
+    var wins = windows || [];
+    var out = [];
+    for (var d = 0; d < desktopIds.length; d++) {
+        var uuid = desktopIds[d];
+        var occupied = false;
+        for (var i = 0; i < wins.length; i++) {
+            if (windowOccupiesDesktopOnScreen(wins[i], uuid, screenRect)) {
+                occupied = true;
+                break;
+            }
+        }
+        out.push(occupied);
+    }
+    return out;
+}
+
 // The SINGLE dynamic-workspace action, or null (one per call → re-triggering converges to one trailing
 // empty): 0 trailing empties → add; >=2 → remove the LAST; else null. Only the trailing run is managed.
 // Transient frames no-op (null/empty arrays, or occupancy.length !== desktopIds.length).

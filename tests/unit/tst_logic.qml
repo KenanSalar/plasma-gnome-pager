@@ -656,6 +656,92 @@ TestCase {
         compare(JSON.stringify(Logic.computeDesktopOccupancy(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
+    // --- windowOccupiesDesktopOnScreen: per-screen occupancy (Plasma 6.7 per-output desktops) -------
+    // windowOccupiesDesktop AND the window's OUTPUT origin (x,y) matches the pager's. Origin-only match
+    // tolerates per-output scaling (different size, same top-left). NEVER drops a window: an unknown target
+    // rect or an unknown own screen counts everywhere (degrades to global). The desktop exclusions still win.
+    function test_windowOccupiesDesktopOnScreen_data() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };       // monitor 1
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };    // monitor 2 (different origin)
+        const Ahidpi = { x: 0, y: 0, width: 3840, height: 2160 };  // same origin as A, larger size (scaling)
+        const occ = function (desktops, screen, opts) {
+            opts = opts || {};
+            return {
+                isWindow: opts.isWindow !== false, onAll: opts.onAll === true,
+                skipPager: opts.skipPager === true, minimized: opts.minimized === true,
+                desktops: desktops, screen: screen
+            };
+        };
+        return [
+            // on the desktop AND on this output → occupies; on another output → does not.
+            { tag: "same-screen-occupies", window: occ(["a"], A), uuid: "a", rect: A, exp: true },
+            { tag: "other-screen-excluded", window: occ(["a"], B), uuid: "a", rect: A, exp: false },
+            // origin matches but size differs (fractional/per-output scaling) → still this screen.
+            { tag: "origin-match-different-size", window: occ(["a"], A), uuid: "a", rect: Ahidpi, exp: true },
+            // unknown TARGET rect (pager not yet placed) → counts everywhere (global fallback).
+            { tag: "null-target-rect-global", window: occ(["a"], B), uuid: "a", rect: null, exp: true },
+            { tag: "zero-target-rect-global", window: occ(["a"], B), uuid: "a", rect: { x: 0, y: 0, width: 0, height: 0 }, exp: true },
+            // unknown OWN screen (e.g. a window with no geometry) → counts everywhere (never dropped).
+            { tag: "null-own-screen-counts", window: occ(["a"], null), uuid: "a", rect: A, exp: true },
+            { tag: "zero-own-screen-counts", window: occ(["a"], { x: 5, y: 5, width: 0, height: 0 }), uuid: "a", rect: A, exp: true },
+            // the desktop predicate still gates: a miss / exclusion is false even on the matching screen.
+            { tag: "desktops-miss-on-screen", window: occ(["b"], A), uuid: "a", rect: A, exp: false },
+            { tag: "on-all-excluded-on-screen", window: occ(["a"], A, { onAll: true }), uuid: "a", rect: A, exp: false },
+            { tag: "skip-pager-excluded-on-screen", window: occ(["a"], A, { skipPager: true }), uuid: "a", rect: A, exp: false },
+            { tag: "non-window-excluded-on-screen", window: occ(["a"], A, { isWindow: false }), uuid: "a", rect: A, exp: false },
+            // a minimized window still occupies (matches windowOccupiesDesktop), localized to its screen.
+            { tag: "minimized-still-counts-on-screen", window: occ(["a"], A, { minimized: true }), uuid: "a", rect: A, exp: true }
+        ];
+    }
+    function test_windowOccupiesDesktopOnScreen(data) {
+        var result = Logic.windowOccupiesDesktopOnScreen(data.window, data.uuid, data.rect);
+        compare(result, data.exp, data.tag);
+        compare(typeof result, "boolean", data.tag + " (strict boolean)");
+    }
+
+    // --- computeDesktopOccupancyForScreen: per-screen per-desktop boolean[] ---------------------------
+    // Index-aligned with desktopIds, counting only windows on the pager's output. An unknown screenRect
+    // returns the IDENTICAL array to computeDesktopOccupancy (single-monitor / pre-placement == global).
+    function test_computeDesktopOccupancyForScreen_data() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };
+        const Ahidpi = { x: 0, y: 0, width: 3840, height: 2160 };
+        const occ = function (desktops, screen) {
+            return { isWindow: true, onAll: false, skipPager: false, minimized: false, desktops: desktops, screen: screen };
+        };
+        return [
+            // degenerate inputs degrade safely, like the global variant.
+            { tag: "empty-ids", windows: [occ(["a"], A)], ids: [], rect: A, exp: [] },
+            // a window on desktop a/monitor A and one on b/monitor B, viewed from each monitor.
+            { tag: "from-screen-A", windows: [occ(["a"], A), occ(["b"], B)], ids: ["a", "b"], rect: A, exp: [true, false] },
+            { tag: "from-screen-B", windows: [occ(["a"], A), occ(["b"], B)], ids: ["a", "b"], rect: B, exp: [false, true] },
+            // origin-match with a different size (scaling) still occupies on this screen.
+            { tag: "different-size-origin", windows: [occ(["a"], A)], ids: ["a"], rect: Ahidpi, exp: [true] },
+            // a window with no own screen counts on every monitor (errs safe).
+            { tag: "unknown-own-screen-everywhere", windows: [occ(["a"], null)], ids: ["a"], rect: B, exp: [true] },
+            // index alignment across three desktops: only the matching desktop+screen pins.
+            { tag: "index-alignment", windows: [occ(["b"], A)], ids: ["a", "b", "c"], rect: A, exp: [false, true, false] }
+        ];
+    }
+    function test_computeDesktopOccupancyForScreen(data) {
+        compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(data.windows, data.ids, data.rect)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // The degradation contract pinned exactly: an unknown screenRect (null or zero-size) returns the SAME
+    // array computeDesktopOccupancy would (so single-monitor and pre-placement frames are byte-for-byte global).
+    function test_computeDesktopOccupancyForScreenDegradesToGlobal() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };
+        const occ = function (desktops, screen) {
+            return { isWindow: true, onAll: false, skipPager: false, minimized: false, desktops: desktops, screen: screen };
+        };
+        const windows = [occ(["a"], A), occ(["b"], B)];
+        const ids = ["a", "b", "c"];
+        const global = JSON.stringify(Logic.computeDesktopOccupancy(windows, ids));
+        compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(windows, ids, null)), global, "null screenRect == global");
+        compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(windows, ids, { x: 0, y: 0, width: 0, height: 0 })), global, "zero screenRect == global");
+    }
+
     // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
     // One action per call; reactive re-triggering converges to exactly one trailing empty. Only the
     // TRAILING run is managed (empty middles are left alone); transient/length-mismatch frames are no-ops.

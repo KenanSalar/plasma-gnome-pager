@@ -32,6 +32,10 @@ Item {
     // This panel's output (KWin connector name, e.g. "DP-1") from the Screen attached property so it reflects THIS monitor. Tests override; "" → global.
     property string screenName: Screen.name
 
+    // This panel's output RECT in the virtual-desktop space (Screen has no `geometry`), read by main.qml to
+    // drive per-screen occupancy. Tests override; a zero rect → occupancy degrades to global (single-monitor look).
+    property rect screenRect: Qt.rect(Screen.virtualX, Screen.virtualY, Screen.width, Screen.height)
+
     // The current desktop FOR THIS SCREEN (Plasma 6.7 per-output), resolved by ScreenCurrentDesktop.
     readonly property string currentDesktop: screenCurrent.currentDesktop
 
@@ -77,9 +81,9 @@ Item {
 
     // Occupied-dot indicator: when showOccupancy, an occupied dot (desktopOccupancy[globalIndex]) is marked per occupancyStyle.
     property bool showOccupancy: Logic.DEFAULTS.showOccupancy
-    property var desktopOccupancy: []                              // per-desktop bool[], index-aligned with desktopIds (from main.qml)
-    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity  // Opacity-style brighten target
-    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle     // Opacity/Tint/InnerDot/Ring (Logic.OCCUPANCY)
+    property var desktopOccupancy: []                              // per-desktop bool[], index-aligned with desktopIds (per-screen, from main.qml)
+    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity  // marker opacity (all styles)
+    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle     // Filled/InnerDot/Ring (Logic.OCCUPANCY)
 
     // The sizing engine: requests + grid shape + live geometry → effective sizes + extents (forwarded below).
     IndicatorMetrics {

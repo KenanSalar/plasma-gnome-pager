@@ -149,9 +149,11 @@ Hover brighten is a *separate* inactive-only state driven by
 `inactiveOpacity`) and its colour by `logic.js::dotColor(active, occupied, style, activeC, inactiveC,
 occupiedC)` (active colour → the occupied colour in the **Filled** style → else inactive). The
 **occupied-dot indicator** (config `showOccupancy`, default OFF) marks desktops that hold windows,
-reusing the same `desktopOccupancy` bool[] the dynamic-workspaces controller consumes (no new data
-source/DBus), index-aligned with `desktopIds` and gated on `showOccupancy` in the indicator so a stale
-array is harmless when off. `occupancyStyle` (`Logic.OCCUPANCY`: **Filled** / **InnerDot** / **Ring**,
+reusing the same shared `WindowAggregator` snapshot the dynamic-workspaces controller consumes (no new
+data source/DBus), index-aligned with `desktopIds` and gated on `showOccupancy` in the indicator so a
+stale array is harmless when off. It is fed the **PER-SCREEN** occupancy array (`screenOccupancy` —
+only windows physically on THIS pager's monitor), NOT the global `desktopOccupancy` the controller
+gets (see the per-screen occupancy gotcha below). `occupancyStyle` (`Logic.OCCUPANCY`: **Filled** / **InnerDot** / **Ring**,
 mirrors the `main.xml` index + the `ConfigAppearance` combo) picks HOW: **Filled** recolours the dot
 body to the occupied colour at `occupiedOpacity`; **InnerDot** and **Ring** keep the normal dim dot and
 draw an OVERLAY on top (a centred dot / a hollow rim ring) at `occupiedOpacity` via
@@ -387,13 +389,16 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   `subText`. **`relevantRoles` is conditional on an injected `windowListActive` bool (`=
 >   showTooltips && showWindowList`):** the aggregator can be live purely for dynamic-workspace
 >   occupancy, and occupancy reads none of the title/minimised state, so when the window list is off
->   the set drops `Qt.DisplayRole` + `IsMinimized` (leaving the four occupancy roles `VirtualDesktops`/
->   `IsOnAllVirtualDesktops`/`IsWindow`/`SkipPager`) — title-rename and minimise-toggle churn then no
+>   the set drops `Qt.DisplayRole` + `IsMinimized` (leaving the occupancy roles `VirtualDesktops`/
+>   `IsOnAllVirtualDesktops`/`IsWindow`/`SkipPager`/`ScreenGeometry` — the last in BOTH branches, for
+>   per-screen occupancy) — title-rename and minimise-toggle churn then no
 >   longer wakes a rebuild whose tooltip output `main.qml` would discard, and `rebuild()` skips building
 >   the HTML `<ul>`s entirely (leaves `desktopTooltips` `[]`). Toggling the list at runtime flips
 >   `windowListActive`, and `onWindowListActiveChanged` forces the one rebuild that repopulates/clears
->   the tooltips. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` for
->   the dynamic-workspaces controller (see "Dynamic workspaces" below) — one model, two outputs. Both
+>   the tooltips. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` (GLOBAL,
+>   all monitors) for the dynamic-workspaces controller AND `Logic.computeDesktopOccupancyForScreen` →
+>   `screenOccupancy` (PER-SCREEN, this monitor — for the occupied-dot indicator; see the per-screen
+>   occupancy gotcha below) — one model, THREE outputs. All three
 >   outputs are reassigned **compare-before-assign** (`Logic.arraysShallowEqual`): a QML `var`/object
 >   property notifies on every reassignment to a fresh reference (which each freshly-built array is —
 >   no contents compare), so keeping the old reference when contents match is what stops an identical
@@ -423,15 +428,40 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > `Item`), so `main.qml` casts `(tooltipLoader.item as WindowAggregator).desktopTooltips`; the row is a
 > named inline `component WindowRow: QtObject {…}` declared **inside `WindowAggregator.qml`**, cast there
 > as `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
-> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`, `SkipPager`) aren't valid lowercase identifiers, so they can't
+> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`, `SkipPager`, `ScreenGeometry`) aren't valid lowercase identifiers, so they can't
 > be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
 > `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
-> before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings).
+> before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings),
+> and snapshot `ScreenGeometry` (a `QRect` role) into a plain `{x,y,width,height}` so `logic.js` stays Plasma-free.
 > Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop,test_dataChangeAffectsRoles,test_arraysShallowEqual}` +
 > `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
 > `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
 > itself — including the `windowListActive` role/format gating and the compare-before-assign — is
 > e2e-only (verify in-shell).
+
+> **Per-screen occupancy (Plasma 6.7 per-output desktops) — the indicator reflects ITS monitor, the
+> dynamic controller stays GLOBAL.** The occupied-dot indicator must mark a desktop occupied only when a
+> window on that desktop is **physically on this pager's monitor** (else a window on monitor 1 lights the
+> same dot on every monitor — the symptom). Virtual desktops are global UUIDs; a window's monitor is its
+> `TasksModel.ScreenGeometry` role (a `QRect`; there is **no** screen-NAME role). We match it to the
+> pager's own output rect — `WorkspaceIndicator.screenRect = Qt.rect(Screen.virtualX, Screen.virtualY,
+> Screen.width, Screen.height)` (the `Screen` attached property; it has **no** `geometry`), which
+> `main.qml` reads off `fullRepresentationItem` (Screen.* is only valid on the placed representation) and
+> injects into `WindowAggregator` (mirroring how `virtualDesktopInfo` is injected). The decision is the
+> pure `Logic.computeDesktopOccupancyForScreen(windows, ids, screenRect)` / `windowOccupiesDesktopOnScreen`,
+> which **match by rect ORIGIN `(x,y)` only** — outputs have unique top-lefts, while width/height differ
+> between the two sources under per-output scaling — so it tolerates fractional scaling (integer `===`,
+> exact). It **degrades to global** (never hides a window) when the target rect is absent (pager not yet
+> placed → identical to `computeDesktopOccupancy`, so single-monitor is byte-for-byte unchanged) or a
+> window has no own screen rect. This is **unconditional, no config key** — it auto-mirrors KWin exactly
+> like the per-screen *current desktop* feature (mirror System Settings, don't add a redundant widget knob). Crucially the
+> aggregator emits TWO occupancy arrays from the one snapshot: `screenOccupancy` (per-screen) → the
+> indicator, and `desktopOccupancy` (GLOBAL) → the `DynamicWorkspacesController` — the desktop SET is
+> global and coordinated across panels, so a per-screen view there would make panels fight over the
+> trailing empty. Guarded by `tst_logic.qml::{test_windowOccupiesDesktopOnScreen,
+> test_computeDesktopOccupancyForScreen,test_computeDesktopOccupancyForScreenDegradesToGlobal}`; the live
+> `ScreenGeometry` read + the coordinate-space assumption (that role's origin == `Screen.virtualX/Y`) are
+> e2e-only — **verify on a real multi-monitor rig** (a mismatch would mark nothing occupied).
 
 **Dynamic workspaces (GNOME-style) — auto-maintain ONE empty trailing desktop; default OFF; one
 GLOBAL behaviour across panels.** When enabled, the widget keeps exactly one empty desktop at the

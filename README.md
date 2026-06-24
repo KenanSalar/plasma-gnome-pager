@@ -46,7 +46,9 @@ the same widget, transposed:
   (sourced from the public `TasksModel`).
 - **Occupied-desktop indicator** — optional (default off): mark desktops that hold windows so they
   stand out from empty ones (a GNOME / i3-style "occupied" cue). Choose the style — **filled** dot,
-  an **inner dot**, or a **hollow ring** on top — with a configurable colour and opacity.
+  an **inner dot**, or a **hollow ring** on top — with a configurable colour and opacity. On
+  multi-monitor setups each pager reflects *its* monitor (a desktop is "occupied" only if a window
+  on it is on that screen), matching the per-screen current desktop below.
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
 - **Dynamic workspaces (GNOME-style)** — optional (default off): automatically keeps exactly one
@@ -202,7 +204,7 @@ plasma-gnome-pager/
             ├── main.qml              # PlasmoidItem root: data source, DBus helpers, actions
             ├── WorkspaceIndicator.qml # the dot strip (row / column / grid + reflow)
             ├── WorkspaceDot.qml       # one element (dot ⇄ capsule morph + tooltip)
-            ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace occupancy
+            ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace (global) & indicator (per-screen) occupancy
             ├── DynamicWorkspacesController.qml # GNOME-style auto add/remove of one empty trailing desktop
             ├── logic.js               # pure, unit-tested branching logic (no Plasma deps)
             ├── coordinator.js         # shared cross-panel state: dynamic-workspaces global sync + writer election

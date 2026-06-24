@@ -55,8 +55,8 @@ PlasmoidItem {
     readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? Logic.DEFAULTS.pillWidthFactor
     readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? Logic.DEFAULTS.inactiveOpacity
     readonly property real hoverOpacity: Plasmoid.configuration.hoverOpacity ?? Logic.DEFAULTS.hoverOpacity
-    // Occupied-dot indicator (default OFF): mark desktops that hold windows (reuses the desktopOccupancy snapshot below).
-    // occupancyStyle picks HOW (Opacity/Tint/InnerDot/Ring — see Logic.OCCUPANCY); occupiedOpacity applies to the Opacity style.
+    // Occupied-dot indicator (default OFF): mark desktops that hold windows (reuses the occupancy snapshot below).
+    // occupancyStyle picks HOW (Filled/InnerDot/Ring — see Logic.OCCUPANCY); occupiedOpacity applies to every style.
     readonly property bool showOccupancy: Plasmoid.configuration.showOccupancy ?? Logic.DEFAULTS.showOccupancy
     readonly property real occupiedOpacity: Plasmoid.configuration.occupiedOpacity ?? Logic.DEFAULTS.occupiedOpacity
     readonly property int occupancyStyle: Plasmoid.configuration.occupancyStyle ?? Logic.DEFAULTS.occupancyStyle
@@ -85,7 +85,7 @@ PlasmoidItem {
         inactiveOpacity: root.inactiveOpacity
         hoverOpacity: root.hoverOpacity
         showOccupancy: root.showOccupancy
-        desktopOccupancy: root.desktopOccupancy
+        desktopOccupancy: root.screenOccupancy   // PER-SCREEN: only mark dots for windows on THIS pager's monitor
         occupiedOpacity: root.occupiedOpacity
         occupancyStyle: root.occupancyStyle
         followThemeColors: root.followThemeColors
@@ -106,8 +106,15 @@ PlasmoidItem {
     readonly property var desktopTooltips: (root.showTooltips && root.showWindowList && tooltipLoader.item)
         ? (tooltipLoader.item as WindowAggregator).desktopTooltips : []
 
-    // Per-desktop occupancy boolean[] from the SAME snapshot, consumed by the dynamic-workspaces controller. Empty [] when the Loader is inactive.
+    // GLOBAL per-desktop occupancy boolean[] from the snapshot, consumed by the dynamic-workspaces controller (the desktop SET is global). Empty [] when the Loader is inactive.
     readonly property var desktopOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopOccupancy : []
+    // PER-SCREEN per-desktop occupancy (this monitor only) from the SAME snapshot, consumed by the occupied-dot indicator. Empty [] when the Loader is inactive.
+    readonly property var screenOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).screenOccupancy : []
+
+    // This pager's output rect, read from the placed representation (Screen.* is only valid on the on-screen item).
+    // Empty until placed → per-screen occupancy degrades to global. Cast mirrors `tooltipLoader.item as WindowAggregator`.
+    readonly property rect screenRect: root.fullRepresentationItem
+        ? (root.fullRepresentationItem as WorkspaceIndicator).screenRect : Qt.rect(0, 0, 0, 0)
 
     // The window-list machinery lives behind a Loader (zero cost when unused). Needed by the tooltip list, dynamic workspaces, OR the occupied-dot indicator — gate is the OR.
     Loader {
@@ -119,6 +126,7 @@ PlasmoidItem {
         id: aggregatorComponent
         WindowAggregator {
             virtualDesktopInfo: vdi   // inject the read source (the aggregator is data-source-agnostic)
+            screenRect: root.screenRect   // inject this pager's output rect (drives per-screen occupancy)
             // windowListActive false → aggregator is live only for occupancy, skipping the discarded tooltip work.
             windowListActive: root.showTooltips && root.showWindowList
         }
