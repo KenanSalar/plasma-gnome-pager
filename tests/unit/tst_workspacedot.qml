@@ -8,7 +8,7 @@
  * dot's contract: inactive = dim themed circle; active MORPHS into a wider highlighted capsule (no
  * overlay); hover brightens inactive only; the whole footprint is the click target. Tests default to
  * `animate: false` so morphs are instant. Composition into the strip is the INTEGRATION tier (see
- * tst_workspaceindicator.qml + tests/README.md). Run with `make check-unit` (offscreen).
+ * tst_indicator_*.qml + tests/README.md). Run with `make check-unit` (offscreen).
  */
 import QtQuick
 import QtTest

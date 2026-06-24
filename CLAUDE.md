@@ -123,7 +123,7 @@ the highlighted capsule when active — see the Visual model below).
 > The CROSS axis carries the line(s) (`min == preferred == naturalCrossThickness`) with its
 > **maximum reset to `-1`** (Qt's unconstrained `+∞`) so the panel stretches it to the panel
 > thickness and the centred grid sits in the middle. Asserted by
-> `tst_workspaceindicator.qml::{test_advertisesWidthViaLayout,test_verticalAdvertisesHeightViaLayout}`.
+> `tst_indicator_layout.qml::{test_advertisesWidthViaLayout,test_verticalAdvertisesHeightViaLayout}`.
 > Do **not** wrap the representation root in another item (e.g. a `ToolTipArea`) that doesn't
 > forward these `Layout` hints — that reintroduces the square cell.
 
@@ -178,8 +178,8 @@ how GNOME and the KDE `compact_pager` actually work.
 > not the live positioner extent, so the panel cell stays put during the morph and when no element
 > is active (a switch **conserves total length**: the shrinking and growing elements cancel). For a
 > single line `perLine == desktopCount` and `lineCount == 1`, recovering the 1-D width formula.
-> Guarded by `tst_workspaceindicator.qml::{test_uniformSpacing,test_exactlyOneCapsule,
-> test_transientStaleNoCapsuleWidthStable,test_gridSizingTwoRows}`. The metric property names
+> Guarded by `tst_indicator_morph.qml::{test_uniformSpacing,test_exactlyOneCapsule,
+> test_transientStaleNoCapsuleWidthStable}` + `tst_indicator_layout.qml::test_gridSizingTwoRows`. The metric property names
 > (`dotSize`, `pillSize`, `pillWidthFactor`, `spacingFactor`, `inactiveOpacity`, `hoverOpacity`) match
 > the `main.xml` settings keys exactly (see "Config flow" below).
 >
@@ -215,7 +215,7 @@ how GNOME and the KDE `compact_pager` actually work.
 > the indicator feeds it the requests + grid shape + live `availableMajor`/`availableCross` geometry and
 > forwards its outputs unchanged — so it is now **directly** unit-tested (`tst_indicatormetrics.qml`) as
 > well as through the indicator. Guarded by `tst_indicatormetrics.qml` +
-> `tst_workspaceindicator.qml::{test_scaleDotsShrinkOnNarrowWidth,
+> `tst_indicator_layout.qml::{test_scaleDotsShrinkOnNarrowWidth,
 > test_scaleDotsUnchangedWhenAmple,test_scaleDotsShrinkOnShortHeightVertical,
 > test_scaleDotsShrinkOnThinCrossMultiRow,test_scaleDotsCrossUnchangedWhenAmpleThickness,
 > test_scaleDotsShrinkOnThinCrossVertical,test_advertisesWidthViaLayout,
@@ -244,7 +244,7 @@ how GNOME and the KDE `compact_pager` actually work.
 > **`pillWidthFactor` is now relative to the PILL thickness, not the dot** (config label "× pill"),
 > i.e. the pill's aspect ratio. When `ratio == 1` (the default, or any dot-size-only change) every
 > formula collapses to the pre-existing one, so the look — and every prior test — is byte-for-byte
-> unchanged. Guarded by `tst_workspaceindicator.qml::{test_autoPillTracksDotSize,
+> unchanged. Guarded by `tst_indicator_layout.qml::{test_autoPillTracksDotSize,
 > test_independentThickerPill,test_pillThicknessAdvertisedOnCrossAxis,test_pillScalesWithFitShrink}` +
 > `tst_workspacedot.qml::test_independentPillThickness` + `tst_logic.qml` defaults (the `pillSize` key).
 >
@@ -434,7 +434,7 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings),
 > and snapshot `ScreenGeometry` (a `QRect` role) into a plain `{x,y,width,height}` so `logic.js` stays Plasma-free.
 > Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop,test_dataChangeAffectsRoles,test_arraysShallowEqual}` +
-> `tst_workspaceindicator.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
+> `tst_indicator_content.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
 > `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator
 > itself — including the `windowListActive` role/format gating and the compare-before-assign — is
 > e2e-only (verify in-shell).
@@ -598,11 +598,14 @@ when not following the theme). The settings UI is two files that must agree with
   Kirigami-only it **is** headless-unit-tested by `tests/unit/tst_configslider.qml`.
 - **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
   **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
-  `root.isModified`, firing `root.defaultsRequested()`); each derived page fulfils that contract by
-  **binding** `isModified` (any `cfg_<key>` differs from its `cfg_<key>Default`) and **handling**
-  `onDefaultsRequested` (reset every `cfg_<key>` to its `cfg_<key>Default`). `cfg_<key>Default` is a
-  property the dialog injects from the schema default — declared on the page with no initializer so
-  `main.xml` stays the single source of truth.
+  `root.isModified`, firing `root.defaultsRequested()`) **and** owns the whole contract off a single
+  `configKeys` property (a `{ n, t }` list): the base **binds** `isModified` (any `cfg_<key>` differs
+  from its `cfg_<key>Default`, via the type-aware `fieldChanged` helper) and **handles**
+  `onDefaultsRequested` (reset every key to its `cfg_<key>Default` via `resetField`). So a derived page
+  declares only its `configKeys` list (plus the QML-required `cfg_<key>` aliases) — it no longer
+  repeats the `isModified`/`onDefaultsRequested` bindings. `cfg_<key>Default` is a property the dialog
+  injects from the schema default — declared on the page with no initializer so `main.xml` stays the
+  single source of truth.
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
@@ -777,8 +780,11 @@ with `npm install` (or `npm ci` in CI). No TypeScript/`tsc` and no Prettier — 
 There is a headless QML test harness (`tests/`, run with `make check`) split into two tiers:
 **unit** (`tests/unit/`, one component in isolation, e.g. `WorkspaceDot`) and **integration**
 (`tests/integration/`, components composed + reactive wiring, e.g. `WorkspaceIndicator` driven
-by a `QtObject` mock standing in for `VirtualDesktopInfo`). Run a single tier with
-`make check-unit` / `make check-integration`. It can only cover the Kirigami-only components;
+by a `QtObject` mock standing in for `VirtualDesktopInfo`). The `WorkspaceIndicator` suite is split
+by concern into `tst_indicator_{morph,layout,input,content}.qml`, all deriving from the shared base
+`tests/shared/IndicatorTestCase.qml` (it owns the component factory, the `VdiMock`/legacy doubles,
+the `switchRequested` spy, the desktop-set fixtures, and the dot-tree locators; qmltestrunner imports
+but never executes it). Run a single tier with `make check-unit` / `make check-integration`. It can only cover the Kirigami-only components;
 `main.qml`/`PlasmoidItem` is **not** testable headless (it needs plasmashell + KWin + a session
 bus), so it still relies on the manual in-shell loop below. New logic should come with a test
 (see `tests/README.md`); when branching logic is added, extract it into a pure-JS tier

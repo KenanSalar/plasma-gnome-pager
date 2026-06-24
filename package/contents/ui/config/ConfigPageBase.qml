@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Shared skeleton for every settings page: a Kirigami.ScrollablePage for the KDE header + scrolling, plus
- * the "Defaults" button the Plasma footer lacks (defined ONCE here). A derived page declares `configKeys`
- * { n, t } and binds isModified/onDefaultsRequested off the helpers below.
+ * the "Defaults" button the Plasma footer lacks (defined ONCE here). A derived page only declares its
+ * `configKeys` { n, t } list; the modified-check and the Defaults reset are bound off it here, once.
  */
 import QtQuick
 import org.kde.kirigami as Kirigami
@@ -14,8 +14,12 @@ import org.kde.kirigami as Kirigami
 Kirigami.ScrollablePage {
     id: root
 
-    // Derived page binds this to its per-key "differs from default" check.
-    property bool isModified: false
+    // The derived page's keys + compare kind ({ n, t }); drives both isModified and the Defaults reset.
+    property var configKeys: []
+
+    // True when any key differs from its default (gates the Defaults action). Bound off configKeys here
+    // so a derived page need only declare the list; empty configKeys ⇒ false (unmodified).
+    property bool isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
 
     // Field-column width for non-slider fields; kept equal to ConfigSlider.trackWidth so every row lines up.
     readonly property int fieldWidth: Kirigami.Units.gridUnit * 18
@@ -39,8 +43,9 @@ Kirigami.ScrollablePage {
         page["cfg_" + name] = page["cfg_" + name + "Default"];
     }
 
-    // Raised by the Defaults action; the derived page resets its cfg_<key> values in the handler.
+    // Raised by the Defaults action; resets every configKeys entry to its injected schema default.
     signal defaultsRequested()
+    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     actions: [
         Kirigami.Action {

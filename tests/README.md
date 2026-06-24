@@ -27,12 +27,16 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
   unit/integration tiers stay green. Before adding a Plasma import to a tested component, prove it
   loads headless (a throwaway `tst_*.qml` under `QT_QPA_PLATFORM=offscreen`); session-requiring
   types (anything needing live KWin/DBus) stay confined to `main.qml`, which is e2e-only.
-- **integration** (`tests/integration/`) — `tst_workspaceindicator.qml`. The indicator
-  instantiates real `WorkspaceDot` delegates through a `Repeater`, morphs each dot between a
-  dot and a capsule, and flows reactivity through the binding chain (`vdi →
-  desktopIds/currentDesktop → activeIndex → dot.active → capsule width`). That cross-component
-  wiring is the integration; the only thing mocked is the external platform, because the real
-  `VirtualDesktopInfo` needs a Plasma session — which is the e2e tier.
+- **integration** (`tests/integration/`) — the `WorkspaceIndicator` suite, split by concern into
+  `tst_indicator_{morph,layout,input,content}.qml`, all deriving from the shared base
+  `tests/shared/IndicatorTestCase.qml` (which owns the component factory, the `VdiMock`/legacy
+  `VirtualDesktopInfo` doubles, the `switchRequested` spy, the desktop-set fixtures, and the
+  dot-tree locators — so each split file only holds its test functions). Plus
+  `tst_dynamicworkspacescontroller.qml`. The indicator instantiates real `WorkspaceDot` delegates
+  through a `Repeater`, morphs each dot between a dot and a capsule, and flows reactivity through the
+  binding chain (`vdi → desktopIds/currentDesktop → activeIndex → dot.active → capsule width`). That
+  cross-component wiring is the integration; the only thing mocked is the external platform, because
+  the real `VirtualDesktopInfo` needs a Plasma session — which is the e2e tier.
 - **e2e / system** — running the real widget against live KWin + DBus and switching desktops.
   This is **not** automated (and likely never needs to be for a pager): it stays the manual
   loop `make dev` → `make test` → `make restart`, then switch desktops by keyboard and watch
@@ -83,7 +87,12 @@ imports:
   `circleOf`/`tooltipOf` collectors, shared by both tiers.
 - `VdiMock.qml` (`import "../shared"`, then `VdiMock {}`) — the **canonical**
   `VirtualDesktopInfo` double; instantiate it inside a `Component` and build per-test via a
-  factory (see `tst_workspaceindicator.qml`'s `makeMock`).
+  factory (see `IndicatorTestCase.qml`'s `makeMock`).
+- `IndicatorTestCase.qml` (`import "../shared"`, then `IndicatorTestCase { … }` as the test root)
+  — the shared base `TestCase` for the `tst_indicator_*` integration files: the component-under-test
+  factory, the `VdiMock`/legacy doubles, the `switchRequested` spy, the desktop-set fixtures, and the
+  dot locators. Lives here so qmltestrunner imports but never executes it (only `tests/unit` +
+  `tests/integration` run).
 
 ```qml
 import QtQuick
@@ -133,6 +142,6 @@ than only through QML. CI runs qmllint + tests + ESLint on every PR
 called `handleWheel()` directly stayed green — the bug was in *event routing* (which item receives
 the wheel). Use `qmltestrunner`'s real input helpers (`mouseWheel()`, `mouseClick()`, `mouseMove()`)
 to exercise the actual delivery path for anything pointer-driven; see
-`tst_workspaceindicator.qml::test_wheelEventStepsNext`.
+`tst_indicator_input.qml::test_wheelEventStepsNext`.
 
 [`qmltestrunner-qt6`]: https://doc.qt.io/qt-6/qtquicktest-index.html

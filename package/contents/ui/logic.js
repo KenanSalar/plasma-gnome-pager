@@ -116,14 +116,14 @@ function dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpac
 }
 
 // Which colour fills the dot BODY, from three pre-resolved colours (the caller resolves theme-vs-custom):
-// the active capsule → activeColour; a Filled-style occupied dot → occupiedColour; otherwise inactiveColour
+// the active capsule → activeColor; a Filled-style occupied dot → occupiedColor; otherwise inactiveColor
 // (an empty dot, or the dim body under the InnerDot/Ring styles, whose markers are drawn as overlays on top).
-function dotColor(active, occupied, style, activeColour, inactiveColour, occupiedColour) {
+function dotColor(active, occupied, style, activeColor, inactiveColor, occupiedColor) {
     if (active)
-        return activeColour;
+        return activeColor;
     if (occupied && style === OCCUPANCY.Filled)
-        return occupiedColour;
-    return inactiveColour;
+        return occupiedColor;
+    return inactiveColor;
 }
 
 // Ring style: an OCCUPIED inactive dot shows a hollow occupied-colour ring OVERLAY on top of the dim dot (empty/active do not).
@@ -224,11 +224,17 @@ function sanitizeDesktopName(input) {
     return s.length > MAX_DESKTOP_NAME_LENGTH ? s.slice(0, MAX_DESKTOP_NAME_LENGTH) : s;
 }
 
+// Does `window`'s own `desktops` list name `uuid`? The membership primitive shared by the tooltip and
+// occupancy predicates below (each adds its own on-all/skipPager handling). Missing list → false.
+function windowListsDesktop(window, uuid) {
+    return !!(window.desktops && window.desktops.indexOf(uuid) !== -1);
+}
+
 // Tooltip membership: a real window that is on-all or whose `desktops` lists uuid. Null/missing → false.
 function windowIsOnDesktop(window, uuid) {
     if (!window || !window.isWindow)
         return false;
-    return !!(window.onAll || (window.desktops && window.desktops.indexOf(uuid) !== -1));
+    return !!(window.onAll || windowListsDesktop(window, uuid));
 }
 
 // Group a flat window snapshot into per-desktop { visible:[title…], minimized:[title…] }, index-aligned
@@ -266,11 +272,13 @@ function windowOccupiesDesktop(window, uuid) {
         return false;
     if (window.onAll || window.skipPager)
         return false;
-    return !!(window.desktops && window.desktops.indexOf(uuid) !== -1);
+    return windowListsDesktop(window, uuid);
 }
 
-// Reduce a window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`.
-function computeDesktopOccupancy(windows, desktopIds) {
+// Reduce a window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`:
+// each entry is true when ANY window satisfies the `occupies(window, uuid)` predicate. Null windows →
+// all-false; null/empty ids → []. The shared scaffold for the global and per-screen reducers below.
+function foldDesktopOccupancy(windows, desktopIds, occupies) {
     if (!desktopIds || desktopIds.length === 0)
         return [];
     var wins = windows || [];
@@ -279,7 +287,7 @@ function computeDesktopOccupancy(windows, desktopIds) {
         var uuid = desktopIds[d];
         var occupied = false;
         for (var i = 0; i < wins.length; i++) {
-            if (windowOccupiesDesktop(wins[i], uuid)) {
+            if (occupies(wins[i], uuid)) {
                 occupied = true;
                 break;
             }
@@ -287,6 +295,11 @@ function computeDesktopOccupancy(windows, desktopIds) {
         out.push(occupied);
     }
     return out;
+}
+
+// Global (screen-agnostic) per-desktop occupancy boolean[], index-aligned with `desktopIds`.
+function computeDesktopOccupancy(windows, desktopIds) {
+    return foldDesktopOccupancy(windows, desktopIds, windowOccupiesDesktop);
 }
 
 // A usable screen rect: present with a positive size. A null/zero rect means "don't know" → callers
@@ -316,24 +329,11 @@ function windowOccupiesDesktopOnScreen(window, uuid, screenRect) {
 // `screenRect` delegates to computeDesktopOccupancy → the byte-identical GLOBAL array, so single-monitor
 // setups and pre-placement frames behave exactly as before (no per-screen difference).
 function computeDesktopOccupancyForScreen(windows, desktopIds, screenRect) {
-    if (!desktopIds || desktopIds.length === 0)
-        return [];
     if (!isValidScreenRect(screenRect))
         return computeDesktopOccupancy(windows, desktopIds);
-    var wins = windows || [];
-    var out = [];
-    for (var d = 0; d < desktopIds.length; d++) {
-        var uuid = desktopIds[d];
-        var occupied = false;
-        for (var i = 0; i < wins.length; i++) {
-            if (windowOccupiesDesktopOnScreen(wins[i], uuid, screenRect)) {
-                occupied = true;
-                break;
-            }
-        }
-        out.push(occupied);
-    }
-    return out;
+    return foldDesktopOccupancy(windows, desktopIds, function (w, uuid) {
+        return windowOccupiesDesktopOnScreen(w, uuid, screenRect);
+    });
 }
 
 // The SINGLE dynamic-workspace action, or null (one per call → re-triggering converges to one trailing

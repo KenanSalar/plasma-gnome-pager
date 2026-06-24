@@ -45,8 +45,9 @@ ConfigPageBase {
     property color cfg_inactiveColorDefault
     property color cfg_occupiedColorDefault
 
-    // This page's keys + compare kind; drives isModified + Defaults reset via ConfigPageBase (reals within epsilon, colours via Qt.colorEqual).
-    readonly property var configKeys: [
+    // This page's keys + compare kind; ConfigPageBase binds isModified + the Defaults reset off it
+    // (reals within epsilon, colours via Qt.colorEqual).
+    configKeys: [
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
         { n: "spacingFactor", t: "real" },
@@ -61,10 +62,6 @@ ConfigPageBase {
         { n: "inactiveColor", t: "color" },
         { n: "occupiedColor", t: "color" }
     ]
-
-    // True when any key differs from its default (gates the base's Defaults action).
-    isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
-    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     Kirigami.FormLayout {
         ConfigSlider {

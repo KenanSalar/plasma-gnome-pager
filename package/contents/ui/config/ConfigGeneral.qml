@@ -38,8 +38,8 @@ ConfigPageBase {
     property string cfg_dynamicNamePrefixDefault
     property int cfg_animationDurationDefault
 
-    // This page's keys + compare kind; drives isModified AND the Defaults reset via ConfigPageBase (no per-key bodies).
-    readonly property var configKeys: [
+    // This page's keys + compare kind; ConfigPageBase binds isModified AND the Defaults reset off it.
+    configKeys: [
         { n: "enableScroll", t: "bool" },
         { n: "scrollWrap", t: "bool" },
         { n: "invertScroll", t: "bool" },
@@ -51,10 +51,6 @@ ConfigPageBase {
         { n: "dynamicNamePrefix", t: "string" },
         { n: "animationDuration", t: "int" }
     ]
-
-    // True when any key differs from its default (gates the base's Defaults action).
-    isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
-    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
     Kirigami.FormLayout {
         QQC2.CheckBox {
