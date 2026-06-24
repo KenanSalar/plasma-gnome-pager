@@ -8,12 +8,13 @@
  * dot's contract: inactive = dim themed circle; active MORPHS into a wider highlighted capsule (no
  * overlay); hover brightens inactive only; the whole footprint is the click target. Tests default to
  * `animate: false` so morphs are instant. Composition into the strip is the INTEGRATION tier (see
- * tst_workspaceindicator.qml + tests/README.md). Run with `make check-unit` (offscreen).
+ * tst_indicator_*.qml + tests/README.md). Run with `make check-unit` (offscreen).
  */
 import QtQuick
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
+import "../../package/contents/ui/logic.js" as Logic
 import "../shared/treewalk.js" as TreeWalk
 import "../shared/elements.js" as Elements
 
@@ -56,8 +57,10 @@ TestCase {
         compare(dot.implicitWidth, dot.dotSize, "inactive footprint is a dot wide");
         compare(dot.implicitHeight, dot.dotSize, "implicitHeight advertises the dot size");
 
-        const rects = TreeWalk.collect(dot, Elements.isCircle);
-        compare(rects.length, 1, "renders exactly one dot/capsule rectangle");
+        // The optional inner-dot element exists in the tree but is hidden unless the InnerDot occupancy
+        // style is active, so count only VISIBLE circles — exactly one (the capsule) in the default state.
+        const rects = TreeWalk.collect(dot, Elements.isCircle).filter(r => r.visible);
+        compare(rects.length, 1, "renders exactly one visible dot/capsule rectangle");
     }
 
     // The inactive circle follows the colour scheme (theme text colour, dimmed) — asserted
@@ -197,6 +200,122 @@ TestCase {
         // Give any (incorrect) change time to run, then assert it never happened.
         wait(Math.max(50, Kirigami.Units.longDuration * 2));
         fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule");
+    }
+
+    // occupied-dot indicator: an occupied (desktop-with-windows) inactive dot renders at occupiedOpacity,
+    // between empty and hover. The dot wires `occupied`/`occupiedOpacity` through; the branch ORDER is
+    // covered by tst_logic::test_dotOpacity.
+    function test_occupiedDotUsesOccupiedOpacity() {
+        const dot = makeDot({ active: false, occupied: true, inactiveOpacity: 0.45, hoverOpacity: 0.8, occupiedOpacity: 0.7 });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.opacity, dot.occupiedOpacity, 0.001, "an occupied inactive dot uses occupiedOpacity");
+
+        dot.occupied = false;
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "an empty inactive dot falls back to inactiveOpacity");
+    }
+
+    // Precedence through the dot's wiring: active and hover both outrank occupied.
+    function test_occupiedPrecedence() {
+        const active = makeDot({ active: true, occupied: true, occupiedOpacity: 0.7 });
+        fuzzyCompare(circleOf(active).opacity, 1.0, 0.001, "active beats occupied (full strength)");
+
+        const dot = makeDot({ active: false, occupied: true, hoverOpacity: 0.8, occupiedOpacity: 0.7 });
+        const circle = circleOf(dot);
+        fuzzyCompare(circle.opacity, dot.occupiedOpacity, 0.001, "occupied at rest");
+
+        mouseMove(dot, dot.width / 2, dot.height / 2);
+        tryCompare(circle, "opacity", dot.hoverOpacity, 2000, "hover beats occupied");
+    }
+
+    // occupancy style: Filled — an occupied dot's whole body takes the occupied colour AND the occupied opacity.
+    function test_filledStyleColorsOccupied() {
+        const dot = makeDot({ occupied: true, occupancyStyle: Logic.OCCUPANCY.Filled, active: false, inactiveOpacity: 0.45, occupiedOpacity: 0.7 });
+        const circle = circleOf(dot);
+        compare(circle.color, Kirigami.Theme.highlightColor, "Filled: occupied dot uses the occupied (theme accent) colour");
+        fuzzyCompare(circle.opacity, dot.occupiedOpacity, 0.001, "Filled: occupied dot uses the occupied opacity");
+
+        dot.occupied = false;
+        compare(circle.color, Kirigami.Theme.textColor, "Filled: an empty dot stays the inactive (text) colour");
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "Filled: an empty dot is dim");
+    }
+
+    // occupancy style: Inner dot — an occupied dot shows a small occupied-colour dot in its centre (a 2nd visible
+    // circle) at the occupied opacity, concentric with the dot; the outer body stays dim.
+    function test_innerDotStyleShowsCentreDot() {
+        const dot = makeDot({ occupied: true, occupancyStyle: Logic.OCCUPANCY.InnerDot, active: false, inactiveOpacity: 0.45, occupiedOpacity: 0.7 });
+        verify(dot.showInnerDot, "occupied + InnerDot style → inner dot shown");
+        const circle = circleOf(dot);   // the outer dot body
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "InnerDot: the outer body stays dim");
+
+        const circles = TreeWalk.collect(dot, Elements.isCircle).filter(c => c.visible);
+        compare(circles.length, 2, "two visible circles: the dim dot and the centre marker");
+        const inner = circles.find(c => c !== circle);
+        verify(inner, "found the inner dot");
+        compare(inner.color, Kirigami.Theme.highlightColor, "the inner dot uses the occupied (theme accent) colour");
+        fuzzyCompare(inner.opacity, dot.occupiedOpacity, 0.001, "the inner dot uses the occupied opacity");
+        verify(inner.width < dot.dotSize, "the inner dot is smaller than the full dot");
+        // Concentric with the dot (guards the off-centre regression): inner centre == outer centre.
+        const ic = inner.mapToItem(dot, inner.width / 2, inner.height / 2);
+        const cc = circle.mapToItem(dot, circle.width / 2, circle.height / 2);
+        fuzzyCompare(ic.x, cc.x, 0.5, "inner dot is horizontally centred on the dot");
+        fuzzyCompare(ic.y, cc.y, 0.5, "inner dot is vertically centred on the dot");
+
+        const empty = makeDot({ occupied: false, occupancyStyle: Logic.OCCUPANCY.InnerDot });
+        verify(!empty.showInnerDot, "an empty dot shows no inner dot");
+        compare(TreeWalk.collect(empty, Elements.isCircle).filter(c => c.visible).length, 1, "only the dot renders when empty");
+    }
+
+    // occupancy style: Hollow ring — a hollow occupied-colour ring drawn ON TOP of the normal dim dot (the dot
+    // background stays); empty dots show no overlay. The ring is a separate element at the occupied opacity.
+    function test_ringStyleOverlaysOccupiedDots() {
+        const dot = makeDot({ occupied: true, occupancyStyle: Logic.OCCUPANCY.Ring, active: false, inactiveOpacity: 0.45, occupiedOpacity: 0.7 });
+        verify(dot.showRing, "occupied + Ring style → ring overlay shown");
+        const circle = circleOf(dot);   // the dot body stays a normal dim dot (background preserved)
+        verify(!Qt.colorEqual(circle.color, "transparent"), "Ring: the dot body keeps its fill (not hollowed)");
+        compare(circle.color, Kirigami.Theme.textColor, "Ring: the dot body stays the inactive (text) colour");
+        fuzzyCompare(circle.opacity, dot.inactiveOpacity, 0.001, "Ring: the dot body stays dim");
+
+        const circles = TreeWalk.collect(dot, Elements.isCircle).filter(c => c.visible);
+        compare(circles.length, 2, "two visible circles: the dim dot and the ring overlay");
+        const ring = circles.find(c => c !== circle);
+        verify(ring, "found the ring overlay");
+        verify(Qt.colorEqual(ring.color, "transparent"), "the ring overlay has a transparent fill (hollow)");
+        verify(ring.border.width > 0, "the ring overlay has a visible border");
+        compare(ring.border.color, Kirigami.Theme.highlightColor, "the ring uses the occupied (theme accent) colour");
+        fuzzyCompare(ring.opacity, dot.occupiedOpacity, 0.001, "the ring uses the occupied opacity");
+
+        const empty = makeDot({ occupied: false, occupancyStyle: Logic.OCCUPANCY.Ring });
+        verify(!empty.showRing, "an empty dot shows no ring overlay");
+        compare(TreeWalk.collect(empty, Elements.isCircle).filter(c => c.visible).length, 1, "only the dot renders when empty");
+    }
+
+    // Custom occupied colour: with followThemeColors off, the occupied MARKER uses the configured
+    // occupiedColor (via resolvedOccupied) in EVERY style — the Filled body, the inner dot, the ring
+    // border. (The theme-accent path is covered by the three style tests above; the colour branch itself
+    // by tst_logic::test_dotColor — this proves the dot wires occupiedColor through.)
+    function test_customOccupiedColorWhenNotFollowingTheme() {
+        const occ = "#abcdef";
+
+        // Filled: the whole dot body takes the custom occupied colour.
+        const filled = makeDot({ followThemeColors: false, occupiedColor: occ, occupied: true,
+                                 occupancyStyle: Logic.OCCUPANCY.Filled, active: false });
+        compare(circleOf(filled).color, filled.occupiedColor, "Filled: occupied body uses the custom occupiedColor");
+
+        // Inner dot: the centre marker takes the custom occupied colour.
+        const innerStyle = makeDot({ followThemeColors: false, occupiedColor: occ, occupied: true,
+                                     occupancyStyle: Logic.OCCUPANCY.InnerDot, active: false });
+        const inner = TreeWalk.collect(innerStyle, Elements.isCircle).filter(c => c.visible)
+                              .find(c => c !== circleOf(innerStyle));
+        verify(inner, "found the inner dot");
+        compare(inner.color, innerStyle.occupiedColor, "InnerDot: centre marker uses the custom occupiedColor");
+
+        // Ring: the border takes the custom occupied colour (transparent fill is asserted in the style test).
+        const ringStyle = makeDot({ followThemeColors: false, occupiedColor: occ, occupied: true,
+                                    occupancyStyle: Logic.OCCUPANCY.Ring, active: false });
+        const ring = TreeWalk.collect(ringStyle, Elements.isCircle).filter(c => c.visible)
+                             .find(c => c !== circleOf(ringStyle));
+        verify(ring, "found the ring overlay");
+        compare(ring.border.color, ringStyle.occupiedColor, "Ring: border uses the custom occupiedColor");
     }
 
     // tooltip

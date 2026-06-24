@@ -48,7 +48,7 @@ XGETTEXT    := xgettext --from-code=UTF-8 -C --kde \
 DIST_DIR      := dist
 PLASMOID_FILE := $(DIST_DIR)/$(PLASMOID_ID)-$(VERSION).plasmoid
 
-.PHONY: help install update uninstall package dev dev-undev test restart check check-unit check-integration lint lint-js verify messages i18n _no-dev-symlink
+.PHONY: help install update uninstall package clean dev dev-undev test restart check check-unit check-integration lint lint-js verify messages i18n _no-dev-symlink
 
 help:
 	@echo "Targets:"
@@ -68,6 +68,7 @@ help:
 	@echo "  make update     Upgrade the installed package"
 	@echo "  make uninstall  Remove the installed package"
 	@echo "  make package    Build a distributable .plasmoid into dist/"
+	@echo "  make clean      Remove build artifacts (dist/)"
 
 # Guard: kpackagetool6 install/upgrade targets $(PLASMOID_DIR). If `make dev` has symlinked that
 # path to ./package, kpackagetool6's remove-then-install step deletes THROUGH the symlink and wipes
@@ -102,6 +103,11 @@ package: i18n
 	cd $(PKG_DIR) && zip -r -X "$(CURDIR)/$(PLASMOID_FILE)" metadata.json contents \
 		-x '*.qmlc' -x '*.jsc' -x '.directory'
 	@echo "Built $(PLASMOID_FILE)"
+
+# Remove build artifacts (the .plasmoid output dir). Keeps stale per-version artifacts from piling up.
+clean:
+	rm -rf $(DIST_DIR)
+	@echo "Removed $(DIST_DIR)/"
 
 # Live-development symlink: edit files in ./package and just `make restart`. Depends on i18n so the
 # symlinked package carries compiled catalogs (otherwise the live widget shows only source strings).

@@ -4,15 +4,13 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Pure, dependency-free branching logic shared by the QML components (no Plasma/Kirigami/Qt deps), so
- * tst_logic.qml exercises every branch headless. `.pragma library` shares one stateless instance and
- * forbids QML ids/context. The deep rationale for each function lives in CLAUDE.md.
+ * Pure, dependency-free branching logic (no Plasma/Qt deps), headless-tested by tst_logic.qml.
+ * `.pragma library`: one stateless instance, no QML ids/context.
  */
 .pragma library
 
-// Single source of truth for the QML-side config fallback defaults, each mirroring a main.xml
-// <default> (the `?? Logic.DEFAULTS.<key>` guard for the transient-undefined frame). dotSize/pillSize/
-// animationDuration 0 are "auto" sentinels; wheelNotchDelta has no schema entry. Frozen = immutable.
+// QML-side config fallback defaults (the `?? Logic.DEFAULTS.<key>` guard), mirroring main.xml.
+// dotSize/pillSize/animationDuration 0 = "auto" sentinel; wheelNotchDelta has no schema entry.
 var DEFAULTS = Object.freeze({
     // Behaviour
     enableScroll: true,
@@ -24,6 +22,7 @@ var DEFAULTS = Object.freeze({
     enableRename: true,
     dynamicWorkspaces: false,    // GNOME-style: auto-keep one empty trailing desktop
     dynamicNamePrefix: "",       // base name for auto-created desktops ("" = i18n default "Desktop")
+    pillClickAction: 0,          // what clicking the CURRENT desktop's pill does; see PILL_CLICK_ACTION (0 = None)
     animationDuration: 0,        // ms; 0 = follow the theme
     // Appearance
     dotSize: 0,                  // px; 0 = auto (HiDPI themed)
@@ -32,19 +31,38 @@ var DEFAULTS = Object.freeze({
     pillWidthFactor: 3.5,        // pill length / pill thickness (aspect ratio)
     inactiveOpacity: 0.45,
     hoverOpacity: 0.8,
+    showOccupancy: false,        // mark the dots of desktops that hold windows
+    occupiedOpacity: 0.7,        // opacity of the occupied marker (all styles); empty < occupied < hover < active
+    occupancyStyle: 0,           // HOW an occupied dot is marked; see OCCUPANCY (0 = Filled, mirrors main.xml)
     followThemeColors: true,
     activeColor: "#3daee9",      // used only when followThemeColors is false
     inactiveColor: "#eff0f1",    // used only when followThemeColors is false
+    occupiedColor: "#3daee9",    // occupied-marker colour; used only when followThemeColors is false (else theme accent)
     wheelNotchDelta: 120         // angleDelta units per mouse notch (no schema entry)
 });
+
+// Occupied-dot indicator styles (showOccupancy on). The int values MIRROR the main.xml occupancyStyle
+// choices and the ConfigAppearance combo order, so a stored index always maps to the same style. Every
+// style marks the OCCUPIED dot using the occupied colour + occupiedOpacity; they differ only in shape:
+//   Filled   — the whole occupied dot is filled with the occupied colour.
+//   InnerDot — a small occupied-colour dot drawn on top of an otherwise-dim dot.
+//   Ring     — a hollow occupied-colour ring drawn on top of an otherwise-dim dot.
+// InnerDot and Ring keep the normal dim dot as their background and add an overlay marker; only Filled
+// recolours/brightens the dot body itself.
+var OCCUPANCY = Object.freeze({ Filled: 0, InnerDot: 1, Ring: 2 });
+
+// Action taken when the ALREADY-CURRENT desktop's pill is clicked (default None). Int values MIRROR the
+// main.xml pillClickAction choices and the ConfigGeneral combo order, so a stored index always maps to the
+// same action. Each non-None action TOGGLES a KWin global shortcut (see pillClickSpec); clicking an
+// inactive dot still just switches desktops.
+var PILL_CLICK_ACTION = Object.freeze({ None: 0, ShowDesktop: 1, Overview: 2, Grid: 3 });
 
 // Coerce to string, mapping null/undefined to "". Shared by the sanitize* functions.
 function toStringOrEmpty(value) {
     return (value === undefined || value === null) ? "" : String(value);
 }
 
-// Step the active index by delta (+1/-1) → new index in [0, count-1], or -1 for states the caller
-// must ignore (empty list, or out-of-range current during a transient add/remove). wrap clamps/wraps.
+// Step the active index by delta → new index in [0, count-1], or -1 to ignore (empty/transient). wrap clamps/wraps.
 function stepIndex(currentIndex, count, delta, wrap) {
     if (count <= 0)
         return -1;
@@ -73,18 +91,16 @@ function lastDesktopId(ids) {
     return ids[ids.length - 1];
 }
 
-// Resolve the current desktop for one screen (Plasma 6.7 per-output desktops). Prefer the per-screen
-// value, else fall back to global — degrades to single-desktop when per-screen data is missing
-// (unknown screen, feature off, older Plasma). See CLAUDE.md "Per-screen current desktop".
+// Current desktop for one screen (Plasma 6.7 per-output): prefer the per-screen value, else global —
+// degrades when the screen is unknown, the feature is off, or Plasma is older.
 function resolveCurrentDesktop(perScreen, global) {
     if (perScreen !== undefined && perScreen !== null && perScreen !== "")
         return String(perScreen);
     return global ? String(global) : "";
 }
 
-// Accumulate hi-res/touchpad wheel deltas and emit whole notches as integer steps (a wheel reports
-// ±120 per notch; touchpads send sub-notch deltas). Returns { steps, remainder } — feed `remainder`
-// back as `accumulated` next event so sub-notch motion is not lost.
+// Accumulate hi-res/touchpad wheel deltas and emit whole notches as integer steps. Returns { steps,
+// remainder } — feed `remainder` back as `accumulated` next event so sub-notch motion is not lost.
 function accumulateWheel(accumulated, deltaY, threshold) {
     var t = (threshold > 0) ? threshold : DEFAULTS.wheelNotchDelta;
     var total = accumulated + deltaY;
@@ -92,32 +108,49 @@ function accumulateWheel(accumulated, deltaY, threshold) {
     return { steps: steps, remainder: total - steps * t };
 }
 
-// Opacity: active capsule is full (1.0); inactive dots dim to inactiveOpacity, brighten to
-// hoverOpacity on hover (so hovering the active capsule does nothing).
-function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
+// Opacity of the DOT body (brightest first): active capsule full (1.0); hover brightens to hoverOpacity;
+// a Filled-style occupied dot (whose body IS the marker) brightens to occupiedOpacity; else inactiveOpacity.
+// InnerDot and Ring keep a dim body — their markers are OVERLAYS that carry occupiedOpacity themselves.
+// `occupied` is always false when showOccupancy is off, so the empty look is unchanged.
+function dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpacity, occupiedOpacity) {
     if (active)
         return 1.0;
-    return hovered ? hoverOpacity : inactiveOpacity;
+    if (hovered)
+        return hoverOpacity;
+    if (occupied && style === OCCUPANCY.Filled)
+        return occupiedOpacity;
+    return inactiveOpacity;
 }
 
-// Colour: follow the scheme (theme args) when followTheme, else the user's custom colours. The caller
-// passes the live Kirigami.Theme colours so the binding re-evaluates on a colour-scheme change.
-function dotColor(active, followTheme, themeActive, themeInactive, customActive, customInactive) {
-    if (followTheme)
-        return active ? themeActive : themeInactive;
-    return active ? customActive : customInactive;
+// Which colour fills the dot BODY, from three pre-resolved colours (the caller resolves theme-vs-custom):
+// the active capsule → activeColor; a Filled-style occupied dot → occupiedColor; otherwise inactiveColor
+// (an empty dot, or the dim body under the InnerDot/Ring styles, whose markers are drawn as overlays on top).
+function dotColor(active, occupied, style, activeColor, inactiveColor, occupiedColor) {
+    if (active)
+        return activeColor;
+    if (occupied && style === OCCUPANCY.Filled)
+        return occupiedColor;
+    return inactiveColor;
 }
 
-// Morph duration: reduce-animations (themeDuration <= 0) always wins → 0; else the requested override,
-// else the themed default. So animationDuration can shorten but never re-enable disabled motion.
+// Ring style: an OCCUPIED inactive dot shows a hollow occupied-colour ring OVERLAY on top of the dim dot (empty/active do not).
+function ringOverlayVisible(active, occupied, style) {
+    return style === OCCUPANCY.Ring && !active && occupied;
+}
+
+// InnerDot style: an OCCUPIED inactive dot shows a small occupied-colour dot OVERLAY in its centre (empty/active do not).
+function innerDotVisible(active, occupied, style) {
+    return style === OCCUPANCY.InnerDot && !active && occupied;
+}
+
+// Morph duration: reduce-animations (themeDuration <= 0) wins → 0; else the override, else the themed default.
 function effectiveDuration(requested, themeDuration) {
     if (themeDuration <= 0)
         return 0;
     return requested > 0 ? requested : themeDuration;
 }
 
-// Desktops per line for `rows` rows, mirroring KWin's grid: columns = ceil(count / rows). 0 for an
-// empty set; a missing/<1 `rows` is treated as 1 (single line).
+// Desktops per line, mirroring KWin's grid: columns = ceil(count / rows). 0 for empty; missing/<1 rows → 1.
 function gridColumns(count, rows) {
     if (count <= 0)
         return 0;
@@ -125,8 +158,7 @@ function gridColumns(count, rows) {
     return Math.ceil(count / r);
 }
 
-// Split `arr` into consecutive chunks of at most `size` — the row-major grid lines (last may be
-// shorter). [] for a null/empty input or size < 1 (transient no-desktops), so a Repeater is empty.
+// Split `arr` into row-major chunks of at most `size` (the grid lines; last may be shorter). [] for null/empty/size<1.
 function chunk(arr, size) {
     if (!arr || arr.length === 0 || !size || size < 1)
         return [];
@@ -136,9 +168,8 @@ function chunk(arr, size) {
     return out;
 }
 
-// Shallow element-wise equality for arrays of primitives — the compare-before-assign guard: a QML
-// var/object property notifies on EVERY reassignment to a fresh reference, so the aggregator keeps the
-// OLD reference when contents match to avoid waking downstream on an unchanged snapshot. Flat compare.
+// Shallow element-wise equality for arrays of primitives — the aggregator's compare-before-assign
+// guard (a QML var property notifies on every reassignment, even to an equal fresh array).
 function arraysShallowEqual(a, b) {
     if (a === b)
         return true;
@@ -150,18 +181,16 @@ function arraysShallowEqual(a, b) {
     return true;
 }
 
-// Total extent of one reflow line: `count` slots end to end with a uniform `gap`, exactly ONE the
-// active capsule (`activeExtent`), the rest dots. Position-independent. `dotSize` for count <= 0
-// (transient). Cross axis carries no capsule, so callers pass activeExtent == dotSize there.
+// Total extent of one reflow line: `count` slots with uniform `gap`, exactly ONE active capsule
+// (`activeExtent`), the rest dots. `dotSize` for count <= 0. Cross axis passes activeExtent == dotSize.
 function lineExtent(count, dotSize, gap, activeExtent) {
     if (count <= 0)
         return dotSize;
     return activeExtent + (count - 1) * (dotSize + gap);
 }
 
-// Dot size that makes ONE full line exactly fill `available` — the algebraic inverse of lineExtent.
-// POSITIVE_INFINITY when there is nothing to fit (non-positive available/perLine/denominator) so the
-// caller's min(natural, fit) keeps natural. Caller clamps to floor/natural, keeping this Kirigami-free.
+// Dot size that makes ONE full line exactly fill `available` — the inverse of lineExtent. +Infinity
+// when there's nothing to fit (so the caller's min(natural, fit) keeps natural). Caller clamps.
 function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
     if (available <= 0 || perLine <= 0)
         return Number.POSITIVE_INFINITY;
@@ -171,14 +200,12 @@ function fitDotSize(available, perLine, pillWidthFactor, spacingFactor) {
     return available / denom;
 }
 
-// Title count a tooltip lists before "…and N other windows": 4, but all 5 when exactly 5 (avoids a
-// wasted "…and 1 other window" line). Ported from the stock KDE pager.
+// Title count before "…and N other windows": 4, but all 5 when exactly 5 (stock KDE pager rule).
 function windowListMaximum(count) {
     return count === 5 ? 5 : 4;
 }
 
-// HTML-escape a window title for the rich-text tooltip (ported from the stock pager): the markup
-// chars and the no-break space, but NOT the ordinary space (it must still wrap). Null title → "".
+// HTML-escape a window title for the rich-text tooltip: markup chars + no-break space, NOT the ordinary space (must wrap).
 function sanitizeHtml(input) {
     var table = {
         ">": "&gt;",
@@ -196,8 +223,7 @@ function sanitizeHtml(input) {
 // Cap (chars) on a user-entered desktop name, so an absurd name stays sane in the tooltip/markup.
 var MAX_DESKTOP_NAME_LENGTH = 100;
 
-// Normalise a user-entered name before the KWin setDesktopName write (vs sanitizeHtml, which escapes
-// markup): trim, reject empty/whitespace → "" (no-op sentinel the QML caller guards on), cap length.
+// Normalise a user-entered name before the setDesktopName write: trim, empty/whitespace → "" (no-op sentinel), cap length.
 function sanitizeDesktopName(input) {
     var s = toStringOrEmpty(input).trim();
     if (s.length === 0)
@@ -205,17 +231,21 @@ function sanitizeDesktopName(input) {
     return s.length > MAX_DESKTOP_NAME_LENGTH ? s.slice(0, MAX_DESKTOP_NAME_LENGTH) : s;
 }
 
-// Tooltip membership: a real window (isWindow) that is on all desktops or whose `desktops` lists uuid.
-// Null window / missing `desktops` → false (guards transient model state).
+// Does `window`'s own `desktops` list name `uuid`? The membership primitive shared by the tooltip and
+// occupancy predicates below (each adds its own on-all/skipPager handling). Missing list → false.
+function windowListsDesktop(window, uuid) {
+    return !!(window.desktops && window.desktops.indexOf(uuid) !== -1);
+}
+
+// Tooltip membership: a real window that is on-all or whose `desktops` lists uuid. Null/missing → false.
 function windowIsOnDesktop(window, uuid) {
     if (!window || !window.isWindow)
         return false;
-    return !!(window.onAll || (window.desktops && window.desktops.indexOf(uuid) !== -1));
+    return !!(window.onAll || windowListsDesktop(window, uuid));
 }
 
 // Group a flat window snapshot into per-desktop { visible:[title…], minimized:[title…] }, index-aligned
-// with `desktopIds`, in model order. Titles stay RAW — i18n "Untitled" + HTML escaping happen in
-// main.qml's formatter, keeping this headless. Transient guards: null windows → empty entries; null ids → [].
+// with `desktopIds`. Titles stay RAW (i18n + HTML happen in main.qml). Null windows → empty; null ids → [].
 function groupWindowsByDesktop(windows, desktopIds) {
     if (!desktopIds || desktopIds.length === 0)
         return [];
@@ -240,22 +270,22 @@ function groupWindowsByDesktop(windows, desktopIds) {
 }
 
 // Dynamic workspaces (GNOME-style, default OFF): the PURE decision layer keeping one empty trailing
-// desktop — main.qml dispatches the single add/remove these return (the read/write split). See CLAUDE.md.
+// desktop — main.qml dispatches the single add/remove these return.
 
-// Does `window` make a desktop NON-EMPTY for dynamic-workspace purposes? Real window only; UNLIKE
-// windowIsOnDesktop, an on-all-desktops or skipPager window does NOT count (it would pin every desktop
-// occupied). MINIMIZED windows DO count (still occupy their desktop — GNOME + the KWin scripts agree).
+// Does `window` make a desktop NON-EMPTY for dynamic workspaces? Real window only; UNLIKE
+// windowIsOnDesktop, on-all/skipPager do NOT count (would pin every desktop); minimized DO count.
 function windowOccupiesDesktop(window, uuid) {
     if (!window || !window.isWindow)
         return false;
     if (window.onAll || window.skipPager)
         return false;
-    return !!(window.desktops && window.desktops.indexOf(uuid) !== -1);
+    return windowListsDesktop(window, uuid);
 }
 
-// Reduce a window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`.
-// Same transient guards as groupWindowsByDesktop.
-function computeDesktopOccupancy(windows, desktopIds) {
+// Reduce a window snapshot to a per-desktop occupancy boolean[], index-aligned with `desktopIds`:
+// each entry is true when ANY window satisfies the `occupies(window, uuid)` predicate. Null windows →
+// all-false; null/empty ids → []. The shared scaffold for the global and per-screen reducers below.
+function foldDesktopOccupancy(windows, desktopIds, occupies) {
     if (!desktopIds || desktopIds.length === 0)
         return [];
     var wins = windows || [];
@@ -264,7 +294,7 @@ function computeDesktopOccupancy(windows, desktopIds) {
         var uuid = desktopIds[d];
         var occupied = false;
         for (var i = 0; i < wins.length; i++) {
-            if (windowOccupiesDesktop(wins[i], uuid)) {
+            if (occupies(wins[i], uuid)) {
                 occupied = true;
                 break;
             }
@@ -274,10 +304,48 @@ function computeDesktopOccupancy(windows, desktopIds) {
     return out;
 }
 
-// The SINGLE dynamic-workspace action, or null for "leave alone" (one per call, so reactive
-// re-triggering converges to one trailing empty): 0 trailing empties → add; >=2 → remove the LAST
-// (re-trigger trims the rest); else null. Only the trailing run is managed; middle empties left alone.
-// Every transient frame is a no-op (null/empty arrays, or occupancy.length !== desktopIds.length).
+// Global (screen-agnostic) per-desktop occupancy boolean[], index-aligned with `desktopIds`.
+function computeDesktopOccupancy(windows, desktopIds) {
+    return foldDesktopOccupancy(windows, desktopIds, windowOccupiesDesktop);
+}
+
+// A usable screen rect: present with a positive size. A null/zero rect means "don't know" → callers
+// fall back to GLOBAL (screen-agnostic) occupancy rather than hiding windows (robustness.md).
+function isValidScreenRect(r) {
+    return !!r && r.width > 0 && r.height > 0;
+}
+
+// Per-screen occupancy (Plasma 6.7 "switch desktops independently per screen"): a window only marks a
+// desktop occupied on the pager whose monitor it is physically on. Extends windowOccupiesDesktop with a
+// screen-ORIGIN match (each output has a unique top-left; width/height can differ between the window's
+// reported screen rect and the pager's under per-output scaling, so compare (x,y) only — integers, exact).
+// NEVER drops a window: an unknown target rect (pager not placed) OR an unknown own screen (e.g. a window
+// with no geometry) counts everywhere, degrading to the global behaviour.
+function windowOccupiesDesktopOnScreen(window, uuid, screenRect) {
+    if (!windowOccupiesDesktop(window, uuid))
+        return false;
+    if (!isValidScreenRect(screenRect))
+        return true;
+    var ws = window.screen;
+    if (!isValidScreenRect(ws))
+        return true;
+    return ws.x === screenRect.x && ws.y === screenRect.y;
+}
+
+// Per-desktop occupancy boolean[] for ONE pager's screen, index-aligned with `desktopIds`. An unknown
+// `screenRect` delegates to computeDesktopOccupancy → the byte-identical GLOBAL array, so single-monitor
+// setups and pre-placement frames behave exactly as before (no per-screen difference).
+function computeDesktopOccupancyForScreen(windows, desktopIds, screenRect) {
+    if (!isValidScreenRect(screenRect))
+        return computeDesktopOccupancy(windows, desktopIds);
+    return foldDesktopOccupancy(windows, desktopIds, function (w, uuid) {
+        return windowOccupiesDesktopOnScreen(w, uuid, screenRect);
+    });
+}
+
+// The SINGLE dynamic-workspace action, or null (one per call → re-triggering converges to one trailing
+// empty): 0 trailing empties → add; >=2 → remove the LAST; else null. Only the trailing run is managed.
+// Transient frames no-op (null/empty arrays, or occupancy.length !== desktopIds.length).
 function dynamicWorkspacePlan(occupancy, desktopIds) {
     if (!occupancy || !desktopIds)
         return null;
@@ -296,8 +364,7 @@ function dynamicWorkspacePlan(occupancy, desktopIds) {
     return null;
 }
 
-// Name for an auto-created dynamic desktop: "<base> <number>". `fallback` is the i18n default passed
-// in from main.qml (keeps this i18n-free); NEVER empty — KWin silently drops createDesktop on an empty name.
+// Name for an auto-created desktop: "<base> <number>". NEVER empty — KWin silently drops createDesktop on an empty name.
 function formatDynamicDesktopName(prefix, number, fallback) {
     var base = sanitizeDesktopName(prefix);
     if (base === "")
@@ -307,9 +374,8 @@ function formatDynamicDesktopName(prefix, number, fallback) {
     return base + " " + number;
 }
 
-// Elect the single dynamic-workspace "writer" among this plasmashell's pager instances: the ENABLED
-// instance with the smallest coordinator token (first-registered wins; -1 when none enabled). Why:
-// the desktop SET is global, so without one writer two pagers both create on the same fill → a flash.
+// Elect the single dynamic-workspace "writer" among the pager instances: the ENABLED instance with the
+// smallest coordinator token (-1 when none enabled). Without it two pagers double-create on a fill → flash.
 function electDynamicWriter(registry) {
     if (!registry)
         return -1;
@@ -324,9 +390,8 @@ function electDynamicWriter(registry) {
     return winner;
 }
 
-// Should a TasksModel dataChanged(…, roles) trigger a tooltip rebuild? KWin emits dataChanged for
-// high-frequency roles the rebuild never reads — notably IsActive on EVERY focus change — so only a
-// change to a relevant role rebuilds. An empty/absent `changedRoles` is Qt's "ALL changed" → rebuild.
+// Should a TasksModel dataChanged(…, roles) trigger a rebuild? Only when a relevant role changed —
+// skips the high-frequency IsActive focus churn. Empty/absent `changedRoles` is Qt's "all changed" → yes.
 function dataChangeAffectsRoles(changedRoles, relevantRoles) {
     if (!changedRoles || changedRoles.length === 0)
         return true;
@@ -337,20 +402,24 @@ function dataChangeAffectsRoles(changedRoles, relevantRoles) {
 }
 
 /*
- * KWin DBus call SHAPES. Each builder returns a plain { service, path, iface, member, args }, or null
- * when a robustness guard trips. main.qml maps each arg { t, v } to the DBus.* constructor (t: "s"
- * string, "u" uint32, "i" int32, "v" variant). The exact strings/types matter: a wrong one fails
- * SILENTLY (KWin drops the call, no error) — the most upgrade-fragile thing here, so it goes under
- * `make check`. See CLAUDE.md "KWin DBus call SHAPES".
+ * KWin DBus call SHAPES. Each builder returns { service, path, iface, member, args } (or null on a
+ * robustness guard); main.qml maps each arg { t, v } to a DBus.* constructor. The exact strings/types
+ * matter — a wrong one fails SILENTLY (KWin drops the call), so these are unit-tested.
  */
 var KWIN_SERVICE = "org.kde.KWin";
 var KWIN_VDM_PATH = "/VirtualDesktopManager";
 var KWIN_VDM_IFACE = "org.kde.KWin.VirtualDesktopManager";
 var DBUS_PROPERTIES_IFACE = "org.freedesktop.DBus.Properties";
 
-// Shared envelope for the createDesktop/removeDesktop/setDesktopName writes (all on KWIN_VDM_IFACE).
-// switchSpec is NOT built through this (different iface/member). Key order is load-bearing — tst_logic
-// compares specs via JSON.stringify (insertion-order sensitive).
+// kglobalaccel's public Component interface: invokeShortcut(uniqueName) TOGGLES a KWin global shortcut.
+// Used by the pill-click action — public/stable and avoids the version-suffixed effect DBus paths (e.g.
+// /org/kde/KWin/Effect/Overview/<ver>) that break across KWin upgrades. Same session bus as KWin.
+var KGLOBALACCEL_SERVICE = "org.kde.kglobalaccel";
+var KGLOBALACCEL_KWIN_PATH = "/component/kwin";
+var KGLOBALACCEL_COMPONENT_IFACE = "org.kde.kglobalaccel.Component";
+
+// Shared envelope for the createDesktop/removeDesktop/setDesktopName writes (all on KWIN_VDM_IFACE;
+// switchSpec differs). Key order is load-bearing — tst_logic compares specs via JSON.stringify.
 function vdmCall(member, args) {
     return {
         service: KWIN_SERVICE,
@@ -361,9 +430,8 @@ function vdmCall(member, args) {
     };
 }
 
-// Switch the (global) current desktop to `uuid` via the VirtualDesktopManager "current" property.
-// null for a falsy uuid (transient). The variant arg wraps a PLAIN string (main.qml's "v" case), never
-// a wrapped DBus.string — a gadget-wrapped variant is silently rejected.
+// Switch the (global) current desktop to `uuid` via the VirtualDesktopManager "current" property (null
+// for a falsy uuid). The variant arg wraps a PLAIN string — a wrapped DBus.string is silently rejected.
 function switchSpec(uuid) {
     if (!uuid)
         return null;
@@ -376,25 +444,52 @@ function switchSpec(uuid) {
     };
 }
 
-// Append a new desktop at `position` (createDesktop(uint32, string)). `name` is already i18n'd by
-// main.qml; `position|0` coerces a transient undefined/NaN count to 0.
+// Append a new desktop at `position` (createDesktop(uint32, string)). `position|0` coerces a transient undefined/NaN to 0.
 function addSpec(position, name) {
     return vdmCall("createDesktop", [{ t: "u", v: position | 0 }, { t: "s", v: String(name) }]);
 }
 
-// Remove the desktop `uuid` (removeDesktop(string)). null for a falsy uuid OR count <= 1 — the
-// never-remove-last rule via canRemoveDesktop (one source of truth).
+// Remove the desktop `uuid` (removeDesktop(string)). null for a falsy uuid OR count <= 1 (never-remove-last).
 function removeSpec(uuid, count) {
     if (!uuid || !canRemoveDesktop(count))
         return null;
     return vdmCall("removeDesktop", [{ t: "s", v: uuid }]);
 }
 
-// Rename `uuid` to `name` (setDesktopName(string, string)). The name runs through sanitizeDesktopName;
-// null for a falsy uuid or empty sanitized name, so a blank rename is a tested no-op.
+// Rename `uuid` to `name` (setDesktopName(string, string)) via sanitizeDesktopName; null for falsy uuid / empty name.
 function renameSpec(uuid, name) {
     var clean = sanitizeDesktopName(name);
     if (!uuid || !clean)
         return null;
     return vdmCall("setDesktopName", [{ t: "s", v: uuid }, { t: "s", v: clean }]);
+}
+
+// Invoke (toggle) a KWin global shortcut by its unique name (invokeShortcut(string)); null for a falsy
+// name. Key order is load-bearing — tst_logic compares specs via JSON.stringify.
+function invokeShortcutSpec(name) {
+    if (!name)
+        return null;
+    return {
+        service: KGLOBALACCEL_SERVICE,
+        path: KGLOBALACCEL_KWIN_PATH,
+        iface: KGLOBALACCEL_COMPONENT_IFACE,
+        member: "invokeShortcut",
+        args: [{ t: "s", v: name }]
+    };
+}
+
+// Map a pill-click action (PILL_CLICK_ACTION) to its KWin shortcut spec, or null for None / any unknown
+// value (a safe no-op). The shortcut UNIQUE NAMES are DBus identifiers (verified live) — NEVER i18n-wrapped,
+// which is why they live here in the i18n-free logic tier. KWin's name for the "Grid" option is "Grid View".
+function pillClickSpec(action) {
+    switch (action) {
+    case PILL_CLICK_ACTION.ShowDesktop:
+        return invokeShortcutSpec("Show Desktop");
+    case PILL_CLICK_ACTION.Overview:
+        return invokeShortcutSpec("Overview");
+    case PILL_CLICK_ACTION.Grid:
+        return invokeShortcutSpec("Grid View");
+    default:
+        return null;
+    }
 }

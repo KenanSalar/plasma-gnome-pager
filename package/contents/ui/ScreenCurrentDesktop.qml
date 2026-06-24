@@ -4,10 +4,9 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Resolves the current desktop FOR ONE SCREEN (Plasma 6.7 per-output), extracted from WorkspaceIndicator
- * (unit-tested by tst_screencurrentdesktop). currentDesktopByScreenName is a METHOD + change SIGNAL, not a
- * notifying property, so currentDesktop is recomputed imperatively (a plain binding evaluates once). The
- * prefer-per-screen / fall-back-to-global decision is pure Logic.resolveCurrentDesktop. See CLAUDE.md.
+ * Resolves the current desktop FOR ONE SCREEN (Plasma 6.7 per-output; unit-tested by tst_screencurrentdesktop).
+ * currentDesktopByScreenName is a METHOD + SIGNAL, not a notifying property, so currentDesktop is recomputed
+ * imperatively (a plain binding evaluates once); the prefer-per-screen decision is Logic.resolveCurrentDesktop.
  */
 pragma ComponentBehavior: Bound
 
@@ -34,19 +33,25 @@ Item {
         resolver.currentDesktop = Logic.resolveCurrentDesktop(perScreen, globalCurrent);
     }
 
-    // Recompute on every external change (global current, this screen's current, a desktop add/remove, the
-    // source swapping in, or this panel moving outputs). "Bind, don't cache."
+    // Recompute on every external change ("bind, don't cache"). The always-present signals keep their own
+    // block (no ignoreUnknownSignals) so a typo here still warns.
     Connections {
         target: resolver.virtualDesktopInfo
         function onCurrentDesktopChanged() {
             resolver.updateCurrentDesktop();
         }
+        function onDesktopIdsChanged() {
+            resolver.updateCurrentDesktop();
+        }
+    }
+    // The per-screen current signal is Plasma 6.7+ only; on 6.5/6.6 it is absent, so ignoreUnknownSignals
+    // keeps the Connections quiet — the resolver already degrades to the global current (typeof guard above).
+    Connections {
+        target: resolver.virtualDesktopInfo
+        ignoreUnknownSignals: true
         function onCurrentDesktopForScreenChanged(screenName) {
             if (screenName === resolver.screenName)
                 resolver.updateCurrentDesktop();
-        }
-        function onDesktopIdsChanged() {
-            resolver.updateCurrentDesktop();
         }
     }
     onScreenNameChanged: resolver.updateCurrentDesktop()
