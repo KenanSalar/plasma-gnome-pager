@@ -75,6 +75,12 @@ Item {
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
 
+    // Occupied-dot indicator: when showOccupancy, an occupied dot (desktopOccupancy[globalIndex]) is marked per occupancyStyle.
+    property bool showOccupancy: Logic.DEFAULTS.showOccupancy
+    property var desktopOccupancy: []                              // per-desktop bool[], index-aligned with desktopIds (from main.qml)
+    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity  // Opacity-style brighten target
+    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle     // Opacity/Tint/InnerDot/Ring (Logic.OCCUPANCY)
+
     // The sizing engine: requests + grid shape + live geometry → effective sizes + extents (forwarded below).
     IndicatorMetrics {
         id: metrics
@@ -107,6 +113,7 @@ Item {
     property bool followThemeColors: Logic.DEFAULTS.followThemeColors
     property color activeColor: Kirigami.Theme.highlightColor
     property color inactiveColor: Kirigami.Theme.textColor
+    property color occupiedColor: Kirigami.Theme.highlightColor   // occupied-marker colour (custom; theme accent when following the scheme)
     property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme
 
     // Raised on a click or scroll; main.qml turns the UUID into a KWin switch.
@@ -207,9 +214,14 @@ Item {
                         pillWidthFactor: indicator.pillWidthFactor
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
+                        // Gating on showOccupancy here keeps a stale/short desktopOccupancy array harmless when the feature is off.
+                        occupied: indicator.showOccupancy && (indicator.desktopOccupancy[workspaceDot.globalIndex] ?? false)
+                        occupiedOpacity: indicator.occupiedOpacity
+                        occupancyStyle: indicator.occupancyStyle
                         followThemeColors: indicator.followThemeColors
                         activeColor: indicator.activeColor
                         inactiveColor: indicator.inactiveColor
+                        occupiedColor: indicator.occupiedColor
                         animationDuration: indicator.animationDuration
                         active: indicator.currentDesktop === workspaceDot.modelData
                         animate: indicator.animate

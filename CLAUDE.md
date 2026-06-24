@@ -143,9 +143,22 @@ axis — so the ends keep stadium-round in both orientations and at any pill thi
 When KWin's grid has more than one row, the strip is several such reflow lines stacked along the
 cross axis (mirroring `VirtualDesktopInfo.desktopLayoutRows`) — see the multi-row gotcha below.
 Hover brighten is a *separate* inactive-only state driven by
-`containsMouse`; `logic.js::dotOpacity(active, hovered, inactiveOpacity, hoverOpacity)` returns
-`1.0` for the active capsule and `hovered ? hoverOpacity : inactiveOpacity` otherwise (so hovering
-the active capsule does nothing). This replaced an earlier *sliding overlay pill* — which could not
+`containsMouse`; the dot BODY's opacity is resolved by
+`logic.js::dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpacity, occupiedOpacity)`
+(`1.0` active → `hoverOpacity` → `occupiedOpacity` only in the **Filled** occupancy style → else
+`inactiveOpacity`) and its colour by `logic.js::dotColor(active, occupied, style, activeC, inactiveC,
+occupiedC)` (active colour → the occupied colour in the **Filled** style → else inactive). The
+**occupied-dot indicator** (config `showOccupancy`, default OFF) marks desktops that hold windows,
+reusing the same `desktopOccupancy` bool[] the dynamic-workspaces controller consumes (no new data
+source/DBus), index-aligned with `desktopIds` and gated on `showOccupancy` in the indicator so a stale
+array is harmless when off. `occupancyStyle` (`Logic.OCCUPANCY`: **Filled** / **InnerDot** / **Ring**,
+mirrors the `main.xml` index + the `ConfigAppearance` combo) picks HOW: **Filled** recolours the dot
+body to the occupied colour at `occupiedOpacity`; **InnerDot** and **Ring** keep the normal dim dot and
+draw an OVERLAY on top (a centred dot / a hollow rim ring) at `occupiedOpacity` via
+`logic.js::{innerDotVisible,ringOverlayVisible}` — both `WorkspaceDot` sibling Rectangles centred on the
+capsule with independent opacity. The marker colour is `occupiedColor` (its own config key; the theme
+accent when `followThemeColors`), so all three styles share one colour + the one `occupiedOpacity`
+slider. This replaced an earlier *sliding overlay pill* — which could not
 give GNOME's uniform spacing (a wide overlay needs clearance, forcing wide dot gaps) — and matches
 how GNOME and the KDE `compact_pager` actually work.
 
@@ -532,8 +545,11 @@ tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox
 `ConfigGeneral` `TextField`, `"" = the i18n default "Desktop"`; also globally synced), `animationDuration`;
 appearance — `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
-thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `followThemeColors`, `activeColor`,
-`inactiveColor`. The settings UI is two files that must agree with the schema:
+thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `showOccupancy` (occupied-dot indicator,
+default off — mark desktops that hold windows) + `occupiedOpacity` (marker opacity, all styles) +
+`occupancyStyle` (Filled/InnerDot/Ring, a `ConfigAppearance` combo whose index mirrors `Logic.OCCUPANCY`),
+`followThemeColors`, `activeColor`, `inactiveColor`, `occupiedColor` (the occupied-marker colour, used
+when not following the theme). The settings UI is two files that must agree with the schema:
 - `package/contents/config/config.qml` — `ConfigModel` listing the settings categories
   (Behavior, Appearance).
 - `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),

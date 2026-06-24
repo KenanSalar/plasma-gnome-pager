@@ -27,13 +27,17 @@ Item {
     readonly property real pillWidth: dot.pillSize * dot.pillWidthFactor
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity
+    property bool occupied: false                              // this desktop holds windows (showOccupancy feature; always false when off)
+    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity   // opacity of the occupied marker (all styles)
+    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle      // how an occupied dot is marked (Logic.OCCUPANCY)
     property string desktopName: ""                            // tooltip mainText
     property bool showTooltips: Logic.DEFAULTS.showTooltips
     property string tooltipText: ""                            // tooltip subText: HTML window list, pre-formatted by main.qml (empty = name-only)
-    // Colours follow the scheme when followThemeColors (default), else activeColor/inactiveColor (Logic.dotColor).
+    // Colours follow the scheme when followThemeColors (default), else the custom activeColor/inactiveColor/occupiedColor.
     property bool followThemeColors: Logic.DEFAULTS.followThemeColors
     property color activeColor: Kirigami.Theme.highlightColor
     property color inactiveColor: Kirigami.Theme.textColor
+    property color occupiedColor: Kirigami.Theme.highlightColor   // occupied marker (custom; theme accent when following the scheme)
     property int animationDuration: Logic.DEFAULTS.animationDuration  // ms; 0 = follow theme (resolved by effectiveDuration)
     property bool vertical: false   // major axis: false = horizontal panel (widen), true = vertical (grow tall)
     property bool animate: false    // morph gate, latched by the indicator after first valid placement (no grow-in on reload)
@@ -41,6 +45,14 @@ Item {
     // Extent along the MAJOR (strip) axis and the CROSS axis: capsule when active, dot otherwise.
     readonly property real longExtent: dot.active ? dot.pillWidth : dot.dotSize
     readonly property real crossExtent: dot.active ? dot.pillSize : dot.dotSize
+
+    // Resolved colours: the theme accent/text when following the scheme, else the custom config colours.
+    readonly property color resolvedActive: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.activeColor
+    readonly property color resolvedInactive: dot.followThemeColors ? Kirigami.Theme.textColor : dot.inactiveColor
+    readonly property color resolvedOccupied: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.occupiedColor
+    // Occupied-indicator overlay flags (showOccupancy on) — both drawn ON TOP of the normal dim dot.
+    readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.occupancyStyle) // InnerDot style: occupied → centre dot
+    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle)  // Ring style: occupied → ring overlay
 
     // Morph duration: configured value, else themed default, 0 when "reduce animations" is on. One source for the Behaviors below.
     readonly property int effectiveDuration: Logic.effectiveDuration(dot.animationDuration, Kirigami.Units.longDuration)
@@ -78,8 +90,9 @@ Item {
             height: dot.vertical ? dot.longExtent : dot.crossExtent
             radius: Math.min(capsule.width, capsule.height) / 2
             anchors.centerIn: parent
-            color: Logic.dotColor(dot.active, dot.followThemeColors, Kirigami.Theme.highlightColor, Kirigami.Theme.textColor, dot.activeColor, dot.inactiveColor)
-            opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.inactiveOpacity, dot.hoverOpacity)
+            // The dot body: the active capsule, a Filled-occupied dot (occupied colour), or the normal dim dot (InnerDot/Ring add an overlay on top).
+            color: Logic.dotColor(dot.active, dot.occupied, dot.occupancyStyle, dot.resolvedActive, dot.resolvedInactive, dot.resolvedOccupied)
+            opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.occupied, dot.occupancyStyle, dot.inactiveOpacity, dot.hoverOpacity, dot.occupiedOpacity)
 
             // Morph, gated by morphEnabled. The major axis always morphs; the cross axis too when pillSize != dotSize (so width and/or height fire).
             Behavior on width {
@@ -108,6 +121,34 @@ Item {
                     duration: dot.effectiveDuration
                 }
             }
+        }
+
+        // InnerDot style: a small occupied-colour dot centred in an occupied dot. A sibling of the capsule (not a
+        // child) so its opacity is independent of the dim outer dot; centred on the CAPSULE itself for exact placement.
+        Rectangle {
+            id: innerDot
+            anchors.centerIn: capsule
+            visible: dot.showInnerDot
+            width: dot.dotSize * 0.45
+            height: width
+            radius: width / 2
+            color: dot.resolvedOccupied
+            opacity: dot.occupiedOpacity   // the marker uses the occupied-opacity slider, like the other styles
+        }
+
+        // Ring style: a hollow occupied-colour ring drawn ON TOP of the dim dot (an outline at the dot's rim,
+        // so the dot background stays). A sibling of the capsule with its own opacity; centred on the capsule.
+        Rectangle {
+            id: ringOverlay
+            anchors.centerIn: capsule
+            visible: dot.showRing
+            width: dot.dotSize
+            height: width
+            radius: width / 2
+            color: "transparent"
+            border.width: Math.max(1, Math.round(dot.dotSize * 0.18))
+            border.color: dot.resolvedOccupied
+            opacity: dot.occupiedOpacity   // the marker uses the occupied-opacity slider, like the other styles
         }
 
         // Click/hover target. acceptedButtons stays LeftButton (default) so a right-click falls

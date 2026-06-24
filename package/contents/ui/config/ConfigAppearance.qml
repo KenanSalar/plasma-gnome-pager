@@ -22,9 +22,13 @@ ConfigPageBase {
     property alias cfg_pillWidthFactor: pillWidthFactor.value
     property alias cfg_inactiveOpacity: inactiveOpacity.value
     property alias cfg_hoverOpacity: hoverOpacity.value
+    property alias cfg_showOccupancy: showOccupancy.checked
+    property alias cfg_occupancyStyle: occupancyStyle.currentIndex
+    property alias cfg_occupiedOpacity: occupiedOpacity.value
     property alias cfg_followThemeColors: followThemeColors.checked
     property alias cfg_activeColor: activeColor.color
     property alias cfg_inactiveColor: inactiveColor.color
+    property alias cfg_occupiedColor: occupiedColor.color
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property int cfg_dotSizeDefault
@@ -33,9 +37,13 @@ ConfigPageBase {
     property real cfg_pillWidthFactorDefault
     property real cfg_inactiveOpacityDefault
     property real cfg_hoverOpacityDefault
+    property bool cfg_showOccupancyDefault
+    property int cfg_occupancyStyleDefault
+    property real cfg_occupiedOpacityDefault
     property bool cfg_followThemeColorsDefault
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
+    property color cfg_occupiedColorDefault
 
     // This page's keys + compare kind; drives isModified + Defaults reset via ConfigPageBase (reals within epsilon, colours via Qt.colorEqual).
     readonly property var configKeys: [
@@ -45,9 +53,13 @@ ConfigPageBase {
         { n: "pillWidthFactor", t: "real" },
         { n: "inactiveOpacity", t: "real" },
         { n: "hoverOpacity", t: "real" },
+        { n: "showOccupancy", t: "bool" },
+        { n: "occupancyStyle", t: "int" },
+        { n: "occupiedOpacity", t: "real" },
         { n: "followThemeColors", t: "bool" },
         { n: "activeColor", t: "color" },
-        { n: "inactiveColor", t: "color" }
+        { n: "inactiveColor", t: "color" },
+        { n: "occupiedColor", t: "color" }
     ]
 
     // True when any key differs from its default (gates the base's Defaults action).
@@ -113,6 +125,28 @@ ConfigPageBase {
             format: v => Math.round(v * 100) + "%"
         }
 
+        QQC2.CheckBox {
+            id: showOccupancy
+            Kirigami.FormData.label: i18n("Occupied desktops:")
+            text: i18n("Highlight desktops with open windows")
+        }
+        QQC2.ComboBox {
+            id: occupancyStyle
+            Kirigami.FormData.label: i18n("Indicator style:")
+            enabled: showOccupancy.checked
+            // Order MUST match Logic.OCCUPANCY / main.xml occupancyStyle (currentIndex is stored as the index).
+            model: [i18n("Filled"), i18n("Inner dot"), i18n("Hollow ring")]
+        }
+        ConfigSlider {
+            id: occupiedOpacity
+            label: i18n("Occupied opacity:")
+            enabled: showOccupancy.checked   // every indicator style uses the occupied-marker opacity
+            from: 0.0
+            to: 1.0
+            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
+            format: v => Math.round(v * 100) + "%"
+        }
+
         Item {
             Kirigami.FormData.isSection: true   // a little vertical breathing room before the colours
         }
@@ -132,6 +166,12 @@ ConfigPageBase {
             id: inactiveColor
             Kirigami.FormData.label: i18n("Inactive desktop:")
             enabled: !followThemeColors.checked
+            showAlphaChannel: false
+        }
+        KQuickControls.ColorButton {
+            id: occupiedColor
+            Kirigami.FormData.label: i18n("Occupied desktop:")
+            enabled: !followThemeColors.checked   // the occupied marker; theme accent is used while following the scheme
             showAlphaChannel: false
         }
     }

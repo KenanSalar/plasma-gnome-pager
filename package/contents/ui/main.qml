@@ -55,9 +55,15 @@ PlasmoidItem {
     readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? Logic.DEFAULTS.pillWidthFactor
     readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? Logic.DEFAULTS.inactiveOpacity
     readonly property real hoverOpacity: Plasmoid.configuration.hoverOpacity ?? Logic.DEFAULTS.hoverOpacity
+    // Occupied-dot indicator (default OFF): mark desktops that hold windows (reuses the desktopOccupancy snapshot below).
+    // occupancyStyle picks HOW (Opacity/Tint/InnerDot/Ring — see Logic.OCCUPANCY); occupiedOpacity applies to the Opacity style.
+    readonly property bool showOccupancy: Plasmoid.configuration.showOccupancy ?? Logic.DEFAULTS.showOccupancy
+    readonly property real occupiedOpacity: Plasmoid.configuration.occupiedOpacity ?? Logic.DEFAULTS.occupiedOpacity
+    readonly property int occupancyStyle: Plasmoid.configuration.occupancyStyle ?? Logic.DEFAULTS.occupancyStyle
     readonly property bool followThemeColors: Plasmoid.configuration.followThemeColors ?? Logic.DEFAULTS.followThemeColors
     readonly property color activeColor: Plasmoid.configuration.activeColor ?? Logic.DEFAULTS.activeColor
     readonly property color inactiveColor: Plasmoid.configuration.inactiveColor ?? Logic.DEFAULTS.inactiveColor
+    readonly property color occupiedColor: Plasmoid.configuration.occupiedColor ?? Logic.DEFAULTS.occupiedColor
 
     // A pager renders inline. Plasma instantiates NO representation unless a fullRepresentation exists, so
     // the dot strip IS the full representation, forced inline via preferredRepresentation.
@@ -78,9 +84,14 @@ PlasmoidItem {
         pillWidthFactor: root.pillWidthFactor
         inactiveOpacity: root.inactiveOpacity
         hoverOpacity: root.hoverOpacity
+        showOccupancy: root.showOccupancy
+        desktopOccupancy: root.desktopOccupancy
+        occupiedOpacity: root.occupiedOpacity
+        occupancyStyle: root.occupancyStyle
         followThemeColors: root.followThemeColors
         activeColor: root.activeColor
         inactiveColor: root.inactiveColor
+        occupiedColor: root.occupiedColor
         animationDuration: root.animationDuration
 
         onSwitchRequested: uuid => root.switchTo(uuid)
@@ -98,10 +109,10 @@ PlasmoidItem {
     // Per-desktop occupancy boolean[] from the SAME snapshot, consumed by the dynamic-workspaces controller. Empty [] when the Loader is inactive.
     readonly property var desktopOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopOccupancy : []
 
-    // The window-list machinery lives behind a Loader (zero cost when unused). Needed by the tooltip list OR dynamic workspaces — gate is the OR.
+    // The window-list machinery lives behind a Loader (zero cost when unused). Needed by the tooltip list, dynamic workspaces, OR the occupied-dot indicator — gate is the OR.
     Loader {
         id: tooltipLoader
-        active: (root.showTooltips && root.showWindowList) || root.dynamicWorkspaces
+        active: (root.showTooltips && root.showWindowList) || root.dynamicWorkspaces || root.showOccupancy
         sourceComponent: aggregatorComponent
     }
     Component {

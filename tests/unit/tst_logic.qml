@@ -142,40 +142,79 @@ TestCase {
         fuzzyCompare(r.remainder, data.rem, 0.001, data.tag + " remainder");
     }
 
-    // --- dotOpacity: active is full strength; hover brightens inactive only ---------
+    // --- dotOpacity: active > hover > occupied-marker(Filled/Ring) > dim (empty, or the InnerDot body) ---
     function test_dotOpacity_data() {
+        var F = Logic.OCCUPANCY.Filled;
         return [
-            { tag: "idle", active: false, hovered: false, exp: 0.45 },
-            { tag: "hovered", active: false, hovered: true, exp: 0.8 },
-            { tag: "active-not-hovered", active: true, hovered: false, exp: 1.0 },
-            { tag: "active-and-hovered", active: true, hovered: true, exp: 1.0 }
+            { tag: "idle", active: false, hovered: false, occupied: false, style: F, exp: 0.45 },
+            { tag: "hovered", active: false, hovered: true, occupied: false, style: F, exp: 0.8 },
+            { tag: "active-not-hovered", active: true, hovered: false, occupied: false, style: F, exp: 1.0 },
+            { tag: "active-and-hovered", active: true, hovered: true, occupied: false, style: F, exp: 1.0 },
+            { tag: "occupied-filled", active: false, hovered: false, occupied: true, style: F, exp: 0.7 },
+            { tag: "occupied-and-hovered", active: false, hovered: true, occupied: true, style: F, exp: 0.8 },
+            { tag: "occupied-and-active", active: true, hovered: false, occupied: true, style: F, exp: 1.0 },
+            // InnerDot and Ring keep a DIM body — their markers are overlays that carry occupiedOpacity themselves.
+            { tag: "occupied-ring-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: 0.45 },
+            { tag: "occupied-innerdot-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: 0.45 }
         ];
     }
     function test_dotOpacity(data) {
-        fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, 0.45, 0.8), data.exp, 0.001, data.tag);
+        fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, data.occupied, data.style, 0.45, 0.8, 0.7), data.exp, 0.001, data.tag);
     }
 
-    // The opacities are parameters, not constants: a non-default inactive/hover pair flows through
-    // for the inactive states, while the active capsule is always 1.0 regardless of either argument.
+    // The opacities are parameters, not constants: a non-default inactive/hover/occupied triple flows
+    // through, and the tier order holds (active > hover > occupied-marker > dim).
     function test_dotOpacityCustomRatios() {
-        fuzzyCompare(Logic.dotOpacity(false, false, 0.2, 0.9), 0.2, 0.001, "idle uses the given inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, true, 0.2, 0.9), 0.9, 0.001, "hover uses the given hoverOpacity");
-        fuzzyCompare(Logic.dotOpacity(true, false, 0.2, 0.9), 1.0, 0.001, "active is full strength, ignoring inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(true, true, 0.2, 0.9), 1.0, 0.001, "active+hover is full strength, ignoring hoverOpacity");
+        var F = Logic.OCCUPANCY.Filled;
+        fuzzyCompare(Logic.dotOpacity(false, false, false, F, 0.2, 0.9, 0.6), 0.2, 0.001, "idle uses the given inactiveOpacity");
+        fuzzyCompare(Logic.dotOpacity(false, true, false, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover uses the given hoverOpacity");
+        fuzzyCompare(Logic.dotOpacity(false, false, true, F, 0.2, 0.9, 0.6), 0.6, 0.001, "occupied (Filled) uses occupiedOpacity");
+        fuzzyCompare(Logic.dotOpacity(false, true, true, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover beats occupied");
+        fuzzyCompare(Logic.dotOpacity(true, false, false, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active is full strength, ignoring inactiveOpacity");
+        fuzzyCompare(Logic.dotOpacity(true, true, true, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active beats hover and occupied");
+        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.Ring, 0.2, 0.9, 0.6), 0.2, 0.001, "Ring body stays dim (the ring overlay carries the opacity)");
+        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.InnerDot, 0.2, 0.9, 0.6), 0.2, 0.001, "InnerDot body stays dim (the inner dot carries the opacity)");
     }
 
-    // --- dotColor: follow the theme, or use custom colours (the 2×2 branch) ---------
-    // Distinct string sentinels stand in for the four colours so each branch is identifiable.
+    // --- dotColor: resolves the dot BODY colour from three pre-resolved colours (active / inactive / occupied) ---
+    // Distinct string sentinels stand in for the colours so each branch is identifiable.
     function test_dotColor_data() {
+        var F = Logic.OCCUPANCY.Filled;
         return [
-            { tag: "theme-active", active: true, follow: true, exp: "themeActive" },
-            { tag: "theme-inactive", active: false, follow: true, exp: "themeInactive" },
-            { tag: "custom-active", active: true, follow: false, exp: "customActive" },
-            { tag: "custom-inactive", active: false, follow: false, exp: "customInactive" }
+            { tag: "active", active: true, occupied: false, style: F, exp: "active" },
+            { tag: "empty-inactive", active: false, occupied: false, style: F, exp: "inactive" },
+            // Filled: the occupied dot BODY takes the occupied colour.
+            { tag: "filled-occupied", active: false, occupied: true, style: F, exp: "occupied" },
+            // InnerDot / Ring: the BODY stays the inactive colour (the marker is the inner dot / the border).
+            { tag: "innerdot-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: "inactive" },
+            { tag: "ring-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: "inactive" }
         ];
     }
     function test_dotColor(data) {
-        compare(Logic.dotColor(data.active, data.follow, "themeActive", "themeInactive", "customActive", "customInactive"), data.exp, data.tag);
+        compare(Logic.dotColor(data.active, data.occupied, data.style, "active", "inactive", "occupied"), data.exp, data.tag);
+    }
+
+    // --- occupancy styles: the shape predicates + the index mapping (mirrors main.xml / the combo order) ---
+    function test_occupancyConstants() {
+        compare(Logic.OCCUPANCY.Filled, 0, "Filled is index 0 (the default)");
+        compare(Logic.OCCUPANCY.InnerDot, 1, "InnerDot is index 1");
+        compare(Logic.OCCUPANCY.Ring, 2, "Ring is index 2");
+    }
+
+    // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring style shows the ring overlay.
+    function test_ringOverlayVisible() {
+        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring), "Ring + inactive + occupied → ring overlay");
+        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring), "Ring + empty → no overlay");
+        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring), "Ring + active → no overlay (it's the pill)");
+        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled), "non-Ring style → no ring overlay");
+    }
+
+    // innerDotVisible: ONLY an occupied inactive dot in the InnerDot style shows the centre dot.
+    function test_innerDotVisible() {
+        verify(Logic.innerDotVisible(false, true, Logic.OCCUPANCY.InnerDot), "InnerDot + inactive + occupied → centre dot");
+        verify(!Logic.innerDotVisible(false, false, Logic.OCCUPANCY.InnerDot), "InnerDot + empty → no centre dot");
+        verify(!Logic.innerDotVisible(true, true, Logic.OCCUPANCY.InnerDot), "InnerDot + active → no centre dot (it's the pill)");
+        verify(!Logic.innerDotVisible(false, true, Logic.OCCUPANCY.Ring), "non-InnerDot style → no centre dot");
     }
 
     // --- effectiveDuration: override vs themed default, reduce-animations always wins ---
@@ -738,9 +777,13 @@ TestCase {
             { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
             { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
+            { tag: "showOccupancy", key: "showOccupancy", exp: false },
+            { tag: "occupiedOpacity", key: "occupiedOpacity", exp: 0.7 },
+            { tag: "occupancyStyle", key: "occupancyStyle", exp: 0 },
             { tag: "followThemeColors", key: "followThemeColors", exp: true },
             { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
             { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
+            { tag: "occupiedColor", key: "occupiedColor", exp: "#3daee9" },
             { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
         ];
     }
@@ -762,9 +805,10 @@ TestCase {
         var expected = ["activeColor", "animationDuration", "dotSize", "dynamicNamePrefix",
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
-                        "inactiveOpacity", "invertScroll", "pillSize", "pillWidthFactor", "scrollWrap",
-                        "showTooltips", "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 20, "DEFAULTS has exactly 20 keys");
+                        "inactiveOpacity", "invertScroll", "occupancyStyle", "occupiedColor", "occupiedOpacity",
+                        "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
+                        "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
+        compare(keys.length, 24, "DEFAULTS has exactly 24 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 

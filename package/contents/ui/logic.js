@@ -30,11 +30,25 @@ var DEFAULTS = Object.freeze({
     pillWidthFactor: 3.5,        // pill length / pill thickness (aspect ratio)
     inactiveOpacity: 0.45,
     hoverOpacity: 0.8,
+    showOccupancy: false,        // mark the dots of desktops that hold windows
+    occupiedOpacity: 0.7,        // opacity of the occupied marker (all styles); empty < occupied < hover < active
+    occupancyStyle: 0,           // HOW an occupied dot is marked; see OCCUPANCY (0 = Filled, mirrors main.xml)
     followThemeColors: true,
     activeColor: "#3daee9",      // used only when followThemeColors is false
     inactiveColor: "#eff0f1",    // used only when followThemeColors is false
+    occupiedColor: "#3daee9",    // occupied-marker colour; used only when followThemeColors is false (else theme accent)
     wheelNotchDelta: 120         // angleDelta units per mouse notch (no schema entry)
 });
+
+// Occupied-dot indicator styles (showOccupancy on). The int values MIRROR the main.xml occupancyStyle
+// choices and the ConfigAppearance combo order, so a stored index always maps to the same style. Every
+// style marks the OCCUPIED dot using the occupied colour + occupiedOpacity; they differ only in shape:
+//   Filled   — the whole occupied dot is filled with the occupied colour.
+//   InnerDot — a small occupied-colour dot drawn on top of an otherwise-dim dot.
+//   Ring     — a hollow occupied-colour ring drawn on top of an otherwise-dim dot.
+// InnerDot and Ring keep the normal dim dot as their background and add an overlay marker; only Filled
+// recolours/brightens the dot body itself.
+var OCCUPANCY = Object.freeze({ Filled: 0, InnerDot: 1, Ring: 2 });
 
 // Coerce to string, mapping null/undefined to "". Shared by the sanitize* functions.
 function toStringOrEmpty(value) {
@@ -87,18 +101,39 @@ function accumulateWheel(accumulated, deltaY, threshold) {
     return { steps: steps, remainder: total - steps * t };
 }
 
-// Opacity: active capsule full (1.0); inactive dots dim to inactiveOpacity, brighten to hoverOpacity on hover.
-function dotOpacity(active, hovered, inactiveOpacity, hoverOpacity) {
+// Opacity of the DOT body (brightest first): active capsule full (1.0); hover brightens to hoverOpacity;
+// a Filled-style occupied dot (whose body IS the marker) brightens to occupiedOpacity; else inactiveOpacity.
+// InnerDot and Ring keep a dim body — their markers are OVERLAYS that carry occupiedOpacity themselves.
+// `occupied` is always false when showOccupancy is off, so the empty look is unchanged.
+function dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpacity, occupiedOpacity) {
     if (active)
         return 1.0;
-    return hovered ? hoverOpacity : inactiveOpacity;
+    if (hovered)
+        return hoverOpacity;
+    if (occupied && style === OCCUPANCY.Filled)
+        return occupiedOpacity;
+    return inactiveOpacity;
 }
 
-// Colour: the theme args when followTheme, else the user's custom colours (caller passes live Theme colours).
-function dotColor(active, followTheme, themeActive, themeInactive, customActive, customInactive) {
-    if (followTheme)
-        return active ? themeActive : themeInactive;
-    return active ? customActive : customInactive;
+// Which colour fills the dot BODY, from three pre-resolved colours (the caller resolves theme-vs-custom):
+// the active capsule → activeColour; a Filled-style occupied dot → occupiedColour; otherwise inactiveColour
+// (an empty dot, or the dim body under the InnerDot/Ring styles, whose markers are drawn as overlays on top).
+function dotColor(active, occupied, style, activeColour, inactiveColour, occupiedColour) {
+    if (active)
+        return activeColour;
+    if (occupied && style === OCCUPANCY.Filled)
+        return occupiedColour;
+    return inactiveColour;
+}
+
+// Ring style: an OCCUPIED inactive dot shows a hollow occupied-colour ring OVERLAY on top of the dim dot (empty/active do not).
+function ringOverlayVisible(active, occupied, style) {
+    return style === OCCUPANCY.Ring && !active && occupied;
+}
+
+// InnerDot style: an OCCUPIED inactive dot shows a small occupied-colour dot OVERLAY in its centre (empty/active do not).
+function innerDotVisible(active, occupied, style) {
+    return style === OCCUPANCY.InnerDot && !active && occupied;
 }
 
 // Morph duration: reduce-animations (themeDuration <= 0) wins → 0; else the override, else the themed default.

@@ -44,6 +44,9 @@ the same widget, transposed:
 - **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
   and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
   (sourced from the public `TasksModel`).
+- **Occupied-desktop indicator** — optional (default off): mark desktops that hold windows so they
+  stand out from empty ones (a GNOME / i3-style "occupied" cue). Choose the style — **filled** dot,
+  an **inner dot**, or a **hollow ring** on top — with a configurable colour and opacity.
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
 - **Dynamic workspaces (GNOME-style)** — optional (default off): automatically keeps exactly one
@@ -155,9 +158,13 @@ restart; the defaults give the intended GNOME look out of the box.
 | `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
 | `inactiveOpacity` | `0.45` | Opacity of an inactive (dim) dot. |
 | `hoverOpacity` | `0.8` | Opacity an inactive dot brightens to on hover. |
-| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour). When off, use the two colours below. |
+| `showOccupancy` | `false` | Mark desktops that hold windows so they stand out from empty ones. |
+| `occupancyStyle` | `Filled` | How an occupied desktop is marked: **Filled** (the whole dot), **Inner dot** (a dot on top), or **Hollow ring** (a ring on top). Only when `showOccupancy` is on. |
+| `occupiedOpacity` | `0.7` | Opacity of the occupied marker (every style uses it); only when `showOccupancy` is on. |
+| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the three colours below. |
 | `activeColor` | `#3daee9` | Custom active-capsule colour (used only when `followThemeColors` is off). |
 | `inactiveColor` | `#eff0f1` | Custom inactive-dot colour (used only when `followThemeColors` is off). |
+| `occupiedColor` | `#3daee9` | Custom occupied-marker colour (used only when `followThemeColors` is off). |
 
 The **multi-row grid** and the **per-screen current desktop** are not settings — they
 auto-mirror KWin (System Settings → Virtual Desktops → "Rows", and the per-output desktop

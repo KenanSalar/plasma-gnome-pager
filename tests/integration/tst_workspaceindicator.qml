@@ -864,6 +864,59 @@ TestCase {
             compare(dotByUuid(indicator, fourIds[i]).tooltipText, tips[i], "dot " + i + " keeps its global window-list subText");
     }
 
+    // occupied-dot indicator: per-dot `occupied`, index-aligned with desktopIds (like the tooltip text). main.qml
+    // hands the indicator a bool[] from the window aggregator; the indicator feeds each dot its entry by globalIndex.
+    function test_dotsReceiveOccupancy() {
+        const occ = [true, false, true];
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: true, desktopOccupancy: occ });
+        for (let i = 0; i < ids.length; i++)
+            compare(dotByUuid(indicator, ids[i]).occupied, occ[i], "dot " + i + " gets its index-aligned occupancy");
+    }
+
+    // Gated on showOccupancy: with the feature off, no dot is marked occupied (the array is ignored).
+    function test_occupancyIgnoredWhenShowOccupancyOff() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: false, desktopOccupancy: [true, true, true] });
+        for (let i = 0; i < ids.length; i++)
+            verify(!dotByUuid(indicator, ids[i]).occupied, "dot " + i + " is not occupied while showOccupancy is off");
+    }
+
+    // robustness.md: the occupancy array can lag ids during an add/remove — a missing entry resolves to false (no OOB).
+    function test_dotOccupancyGuardsShortArray() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: true, desktopOccupancy: [true] });
+        verify(!dotByUuid(indicator, ids[2]).occupied, "missing occupancy resolves to false");
+    }
+
+    // Index-aligned across the whole flat list, not reset per line (mirrors test_tooltipTextMapsAcrossLines).
+    function test_occupancyMapsAcrossLines() {
+        const occ = [true, false, false, true];
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { showOccupancy: true, desktopOccupancy: occ });
+        for (let i = 0; i < fourIds.length; i++)
+            compare(dotByUuid(indicator, fourIds[i]).occupied, occ[i], "dot " + i + " keeps its global occupancy");
+    }
+
+    // The chosen occupancy STYLE reaches every dot (2 = Hollow ring); the per-style visuals are unit-tested on the dot.
+    function test_dotsReceiveOccupancyStyle() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: true, occupancyStyle: 2, desktopOccupancy: [true, false, true] });
+        const dots = collectDots(indicator);
+        for (let i = 0; i < dots.length; i++)
+            compare(dots[i].occupancyStyle, 2, "dot " + i + " receives the occupancyStyle");
+    }
+
+    // occupiedOpacity + occupiedColor reach every dot. Like test_dotsReceiveOccupancyStyle, this asserts
+    // the wiring (the per-style look is unit-tested on the dot); occupiedColor forwards regardless of
+    // followThemeColors — the dot resolves theme-vs-custom itself.
+    function test_dotsReceiveOccupiedColorAndOpacity() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), {
+            showOccupancy: true, desktopOccupancy: [true, false, true],
+            occupiedOpacity: 0.55, occupiedColor: "#abcdef"
+        });
+        const dots = collectDots(indicator);
+        for (let i = 0; i < dots.length; i++) {
+            fuzzyCompare(dots[i].occupiedOpacity, 0.55, 0.001, "dot " + i + " receives occupiedOpacity");
+            compare(dots[i].occupiedColor, indicator.occupiedColor, "dot " + i + " receives occupiedColor");
+        }
+    }
+
     // appearance / colour / animation config flow through: main.qml feeds the indicator the Appearance
     // keys, which it forwards per-dot. These assert the wiring (the look is covered by the dot unit tests).
 
