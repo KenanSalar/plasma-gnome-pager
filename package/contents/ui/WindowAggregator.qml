@@ -27,6 +27,14 @@ Item {
     // aggregator is live only for occupancy, skipping tooltip work (drops title/minimise roles; empty tooltips).
     property bool windowListActive: true
 
+    // Per-screen occupied-dot indicator wanted? Injected as showOccupancy. When false the per-screen occupancy
+    // reduction (and the ScreenGeometry role that feeds it) is skipped entirely (screenOccupancy stays []).
+    property bool occupancyActive: false
+
+    // Dynamic workspaces wanted? Injected as dynamicWorkspaces. When false the GLOBAL occupancy reduction (whose
+    // sole consumer is the controller) is skipped entirely (desktopOccupancy stays []).
+    property bool dynamicActive: false
+
     // This pager's output rect (global compositor space), injected by main.qml from the placed representation's
     // Screen attached property. A zero rect → per-screen occupancy degrades to global (see computeDesktopOccupancyForScreen).
     property rect screenRect: Qt.rect(0, 0, 0, 0)
@@ -58,24 +66,25 @@ Item {
         activity: activityInfo.currentActivity
     }
 
-    // The role ints rebuild() reads (PUBLIC enum); other roles are skipped (notably the IsActive focus churn).
-    // CONDITIONAL on windowListActive: occupancy needs only the desktop/window/screen roles (off → drop title + IsMinimized).
-    // ScreenGeometry is in BOTH branches — per-screen occupancy needs it whether or not the tooltip list is live.
-    readonly property var relevantRoles: aggregator.windowListActive ? [
-        Qt.DisplayRole,
-        TaskManager.AbstractTasksModel.VirtualDesktops,
-        TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
-        TaskManager.AbstractTasksModel.IsMinimized,
-        TaskManager.AbstractTasksModel.IsWindow,
-        TaskManager.AbstractTasksModel.SkipPager,
-        TaskManager.AbstractTasksModel.ScreenGeometry
-    ] : [
-        TaskManager.AbstractTasksModel.VirtualDesktops,
-        TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
-        TaskManager.AbstractTasksModel.IsWindow,
-        TaskManager.AbstractTasksModel.SkipPager,        // occupancy-only: ignores title/minimised
-        TaskManager.AbstractTasksModel.ScreenGeometry    // … but still needs the window's output for per-screen occupancy
-    ]
+    // The role ints rebuild() reads (PUBLIC enum); other roles are skipped (notably the IsActive focus churn, so
+    // window-focus changes never wake a rebuild). Built per ACTIVE feature, so an off feature's role can't trigger
+    // work nothing consumes: VirtualDesktops/IsOnAllVirtualDesktops/IsWindow gate desktop membership (every
+    // consumer); title + IsMinimized are tooltip-only; SkipPager is occupancy-only (excluded windows); and
+    // ScreenGeometry is PER-SCREEN-occupancy-only (so monitor-moves don't rebuild when that indicator is off).
+    readonly property var relevantRoles: {
+        var roles = [
+            TaskManager.AbstractTasksModel.VirtualDesktops,
+            TaskManager.AbstractTasksModel.IsOnAllVirtualDesktops,
+            TaskManager.AbstractTasksModel.IsWindow
+        ];
+        if (aggregator.windowListActive)
+            roles.push(Qt.DisplayRole, TaskManager.AbstractTasksModel.IsMinimized);
+        if (aggregator.occupancyActive || aggregator.dynamicActive)
+            roles.push(TaskManager.AbstractTasksModel.SkipPager);          // occupancy excludes skip-pager windows
+        if (aggregator.occupancyActive)
+            roles.push(TaskManager.AbstractTasksModel.ScreenGeometry);     // per-screen occupancy needs the window's output
+        return roles;
+    }
 
     // Materialise the rows so objectAt(i) can read role values by name (a C++ model has no model.get(i)).
     // Row add/remove triggers a rebuild; role-value changes arrive via the model's dataChanged below.
@@ -138,12 +147,20 @@ Item {
             aggregator.desktopTooltips = tooltips;
 
         // GLOBAL occupancy (all monitors) for the dynamic-workspaces controller — the desktop SET is global.
-        const occupancy = Logic.computeDesktopOccupancy(windows, ids);
+        // Skipped (→ []) unless dynamic workspaces is on (its sole consumer); compare-before-assign as below.
+        const occupancy = aggregator.dynamicActive ? Logic.computeDesktopOccupancy(windows, ids) : [];
         if (!Logic.arraysShallowEqual(occupancy, aggregator.desktopOccupancy))
             aggregator.desktopOccupancy = occupancy;
 
-        // PER-SCREEN occupancy (this monitor only) for the occupied-dot indicator. A zero screenRect degrades to global.
-        const screenOcc = Logic.computeDesktopOccupancyForScreen(windows, ids, aggregator.screenRect);
+        // PER-SCREEN occupancy (this monitor only) for the occupied-dot indicator. Skipped (→ []) unless that
+        // indicator is on. A zero screenRect degrades to global, so on a single monitor it equals the global array
+        // — reuse that array directly when dynamic already computed it, instead of recomputing the same thing.
+        let screenOcc = [];
+        if (aggregator.occupancyActive) {
+            screenOcc = (aggregator.dynamicActive && !Logic.isValidScreenRect(aggregator.screenRect))
+                ? occupancy
+                : Logic.computeDesktopOccupancyForScreen(windows, ids, aggregator.screenRect);
+        }
         if (!Logic.arraysShallowEqual(screenOcc, aggregator.screenOccupancy))
             aggregator.screenOccupancy = screenOcc;
     }
@@ -178,11 +195,15 @@ Item {
         return t.length ? "<style>ul { margin: 0; }</style>" + t : "";
     }
 
-    // Toggling the list at runtime changes both rebuild()'s output and its triggers, so force one rebuild on the flip (ON repopulates, OFF clears).
+    // Toggling a feature at runtime changes both rebuild()'s output and its triggers, so force one rebuild on
+    // each flip (ON repopulates that feature's array, OFF clears it to []).
     onWindowListActiveChanged: aggregator.scheduleRebuild()
+    onOccupancyActiveChanged: aggregator.scheduleRebuild()
+    onDynamicActiveChanged: aggregator.scheduleRebuild()
 
-    // The panel was dragged to another monitor (new output rect) → recompute per-screen occupancy for the new screen.
-    onScreenRectChanged: aggregator.scheduleRebuild()
+    // The panel was dragged to another monitor (new output rect) → recompute per-screen occupancy for the new
+    // screen. Only the occupied-dot indicator consumes per-screen occupancy, so it's a no-op when that's off.
+    onScreenRectChanged: if (aggregator.occupancyActive) aggregator.scheduleRebuild()
 
     Component.onCompleted: aggregator.rebuild()
 }

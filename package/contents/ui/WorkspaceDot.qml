@@ -123,32 +123,41 @@ Item {
             }
         }
 
-        // InnerDot style: a small occupied-colour dot centred in an occupied dot. A sibling of the capsule (not a
-        // child) so its opacity is independent of the dim outer dot; centred on the CAPSULE itself for exact placement.
-        Rectangle {
-            id: innerDot
+        // Occupied-dot overlay (InnerDot / Ring styles), drawn ON TOP of the dim dot. Behind a Loader so when
+        // occupancy is off (the default) NEITHER Rectangle exists — the dot then carries no extra scene-graph
+        // nodes. Only the style in use is built (showInnerDot/showRing are mutually exclusive, both false when
+        // active or Filled). A sibling of the capsule (its own opacity); centred on the CAPSULE for exact placement.
+        Loader {
+            id: occupancyOverlay
             anchors.centerIn: capsule
-            visible: dot.showInnerDot
-            width: dot.dotSize * 0.45
-            height: width
-            radius: width / 2
-            color: dot.resolvedOccupied
-            opacity: dot.occupiedOpacity   // the marker uses the occupied-opacity slider, like the other styles
+            active: dot.showInnerDot || dot.showRing
+            sourceComponent: dot.showRing ? ringComponent : innerDotComponent
         }
 
-        // Ring style: a hollow occupied-colour ring drawn ON TOP of the dim dot (an outline at the dot's rim,
-        // so the dot background stays). A sibling of the capsule with its own opacity; centred on the capsule.
-        Rectangle {
-            id: ringOverlay
-            anchors.centerIn: capsule
-            visible: dot.showRing
-            width: dot.dotSize
-            height: width
-            radius: width / 2
-            color: "transparent"
-            border.width: Math.max(1, Math.round(dot.dotSize * 0.18))
-            border.color: dot.resolvedOccupied
-            opacity: dot.occupiedOpacity   // the marker uses the occupied-opacity slider, like the other styles
+        // InnerDot style: a small occupied-colour dot in the dot's centre. Uses the occupied-opacity slider, like the other styles.
+        Component {
+            id: innerDotComponent
+            Rectangle {
+                width: dot.dotSize * 0.45
+                height: width
+                radius: width / 2
+                color: dot.resolvedOccupied
+                opacity: dot.occupiedOpacity
+            }
+        }
+
+        // Ring style: a hollow occupied-colour ring at the dot's rim (the dim dot stays visible behind it). Uses the occupied-opacity slider, like the other styles.
+        Component {
+            id: ringComponent
+            Rectangle {
+                width: dot.dotSize
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.width: Math.max(1, Math.round(dot.dotSize * 0.18))
+                border.color: dot.resolvedOccupied
+                opacity: dot.occupiedOpacity
+            }
         }
 
         // Click/hover target. acceptedButtons stays LeftButton (default) so a right-click falls

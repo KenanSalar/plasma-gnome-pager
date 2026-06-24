@@ -127,8 +127,11 @@ PlasmoidItem {
         WindowAggregator {
             virtualDesktopInfo: vdi   // inject the read source (the aggregator is data-source-agnostic)
             screenRect: root.screenRect   // inject this pager's output rect (drives per-screen occupancy)
-            // windowListActive false → aggregator is live only for occupancy, skipping the discarded tooltip work.
+            // Each feature gate is injected as a plain bool so the aggregator computes ONLY the reductions an
+            // active consumer reads (an off feature's array stays []). windowListActive also trims tooltip-only roles.
             windowListActive: root.showTooltips && root.showWindowList
+            occupancyActive: root.showOccupancy        // per-screen occupancy → occupied-dot indicator
+            dynamicActive: root.dynamicWorkspaces      // global occupancy → dynamic-workspaces controller
         }
     }
 
