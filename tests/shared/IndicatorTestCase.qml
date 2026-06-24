@@ -83,6 +83,14 @@ TestCase {
     }
     property alias switchSpy: switchRequestedSpy
 
+    // The indicator's activeClicked spy (raised when the CURRENT desktop's pill is clicked). Re-targeted
+    // per case the same way: activeSpy.target = indicator; activeSpy.clear().
+    SignalSpy {
+        id: activeClickedSpy
+        signalName: "activeClicked"
+    }
+    property alias activeSpy: activeClickedSpy
+
     // A duck-typed VirtualDesktopInfo mock. A currentDesktop outside desktopIds (the staleUuid) exercises
     // the transient add/remove state; desktopNames is optional (needed only by the tooltip tests).
     function makeMock(desktopIds, currentDesktop, desktopNames, desktopLayoutRows) {

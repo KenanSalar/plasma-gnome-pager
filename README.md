@@ -41,6 +41,9 @@ the same widget, transposed:
   pager, or KWin settings update the widget immediately (state is never cached).
 - **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
   wrap-around and optional inverted direction); hi-res/touchpad sub-notches are accumulated.
+- **Click the current desktop** — optional (default off): clicking the highlighted current
+  desktop can trigger **Show Desktop**, **Overview**, or **Grid** (it toggles the matching KWin
+  action); clicking any other desktop still just switches to it.
 - **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
   and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
   (sourced from the public `TasksModel`).
@@ -142,6 +145,7 @@ restart; the defaults give the intended GNOME look out of the box.
 | `enableScroll` | `true` | Scroll over the strip to switch desktops. |
 | `scrollWrap` | `false` | When scrolling past the first/last desktop, wrap around (else clamp). |
 | `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
+| `pillClickAction` | `Nothing` | Action when clicking the highlighted **current** desktop: Show Desktop, Overview, or Grid (it toggles the matching KWin action). Clicking any other desktop still just switches to it. |
 | `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
 | `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. Disabled (greyed out, entries hidden) while `dynamicWorkspaces` is on, since the two manage desktops in conflicting ways. |

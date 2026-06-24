@@ -18,6 +18,7 @@ ConfigPageBase {
     property alias cfg_enableScroll: enableScroll.checked
     property alias cfg_scrollWrap: scrollWrap.checked
     property alias cfg_invertScroll: invertScroll.checked
+    property alias cfg_pillClickAction: pillClickAction.currentIndex
     property alias cfg_showTooltips: showTooltips.checked
     property alias cfg_showWindowList: showWindowList.checked
     property alias cfg_enableAddRemove: enableAddRemove.checked
@@ -30,6 +31,7 @@ ConfigPageBase {
     property bool cfg_enableScrollDefault
     property bool cfg_scrollWrapDefault
     property bool cfg_invertScrollDefault
+    property int cfg_pillClickActionDefault
     property bool cfg_showTooltipsDefault
     property bool cfg_showWindowListDefault
     property bool cfg_enableAddRemoveDefault
@@ -43,6 +45,7 @@ ConfigPageBase {
         { n: "enableScroll", t: "bool" },
         { n: "scrollWrap", t: "bool" },
         { n: "invertScroll", t: "bool" },
+        { n: "pillClickAction", t: "int" },
         { n: "showTooltips", t: "bool" },
         { n: "showWindowList", t: "bool" },
         { n: "enableAddRemove", t: "bool" },
@@ -67,6 +70,22 @@ ConfigPageBase {
             id: invertScroll
             text: i18n("Invert the scroll direction")
             enabled: enableScroll.checked   // inversion only matters when scrolling is on
+        }
+        QQC2.ComboBox {
+            id: pillClickAction
+            Kirigami.FormData.label: i18n("Click current desktop:")
+            // Order MUST match Logic.PILL_CLICK_ACTION / main.xml pillClickAction (currentIndex is stored as the index).
+            model: [i18n("Nothing"), i18n("Show Desktop"), i18n("Overview"), i18n("Grid")]
+            Layout.preferredWidth: root.fieldWidth   // match the other field widths (ConfigPageBase.fieldWidth)
+        }
+        QQC2.Label {
+            // Clarify the action only fires on the highlighted (current) desktop; other dots just switch.
+            text: i18n("Action when clicking the highlighted current desktop. Clicking any other desktop switches to it.")
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+            Layout.fillWidth: true
+            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
         }
         QQC2.CheckBox {
             id: showTooltips

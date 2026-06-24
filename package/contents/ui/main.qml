@@ -36,6 +36,8 @@ PlasmoidItem {
     readonly property bool enableScroll: Plasmoid.configuration.enableScroll ?? Logic.DEFAULTS.enableScroll
     readonly property bool scrollWrap: Plasmoid.configuration.scrollWrap ?? Logic.DEFAULTS.scrollWrap
     readonly property bool invertScroll: Plasmoid.configuration.invertScroll ?? Logic.DEFAULTS.invertScroll
+    // Action when the current desktop's pill is clicked (default None); see Logic.PILL_CLICK_ACTION.
+    readonly property int pillClickAction: Plasmoid.configuration.pillClickAction ?? Logic.DEFAULTS.pillClickAction
     readonly property bool showTooltips: Plasmoid.configuration.showTooltips ?? Logic.DEFAULTS.showTooltips
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
@@ -95,6 +97,8 @@ PlasmoidItem {
         animationDuration: root.animationDuration
 
         onSwitchRequested: uuid => root.switchTo(uuid)
+        // Clicking the current desktop's pill: dispatch the configured action (pillClickSpec is null for None → no-op).
+        onActiveClicked: () => root.dispatch(Logic.pillClickSpec(root.pillClickAction))
     }
 
     // Reactive read-only desktop state — bind, never cache; updates on ANY change. Writes go through KWin DBus below.

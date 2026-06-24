@@ -148,6 +148,48 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "a real wheel event does nothing when scroll is disabled");
     }
 
+    // Clicking the CURRENT desktop's pill raises activeClicked (the pill-click action), not a switch.
+    // Driven via the dot's activated() signal (also the Accessible.onPressAction path).
+    function test_clickActiveDotEmitsActiveClicked() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
+        switchSpy.target = indicator;
+        switchSpy.clear();
+        activeSpy.target = indicator;
+        activeSpy.clear();
+
+        dotByUuid(indicator, currentUuid).activated();   // press the current desktop's pill
+        compare(activeSpy.count, 1, "clicking the active pill raises activeClicked");
+        compare(switchSpy.count, 0, "and does NOT emit a switch");
+    }
+
+    // Clicking any OTHER (inactive) dot still switches to it, never raising the pill action.
+    function test_clickInactiveDotEmitsSwitchRequested() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
+        switchSpy.target = indicator;
+        switchSpy.clear();
+        activeSpy.target = indicator;
+        activeSpy.clear();
+
+        dotByUuid(indicator, ids[0]).activated();   // ids[0] is inactive (current is ids[1])
+        compare(switchSpy.count, 1, "clicking an inactive dot switches");
+        compare(switchSpy.signalArguments[0][0], ids[0], "with that dot's UUID");
+        compare(activeSpy.count, 0, "and does NOT fire the pill action");
+    }
+
+    // Scroll never raises the pill action — even the single-desktop + wrap no-op (handleWheel only ever
+    // emits switchRequested), so the pill action is reachable solely from a click/press of the active dot.
+    function test_scrollNeverEmitsActiveClicked() {
+        const single = makeIndicator(makeMock([ids[0]], ids[0]), { enableScroll: true, scrollWrap: true });
+        switchSpy.target = single;
+        switchSpy.clear();
+        activeSpy.target = single;
+        activeSpy.clear();
+
+        single.handleWheel(-120);   // 1 desktop + wrap: stepIndex stays put
+        compare(activeSpy.count, 0, "wrap on a single desktop never fires the pill action");
+        compare(switchSpy.count, 0, "and emits no switch either");
+    }
+
     // Wheel events must not block clicks: the wheel MouseArea is NoButton, so press/release pass through.
     function test_wheelLayerDoesNotBlockClicks() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });

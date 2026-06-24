@@ -270,18 +270,21 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.pillWidth, 0.5, "cell is one capsule wide");
     }
 
-    // Clicking the active capsule switches (the whole capsule is the hit area). Needs a synthesized click.
-    function test_clickActiveCapsuleSwitches() {
+    // Clicking the active capsule raises activeClicked (the pill-click action), NOT a switch — and the
+    // whole capsule is the hit area. Real synthesized click (the e2e variant of the input-suite signal test).
+    function test_clickActiveCapsuleEmitsActiveClicked() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
         switchSpy.clear();
+        activeSpy.target = indicator;
+        activeSpy.clear();
 
         const capsule = dotByUuid(indicator, currentUuid);
         const p = Elements.centerOf(capsule, indicator);
         mouseClick(indicator, p.x, p.y);
 
-        compare(switchSpy.count, 1, "clicking the active capsule emits a switch");
-        compare(switchSpy.signalArguments[0][0], currentUuid, "the active desktop's UUID is forwarded");
+        compare(activeSpy.count, 1, "clicking the active capsule raises the pill-click action");
+        compare(switchSpy.count, 0, "and does NOT switch (you are already on it)");
     }
 
     // scroll-to-switch: the indicator forwards a wheel step as switchRequested(uuid); the index math is

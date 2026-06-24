@@ -22,6 +22,7 @@ var DEFAULTS = Object.freeze({
     enableRename: true,
     dynamicWorkspaces: false,    // GNOME-style: auto-keep one empty trailing desktop
     dynamicNamePrefix: "",       // base name for auto-created desktops ("" = i18n default "Desktop")
+    pillClickAction: 0,          // what clicking the CURRENT desktop's pill does; see PILL_CLICK_ACTION (0 = None)
     animationDuration: 0,        // ms; 0 = follow the theme
     // Appearance
     dotSize: 0,                  // px; 0 = auto (HiDPI themed)
@@ -49,6 +50,12 @@ var DEFAULTS = Object.freeze({
 // InnerDot and Ring keep the normal dim dot as their background and add an overlay marker; only Filled
 // recolours/brightens the dot body itself.
 var OCCUPANCY = Object.freeze({ Filled: 0, InnerDot: 1, Ring: 2 });
+
+// Action taken when the ALREADY-CURRENT desktop's pill is clicked (default None). Int values MIRROR the
+// main.xml pillClickAction choices and the ConfigGeneral combo order, so a stored index always maps to the
+// same action. Each non-None action TOGGLES a KWin global shortcut (see pillClickSpec); clicking an
+// inactive dot still just switches desktops.
+var PILL_CLICK_ACTION = Object.freeze({ None: 0, ShowDesktop: 1, Overview: 2, Grid: 3 });
 
 // Coerce to string, mapping null/undefined to "". Shared by the sanitize* functions.
 function toStringOrEmpty(value) {
@@ -404,6 +411,13 @@ var KWIN_VDM_PATH = "/VirtualDesktopManager";
 var KWIN_VDM_IFACE = "org.kde.KWin.VirtualDesktopManager";
 var DBUS_PROPERTIES_IFACE = "org.freedesktop.DBus.Properties";
 
+// kglobalaccel's public Component interface: invokeShortcut(uniqueName) TOGGLES a KWin global shortcut.
+// Used by the pill-click action — public/stable and avoids the version-suffixed effect DBus paths (e.g.
+// /org/kde/KWin/Effect/Overview/<ver>) that break across KWin upgrades. Same session bus as KWin.
+var KGLOBALACCEL_SERVICE = "org.kde.kglobalaccel";
+var KGLOBALACCEL_KWIN_PATH = "/component/kwin";
+var KGLOBALACCEL_COMPONENT_IFACE = "org.kde.kglobalaccel.Component";
+
 // Shared envelope for the createDesktop/removeDesktop/setDesktopName writes (all on KWIN_VDM_IFACE;
 // switchSpec differs). Key order is load-bearing — tst_logic compares specs via JSON.stringify.
 function vdmCall(member, args) {
@@ -448,4 +462,34 @@ function renameSpec(uuid, name) {
     if (!uuid || !clean)
         return null;
     return vdmCall("setDesktopName", [{ t: "s", v: uuid }, { t: "s", v: clean }]);
+}
+
+// Invoke (toggle) a KWin global shortcut by its unique name (invokeShortcut(string)); null for a falsy
+// name. Key order is load-bearing — tst_logic compares specs via JSON.stringify.
+function invokeShortcutSpec(name) {
+    if (!name)
+        return null;
+    return {
+        service: KGLOBALACCEL_SERVICE,
+        path: KGLOBALACCEL_KWIN_PATH,
+        iface: KGLOBALACCEL_COMPONENT_IFACE,
+        member: "invokeShortcut",
+        args: [{ t: "s", v: name }]
+    };
+}
+
+// Map a pill-click action (PILL_CLICK_ACTION) to its KWin shortcut spec, or null for None / any unknown
+// value (a safe no-op). The shortcut UNIQUE NAMES are DBus identifiers (verified live) — NEVER i18n-wrapped,
+// which is why they live here in the i18n-free logic tier. KWin's name for the "Grid" option is "Grid View".
+function pillClickSpec(action) {
+    switch (action) {
+    case PILL_CLICK_ACTION.ShowDesktop:
+        return invokeShortcutSpec("Show Desktop");
+    case PILL_CLICK_ACTION.Overview:
+        return invokeShortcutSpec("Overview");
+    case PILL_CLICK_ACTION.Grid:
+        return invokeShortcutSpec("Grid View");
+    default:
+        return null;
+    }
 }

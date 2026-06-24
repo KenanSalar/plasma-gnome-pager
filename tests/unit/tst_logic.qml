@@ -201,6 +201,14 @@ TestCase {
         compare(Logic.OCCUPANCY.Ring, 2, "Ring is index 2");
     }
 
+    // Pill-click action indices mirror main.xml pillClickAction + the ConfigGeneral combo order.
+    function test_pillClickConstants() {
+        compare(Logic.PILL_CLICK_ACTION.None, 0, "None is index 0 (the default)");
+        compare(Logic.PILL_CLICK_ACTION.ShowDesktop, 1, "ShowDesktop is index 1");
+        compare(Logic.PILL_CLICK_ACTION.Overview, 2, "Overview is index 2");
+        compare(Logic.PILL_CLICK_ACTION.Grid, 3, "Grid is index 3");
+    }
+
     // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring style shows the ring overlay.
     function test_ringOverlayVisible() {
         verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring), "Ring + inactive + occupied → ring overlay");
@@ -850,6 +858,7 @@ TestCase {
             { tag: "enableScroll", key: "enableScroll", exp: true },
             { tag: "scrollWrap", key: "scrollWrap", exp: false },
             { tag: "invertScroll", key: "invertScroll", exp: false },
+            { tag: "pillClickAction", key: "pillClickAction", exp: 0 },
             { tag: "showTooltips", key: "showTooltips", exp: true },
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
@@ -892,9 +901,9 @@ TestCase {
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
                         "inactiveOpacity", "invertScroll", "occupancyStyle", "occupiedColor", "occupiedOpacity",
-                        "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
+                        "pillClickAction", "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
                         "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 24, "DEFAULTS has exactly 24 keys");
+        compare(keys.length, 25, "DEFAULTS has exactly 25 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
@@ -1026,5 +1035,60 @@ TestCase {
         // sanitizeDesktopName caps at 100 chars; the spec must carry the capped name.
         var longName = new Array(150).join("a");   // 149 'a's
         compare(Logic.renameSpec("uuid-a", longName).args[1].v.length, 100, "renameSpec caps the name at 100 chars");
+    }
+
+    // invokeShortcutSpec: the kglobalaccel invokeShortcut(string) shape (null for a falsy name).
+    function test_invokeShortcutSpec_data() {
+        return [
+            { tag: "empty-name-null", name: "", exp: null },
+            { tag: "undefined-name-null", name: undefined, exp: null },
+            {
+                tag: "valid", name: "Overview",
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Overview" }]
+                }
+            }
+        ];
+    }
+    function test_invokeShortcutSpec(data) {
+        compare(JSON.stringify(Logic.invokeShortcutSpec(data.name)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // pillClickSpec: the pill-click action -> KWin shortcut spec. None / unknown -> null (safe no-op); the
+    // active actions toggle KWin shortcuts by their exact unique names ("Grid" -> "Grid View").
+    function test_pillClickSpec_data() {
+        return [
+            { tag: "None-null", action: Logic.PILL_CLICK_ACTION.None, exp: null },
+            { tag: "unknown-null", action: 99, exp: null },
+            {
+                tag: "ShowDesktop", action: Logic.PILL_CLICK_ACTION.ShowDesktop,
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Show Desktop" }]
+                }
+            },
+            {
+                tag: "Overview", action: Logic.PILL_CLICK_ACTION.Overview,
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Overview" }]
+                }
+            },
+            {
+                tag: "Grid", action: Logic.PILL_CLICK_ACTION.Grid,
+                exp: {
+                    service: "org.kde.kglobalaccel", path: "/component/kwin",
+                    iface: "org.kde.kglobalaccel.Component", member: "invokeShortcut",
+                    args: [{ t: "s", v: "Grid View" }]
+                }
+            }
+        ];
+    }
+    function test_pillClickSpec(data) {
+        compare(JSON.stringify(Logic.pillClickSpec(data.action)), JSON.stringify(data.exp), data.tag);
     }
 }

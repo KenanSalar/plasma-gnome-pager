@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-24 10:50+0200\n"
+"POT-Creation-Date: 2026-06-24 14:11+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: French\n"
@@ -26,233 +26,263 @@ msgstr "Comportement"
 msgid "Appearance"
 msgstr "Apparence"
 
-#: package/contents/ui/config/ConfigAppearance.qml:72
+#: package/contents/ui/config/ConfigAppearance.qml:69
 #, kde-format
 msgid "Dot size:"
 msgstr "Taille des points :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77 package/contents/ui/config/ConfigGeneral.qml:127
+#: package/contents/ui/config/ConfigAppearance.qml:74 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "Par défaut"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77 package/contents/ui/config/ConfigAppearance.qml:88
+#: package/contents/ui/config/ConfigAppearance.qml:74 package/contents/ui/config/ConfigAppearance.qml:85
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:83
+#: package/contents/ui/config/ConfigAppearance.qml:80
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Épaisseur de la pilule :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88
+#: package/contents/ui/config/ConfigAppearance.qml:85
 #, kde-format
 msgid "Match dots"
 msgstr "Adapter aux points"
 
-#: package/contents/ui/config/ConfigAppearance.qml:93
+#: package/contents/ui/config/ConfigAppearance.qml:90
 #, kde-format
 msgid "Spacing:"
 msgstr "Espacement :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:97
+#: package/contents/ui/config/ConfigAppearance.qml:94
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× point"
 
-#: package/contents/ui/config/ConfigAppearance.qml:102
+#: package/contents/ui/config/ConfigAppearance.qml:99
 #, kde-format
 msgid "Pill length:"
 msgstr "Longueur de la pilule :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:107
+#: package/contents/ui/config/ConfigAppearance.qml:104
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× pilule"
 
-#: package/contents/ui/config/ConfigAppearance.qml:112
+#: package/contents/ui/config/ConfigAppearance.qml:109
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Opacité inactive :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:121
+#: package/contents/ui/config/ConfigAppearance.qml:118
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Opacité au survol :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:130
+#: package/contents/ui/config/ConfigAppearance.qml:127
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Bureaux occupés :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:131
+#: package/contents/ui/config/ConfigAppearance.qml:128
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Mettre en surbrillance les bureaux avec des fenêtres ouvertes"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Indicator style:"
 msgstr "Style de l'indicateur :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:138
+#: package/contents/ui/config/ConfigAppearance.qml:135
 #, kde-format
 msgid "Filled"
 msgstr "Plein"
 
-#: package/contents/ui/config/ConfigAppearance.qml:138
+#: package/contents/ui/config/ConfigAppearance.qml:135
 #, kde-format
 msgid "Inner dot"
 msgstr "Point intérieur"
 
-#: package/contents/ui/config/ConfigAppearance.qml:138
+#: package/contents/ui/config/ConfigAppearance.qml:135
 #, kde-format
 msgid "Hollow ring"
 msgstr "Anneau creux"
 
-#: package/contents/ui/config/ConfigAppearance.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:139
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Opacité occupée :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:156
+#: package/contents/ui/config/ConfigAppearance.qml:153
 #, kde-format
 msgid "Colors:"
 msgstr "Couleurs :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:157
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Suivre le schéma de couleurs"
 
-#: package/contents/ui/config/ConfigAppearance.qml:161
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "Active desktop:"
 msgstr "Bureau actif :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:167
+#: package/contents/ui/config/ConfigAppearance.qml:164
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Bureau inactif :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:173
+#: package/contents/ui/config/ConfigAppearance.qml:170
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Bureau occupé :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:62
+#: package/contents/ui/config/ConfigGeneral.qml:61
 #, kde-format
 msgid "Mouse:"
 msgstr "Souris :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:63
+#: package/contents/ui/config/ConfigGeneral.qml:62
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Faire défiler sur le sélecteur pour changer de bureau"
 
-#: package/contents/ui/config/ConfigGeneral.qml:67
+#: package/contents/ui/config/ConfigGeneral.qml:66
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "Boucler au premier et au dernier bureau"
 
-#: package/contents/ui/config/ConfigGeneral.qml:72
+#: package/contents/ui/config/ConfigGeneral.qml:71
 #, kde-format
 msgid "Invert the scroll direction"
 msgstr "Inverser le sens du défilement"
 
-#: package/contents/ui/config/ConfigGeneral.qml:77
+#: package/contents/ui/config/ConfigGeneral.qml:76
+#, kde-format
+msgid "Click current desktop:"
+msgstr "Clic sur le bureau actuel :"
+
+#: package/contents/ui/config/ConfigGeneral.qml:78
+#, kde-format
+msgid "Nothing"
+msgstr "Rien"
+
+#: package/contents/ui/config/ConfigGeneral.qml:78
+#, kde-format
+msgid "Show Desktop"
+msgstr "Afficher le bureau"
+
+#: package/contents/ui/config/ConfigGeneral.qml:78
+#, kde-format
+msgid "Overview"
+msgstr "Vue d'ensemble"
+
+#: package/contents/ui/config/ConfigGeneral.qml:78
+#, kde-format
+msgid "Grid"
+msgstr "Grille"
+
+#: package/contents/ui/config/ConfigGeneral.qml:83
+#, kde-format
+msgid "Action when clicking the highlighted current desktop. Clicking any other desktop switches to it."
+msgstr "Action lors d'un clic sur le bureau actuel mis en évidence. Cliquer sur un autre bureau y bascule."
+
+#: package/contents/ui/config/ConfigGeneral.qml:92
 #, kde-format
 msgid "Tooltips:"
 msgstr "Infobulles :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:93
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Afficher le nom du bureau au survol"
 
-#: package/contents/ui/config/ConfigGeneral.qml:82
+#: package/contents/ui/config/ConfigGeneral.qml:97
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Lister les fenêtres ouvertes dans l'infobulle"
 
-#: package/contents/ui/config/ConfigGeneral.qml:87
+#: package/contents/ui/config/ConfigGeneral.qml:102
 #, kde-format
 msgid "Menu:"
 msgstr "Menu :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:88
+#: package/contents/ui/config/ConfigGeneral.qml:103
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Ajouter et supprimer des bureaux depuis le menu contextuel"
 
-#: package/contents/ui/config/ConfigGeneral.qml:94
+#: package/contents/ui/config/ConfigGeneral.qml:109
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Renommer le bureau actuel depuis le menu contextuel"
 
-#: package/contents/ui/config/ConfigGeneral.qml:98
+#: package/contents/ui/config/ConfigGeneral.qml:113
 #, kde-format
 msgid "Dynamic desktops:"
 msgstr "Bureaux dynamiques :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:99
+#: package/contents/ui/config/ConfigGeneral.qml:114
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "Ajouter et supprimer automatiquement des bureaux (style GNOME)"
 
-#: package/contents/ui/config/ConfigGeneral.qml:103
+#: package/contents/ui/config/ConfigGeneral.qml:118
 #, kde-format
 msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
 msgstr "Lorsque cette option est activée, les bureaux sont gérés automatiquement — les options Ajouter/Supprimer du menu sont désactivées."
 
-#: package/contents/ui/config/ConfigGeneral.qml:113
+#: package/contents/ui/config/ConfigGeneral.qml:128
 #, kde-format
 msgid "New desktop name:"
 msgstr "Nom des nouveaux bureaux :"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:116 package/contents/ui/main.qml:186
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:201
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "Bureau"
 
-#: package/contents/ui/config/ConfigGeneral.qml:122
+#: package/contents/ui/config/ConfigGeneral.qml:137
 #, kde-format
 msgid "Animation duration:"
 msgstr "Durée de l'animation :"
 
-#: package/contents/ui/config/ConfigGeneral.qml:127
+#: package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
 msgstr[0] "%1 ms"
 msgstr[1] "%1 ms"
 
-#: package/contents/ui/config/ConfigPageBase.qml:47
+#: package/contents/ui/config/ConfigPageBase.qml:52
 #, kde-format
 msgid "Defaults"
 msgstr "Par défaut"
 
-#: package/contents/ui/main.qml:166
+#: package/contents/ui/main.qml:181
 #, kde-format
 msgid "New Desktop"
 msgstr "Nouveau bureau"
 
-#: package/contents/ui/main.qml:219
+#: package/contents/ui/main.qml:234
 #, kde-format
 msgid "Add Desktop"
 msgstr "Ajouter un bureau"
 
-#: package/contents/ui/main.qml:227
+#: package/contents/ui/main.qml:242
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Supprimer le dernier bureau"
 
-#: package/contents/ui/main.qml:235
+#: package/contents/ui/main.qml:250
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Renommer le bureau actuel…"
@@ -272,13 +302,13 @@ msgstr "Annuler"
 msgid "Rename"
 msgstr "Renommer"
 
-#: package/contents/ui/WindowAggregator.qml:135
+#: package/contents/ui/WindowAggregator.qml:170
 #, kde-format
 msgctxt "@item:intext window with no title"
 msgid "Untitled Window"
 msgstr "Fenêtre sans titre"
 
-#: package/contents/ui/WindowAggregator.qml:144
+#: package/contents/ui/WindowAggregator.qml:179
 #, kde-format
 msgctxt "@info:tooltip overflow label"
 msgid "…and %1 other window"
@@ -286,7 +316,7 @@ msgid_plural "…and %1 other windows"
 msgstr[0] "… et %1 autre fenêtre"
 msgstr[1] "… et %1 autres fenêtres"
 
-#: package/contents/ui/WindowAggregator.qml:155
+#: package/contents/ui/WindowAggregator.qml:190
 #, kde-format
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
@@ -294,7 +324,7 @@ msgid_plural "%1 Windows:"
 msgstr[0] "%1 fenêtre :"
 msgstr[1] "%1 fenêtres :"
 
-#: package/contents/ui/WindowAggregator.qml:159
+#: package/contents/ui/WindowAggregator.qml:194
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"

@@ -123,6 +123,10 @@ Item {
     // Raised on a click or scroll; main.qml turns the UUID into a KWin switch.
     signal switchRequested(string uuid)
 
+    // Raised when the ALREADY-CURRENT desktop's dot (the pill) is clicked/pressed; main.qml maps it to the
+    // configured pill-click action. Scroll never raises this (handleWheel only ever emits switchRequested).
+    signal activeClicked()
+
     // Wheel → switch. Thin wrapper; the branching (notch accumulation, clamp/wrap, -1 ignore) is in logic.js and unit-tested.
     function handleWheel(angleDeltaY: real) {
         if (!indicator.enableScroll)
@@ -235,7 +239,8 @@ Item {
                         tooltipText: indicator.desktopTooltips[workspaceDot.globalIndex] || ""
                         showTooltips: indicator.showTooltips
 
-                        onActivated: indicator.switchRequested(workspaceDot.modelData)
+                        // Clicking the current desktop's pill runs the configured action; any other dot switches.
+                        onActivated: workspaceDot.active ? indicator.activeClicked() : indicator.switchRequested(workspaceDot.modelData)
                     }
                 }
             }
