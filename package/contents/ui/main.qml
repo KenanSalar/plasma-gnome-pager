@@ -98,7 +98,7 @@ PlasmoidItem {
 
         onSwitchRequested: uuid => root.switchTo(uuid)
         // Clicking the current desktop's pill: dispatch the configured action (pillClickSpec is null for None → no-op).
-        onActiveClicked: () => root.dispatch(Logic.pillClickSpec(root.pillClickAction))
+        onActiveClicked: root.dispatch(Logic.pillClickSpec(root.pillClickAction))
     }
 
     // Reactive read-only desktop state — bind, never cache; updates on ANY change. Writes go through KWin DBus below.
