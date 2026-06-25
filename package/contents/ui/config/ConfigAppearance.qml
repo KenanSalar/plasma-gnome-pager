@@ -8,14 +8,18 @@
  * sliders where 0 reads "Default"/"Match dots" (the 0 = auto sentinel). Colours use ColorButton, lazy-loaded
  * with the dialog so the import never affects the always-on widget. Each `cfg_<key>` MUST match main.xml.
  */
+pragma ComponentBehavior: Bound   // the occupancyStyle delegate references outer ids (occupancyStyle/root)
+
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
 
 ConfigPageBase {
     id: root
 
+    property alias cfg_dotStyle: dotStyle.currentIndex
     property alias cfg_dotSize: dotSize.value
     property alias cfg_pillSize: pillSize.value
     property alias cfg_spacingFactor: spacingFactor.value
@@ -31,6 +35,7 @@ ConfigPageBase {
     property alias cfg_occupiedColor: occupiedColor.color
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
+    property int cfg_dotStyleDefault
     property int cfg_dotSizeDefault
     property int cfg_pillSizeDefault
     property real cfg_spacingFactorDefault
@@ -48,6 +53,7 @@ ConfigPageBase {
     // This page's keys + compare kind; ConfigPageBase binds isModified + the Defaults reset off it
     // (reals within epsilon, colours via Qt.colorEqual).
     configKeys: [
+        { n: "dotStyle", t: "int" },
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
         { n: "spacingFactor", t: "real" },
@@ -63,7 +69,27 @@ ConfigPageBase {
         { n: "occupiedColor", t: "color" }
     ]
 
+    // Which pager style is selected, by the dotStyle combo index (order matches Logic.DOT_STYLE / main.xml:
+    // 0 = Sliding pill, 1 = Filled & ring). The pill knobs only apply to Sliding pill; Filled & ring disables
+    // the redundant Hollow ring occupancy marker. Named once here so the index checks aren't repeated below.
+    readonly property bool pillStyle: dotStyle.currentIndex === 0
+    readonly property bool ringStyle: dotStyle.currentIndex === 1
+
     Kirigami.FormLayout {
+        QQC2.ComboBox {
+            id: dotStyle
+            Kirigami.FormData.label: i18n("Pager style:")
+            // Order MUST match Logic.DOT_STYLE / main.xml dotStyle (currentIndex is stored as the index).
+            model: [i18n("Sliding pill"), i18n("Filled & ring")]
+            Layout.preferredWidth: root.fieldWidth   // match the other field widths (ConfigPageBase.fieldWidth)
+            // Filled & ring disables the Hollow ring occupancy marker (index 2) — the dot is already a ring —
+            // so migrate a previously-chosen Hollow ring to Filled (0) when the user switches to it.
+            onActivated: {
+                if (root.ringStyle && occupancyStyle.currentIndex === 2)
+                    occupancyStyle.currentIndex = 0;
+            }
+        }
+
         ConfigSlider {
             id: dotSize
             label: i18n("Dot size:")
@@ -78,6 +104,7 @@ ConfigPageBase {
             id: pillSize
             // "Thickness" (not "size") disambiguates from "Pill length:" below — the pill's two axes (also avoids an msgmerge fuzzy collision).
             label: i18n("Pill thickness:")
+            enabled: root.pillStyle   // the pill only exists in the Sliding pill style
             from: 0
             to: 64
             stepSize: 1
@@ -97,6 +124,7 @@ ConfigPageBase {
         ConfigSlider {
             id: pillWidthFactor
             label: i18n("Pill length:")
+            enabled: root.pillStyle   // the pill only exists in the Sliding pill style
             from: 1.0
             to: 10.0
             stepSize: 0.1
@@ -133,6 +161,17 @@ ConfigPageBase {
             enabled: showOccupancy.checked
             // Order MUST match Logic.OCCUPANCY / main.xml occupancyStyle (currentIndex is stored as the index).
             model: [i18n("Filled"), i18n("Inner dot"), i18n("Hollow ring")]
+            // "Hollow ring" (index 2) is redundant in the Filled & ring pager style — the dot is ALREADY a
+            // hollow ring — so disable that item there (selection blocked; a stored value is suppressed at runtime).
+            delegate: QQC2.ItemDelegate {
+                id: occStyleItem
+                required property int index
+                required property string modelData
+                width: occupancyStyle.width
+                text: occStyleItem.modelData
+                enabled: !(root.ringStyle && occStyleItem.index === 2)
+                highlighted: occupancyStyle.highlightedIndex === occStyleItem.index
+            }
         }
         ConfigSlider {
             id: occupiedOpacity

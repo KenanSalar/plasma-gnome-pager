@@ -302,6 +302,29 @@ IndicatorTestCase {
         fuzzyCompare(indicator.pillWidth, indicator.pillSize * indicator.pillWidthFactor, 0.5, "pillWidth tracks the shrunk pill thickness");
     }
 
+    // Filled & ring style: NO pill. The indicator neutralizes the pill params, so the current dot is the
+    // SAME size as the inactive dots (a filled circle, not a wider capsule) — a uniform row. The configured
+    // pill knobs (pillSizeRequest / pillWidthFactor) are ignored in this style.
+    function test_filledRingStyleNoPill() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid),
+            { dotStyle: Logic.DOT_STYLE.Ring, dotSizeRequest: 16, pillSizeRequest: 40, pillWidthFactor: 4 });
+        indicator.width = indicator.naturalStripLength * 2;    // ample allocation: no scale-to-fit
+        indicator.height = indicator.naturalCrossThickness * 2;
+
+        // The pill is neutralized: ratio 1, the active extent collapses to the dot size.
+        fuzzyCompare(indicator.effPillWidthFactor, 1, 0.001, "ring style neutralizes pillWidthFactor to 1");
+        compare(indicator.effPillSizeRequest, 0, "ring style neutralizes pillSizeRequest to 0 (match dots)");
+        fuzzyCompare(indicator.pillThicknessRatio, 1, 0.001, "pill thickness ratio is 1 (no thick pill)");
+        fuzzyCompare(indicator.pillWidth, indicator.dotSize, 0.5, "the active extent equals the dot size (no pill)");
+
+        // Every dot is the same size — the current one is no wider/taller than the rest.
+        const activeDot = dotByUuid(indicator, currentUuid);
+        const inactiveDot = dotByUuid(indicator, ids[0]);
+        fuzzyCompare(activeDot.width, inactiveDot.width, 0.5, "active dot is no wider than an inactive one (no pill)");
+        fuzzyCompare(activeDot.height, inactiveDot.height, 0.5, "active dot is no taller than an inactive one");
+        fuzzyCompare(activeDot.width, indicator.dotSize, 0.5, "every dot is dot-sized on the major axis");
+    }
+
     // desktopRows clamp guard: the indicator clamps a transient 0/undefined desktopLayoutRows to a single
     // line. makeMock's `|| 1` default hides a literal 0, so set it post-construction.
     function test_gridRowsClampGuard() {
