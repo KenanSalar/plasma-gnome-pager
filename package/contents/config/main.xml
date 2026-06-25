@@ -70,8 +70,14 @@
         <entry name="dotStyle" type="Int">
             <default>0</default>
         </entry>
+        <!-- Ignore KWin's virtual-desktop grid rows and lay every desktop out in ONE strip along the panel
+             (a single vertical strip on a vertical panel). Off = honour the grid (mirror "Rows" from System Settings). -->
+        <entry name="singleLine" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- Vertical panels: lay the grid out in KWin's orientation (rows top-to-bottom) instead of transposing
-             it to run down the panel. Off = the GNOME-reflow look (strip follows the panel). No effect when horizontal. -->
+             it to run down the panel. Off = the GNOME-reflow look (strip follows the panel). No effect when horizontal,
+             or when singleLine is on (a single line has no grid to mirror). -->
         <entry name="matchDesktopGrid" type="Bool">
             <default>false</default>
         </entry>

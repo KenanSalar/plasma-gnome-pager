@@ -326,6 +326,24 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_matchDesktopGridReporterCase,test_matchDesktopGridIgnoredHorizontal}`; the existing
 > `test_gridVerticalTranspose` pins the default-OFF transpose. The config page is e2e-only.
 
+> **Single-line layout (`singleLine`) — collapse the grid into ONE strip; distinct from `matchDesktopGrid`,
+> and it WINS.** Where `matchDesktopGrid` re-orients a multi-row grid, `singleLine` (Bool, default off,
+> `ConfigAppearance` "Multiple rows: Show all desktops in a single line") **ignores KWin's rows entirely** and
+> lays every desktop out in a single line that FOLLOWS the panel — so a vertical panel gets a single VERTICAL
+> strip with a VERTICAL (tall) pill (the normal 1-row look), regardless of `desktopLayoutRows`. This is what the
+> issue #23 reporter actually wanted: their desktops are stacked in KWin (2 rows × 1 col) but they want the
+> pager as a clean vertical strip — and they can't just set KWin Rows=1 because that would re-flow their desktop
+> grid in System Settings. (`matchDesktopGrid` gave the right dot POSITIONS for that case but a HORIZONTAL pill,
+> because it faithfully renders a 1-column grid.) Mechanically it is ONE line: `desktopRows = singleLine ? 1 :
+> <KWin rows>`, so `perLine = desktopCount`, `lineCount = 1`, and the normal `gridVertical` path (vertical strip
+> + vertical pill) falls out for free — no new geometry. It **supersedes** `matchDesktopGrid`: `gridVertical =
+> vertical && (singleLine || !matchDesktopGrid)` (a single line has no grid to mirror), and the
+> `ConfigAppearance` "Match…" checkbox is `enabled:`-greyed while `singleLine` is checked. Everything downstream
+> (strip-pinning, scale-to-fit, morph) is parameterized by `perLine`/`lineCount`/`gridVertical`, so it just
+> works. Guarded by `tst_indicator_layout.qml::{test_singleLineCollapsesGridToOneLine,
+> test_singleLineVerticalStripHasVerticalPill,test_singleLineOverridesMatchDesktopGrid}` + the `singleLine` rows
+> in `test_gridVerticalResolution` + `tst_logic.qml` defaults. The config page is e2e-only.
+
 > **Gotcha — PIN the `strip` Grid to the conserved extent, never leave it content-sized (multi-row morph
 > "breathing").** The outer `strip` Grid is `anchors.centerIn: parent`. If it sizes to its CONTENT (its
 > implicit size), a multi-row morph makes the dots drift: during a switch the de-activating capsule animates
@@ -696,9 +714,12 @@ tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox
 appearance — `dotStyle` (the OVERALL look, a `ConfigAppearance` combo whose index mirrors
 `Logic.DOT_STYLE`: `0 = Sliding pill` (default, the REFLOW look), `1 = Filled & ring` (no pill;
 current = filled circle, others = hollow rings — see the Filled & ring gotcha below)),
-`matchDesktopGrid` (Bool, default off — on a VERTICAL panel lay the grid out in KWin orientation, rows
-top-to-bottom, instead of transposing it down the panel; a presentation toggle, not a grid-shape knob —
-see the grid-orientation gotcha above),
+`singleLine` (Bool, default off — ignore KWin's grid ROWS and lay every desktop out in ONE strip along the
+panel: a single vertical strip with a vertical pill on a vertical panel; forces `desktopRows = 1`, see the
+single-line gotcha below),
+`matchDesktopGrid` (Bool, default off — on a VERTICAL panel lay the MULTI-ROW grid out in KWin orientation,
+rows top-to-bottom, instead of transposing it down the panel; a presentation toggle, not a grid-shape knob —
+see the grid-orientation gotcha above; moot while `singleLine` is on),
 `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
 thickness — "× pill"; both pill keys are ignored/greyed in the Filled & ring style),

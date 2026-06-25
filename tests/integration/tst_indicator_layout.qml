@@ -238,6 +238,15 @@ IndicatorTestCase {
 
         const horizontal = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { matchDesktopGrid: true });
         compare(horizontal.gridVertical, false, "horizontal panel: the toggle has no effect");
+
+        // singleLine collapses to one strip following the panel, so it forces the vertical strip on a vertical
+        // panel and WINS over matchDesktopGrid (a single line has no grid to mirror).
+        const single = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true });
+        compare(single.gridVertical, true, "single line, vertical panel → vertical strip");
+        const singleWins = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
+        compare(singleWins.gridVertical, true, "single line overrides match-grid → still the vertical strip");
+        const singleHoriz = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { singleLine: true });
+        compare(singleHoriz.gridVertical, false, "single line on a horizontal panel → horizontal strip");
     }
 
     // Vertical panel, 2 rows, toggle ON: the grid is NOT transposed — it lays out exactly like a horizontal
@@ -278,6 +287,35 @@ IndicatorTestCase {
         const y2 = dots[2].mapToItem(indicator, 0, 0).y;
         fuzzyCompare(y1, y0, 0.5, "line 0 dots share a row (unchanged by the toggle)");
         verify(y2 > y0 + 0.5, "line 1 below line 0 (unchanged by the toggle)");
+    }
+
+    // --- singleLine (option C): collapse the KWin grid into ONE strip following the panel (issue #23) ----------
+
+    // singleLine ignores desktopLayoutRows: every desktop lands in one line, whatever KWin's row count is.
+    function test_singleLineCollapsesGridToOneLine() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { singleLine: true });
+        compare(indicator.perLine, 4, "all 4 desktops on one line");
+        compare(indicator.lineCount, 1, "exactly one line (KWin's 2 rows are ignored)");
+    }
+
+    // The reporter's actual want (issue #23): on a VERTICAL panel, singleLine gives a single vertical strip with a
+    // VERTICAL (tall) pill — the normal 1-row look — NOT matchDesktopGrid's vertical stack with a horizontal pill.
+    function test_singleLineVerticalStripHasVerticalPill() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true });
+        compare(indicator.lineCount, 1, "one line on a vertical panel");
+        const dots = dotsByIndex(indicator);
+        verify(dots[1].mapToItem(indicator, 0, 0).y > dots[0].mapToItem(indicator, 0, 0).y + 0.5, "desktops stack down the panel");
+        const active = dots[0];   // current = fourIds[0]
+        verify(active.height > active.width + 0.5, "the active desktop is a vertical (tall) pill, not a horizontal one");
+    }
+
+    // singleLine wins over matchDesktopGrid (a single line has no grid to mirror): still one vertical strip.
+    function test_singleLineOverridesMatchDesktopGrid() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
+        compare(indicator.lineCount, 1, "one line (grid collapsed)");
+        const dots = dotsByIndex(indicator);
+        verify(dots[1].mapToItem(indicator, 0, 0).y > dots[0].mapToItem(indicator, 0, 0).y + 0.5, "still a vertical strip, not a mirrored grid");
+        verify(dots[0].height > dots[0].width + 0.5, "still a vertical pill (single line wins)");
     }
 
     // Multi-row "breathing" fix: the strip is pinned to the conserved (capsule-bearing) extent, so its footprint

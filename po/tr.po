@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-25 22:26+0200\n"
+"POT-Creation-Date: 2026-06-25 23:49+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Turkish\n"
@@ -26,149 +26,164 @@ msgstr "Davranış"
 msgid "Appearance"
 msgstr "Görünüm"
 
-#: package/contents/ui/config/ConfigAppearance.qml:84
+#: package/contents/ui/config/ConfigAppearance.qml:87
 #, kde-format
 msgid "Pager style:"
 msgstr "Sayfalayıcı biçimi:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Sliding pill"
 msgstr "Kayan hap"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Filled & ring"
 msgstr "Dolu ve halka"
 
-#: package/contents/ui/config/ConfigAppearance.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:101
+#, kde-format
+msgid "Multiple rows:"
+msgstr "Birden çok satır:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:102
+#, kde-format
+msgid "Show all desktops in a single line"
+msgstr "Tüm masaüstlerini tek bir satırda göster"
+
+#: package/contents/ui/config/ConfigAppearance.qml:106
+#, kde-format
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Sistem Ayarları’ndaki ızgara satırlarını yok sayar ve her masaüstünü panel boyunca tek bir şerit hâlinde dizer (dikey bir panelde tek bir dikey şerit)."
+
+#: package/contents/ui/config/ConfigAppearance.qml:115
 #, kde-format
 msgid "Vertical panels:"
 msgstr "Dikey paneller:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:99
+#: package/contents/ui/config/ConfigAppearance.qml:116
 #, kde-format
 msgid "Match the virtual-desktop grid layout"
 msgstr "Sanal masaüstü ızgara düzenine uy"
 
-#: package/contents/ui/config/ConfigAppearance.qml:103
+#: package/contents/ui/config/ConfigAppearance.qml:122
 #, kde-format
 msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
 msgstr "Noktaları, panel boyunca dizmek yerine Sistem Ayarları’ndaki masaüstü ızgarası gibi (satırlar yukarıdan aşağıya) düzenler. Yatay panellerde etkisi yoktur."
 
-#: package/contents/ui/config/ConfigAppearance.qml:113
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Dot size:"
 msgstr "Nokta boyutu:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:118 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "Öntanımlı"
 
-#: package/contents/ui/config/ConfigAppearance.qml:118 package/contents/ui/config/ConfigAppearance.qml:130
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:124
+#: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Hap kalınlığı:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:130
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Match dots"
 msgstr "Noktalarla eşleştir"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
 msgstr "Boşluk:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:139
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× nokta"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
 msgstr "Hap uzunluğu:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:150
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× hap"
 
-#: package/contents/ui/config/ConfigAppearance.qml:155
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Etkin olmayan matlık:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:164
+#: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Üzerine gelince matlık:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:173
+#: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Dolu masaüstleri:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:174
+#: package/contents/ui/config/ConfigAppearance.qml:193
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Açık pencereleri olan masaüstlerini vurgula"
 
-#: package/contents/ui/config/ConfigAppearance.qml:178
+#: package/contents/ui/config/ConfigAppearance.qml:197
 #, kde-format
 msgid "Indicator style:"
 msgstr "Gösterge biçimi:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Filled"
 msgstr "Dolu"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Inner dot"
 msgstr "İç nokta"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Hollow ring"
 msgstr "İçi boş halka"
 
-#: package/contents/ui/config/ConfigAppearance.qml:196
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Dolu matlık:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:210
+#: package/contents/ui/config/ConfigAppearance.qml:229
 #, kde-format
 msgid "Colors:"
 msgstr "Renkler:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:211
+#: package/contents/ui/config/ConfigAppearance.qml:230
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Renk şemasını izle"
 
-#: package/contents/ui/config/ConfigAppearance.qml:215
+#: package/contents/ui/config/ConfigAppearance.qml:234
 #, kde-format
 msgid "Active desktop:"
 msgstr "Etkin masaüstü:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:221
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Etkin olmayan masaüstü:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:227
+#: package/contents/ui/config/ConfigAppearance.qml:246
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Dolu masaüstü:"
@@ -274,7 +289,7 @@ msgid "New desktop name:"
 msgstr "Yeni masaüstü adı:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:217
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -297,27 +312,27 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Öntanımlılar"
 
-#: package/contents/ui/main.qml:197
+#: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
 msgstr "Yeni masaüstü"
 
-#: package/contents/ui/main.qml:259
+#: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
 msgstr "Masaüstü ekle"
 
-#: package/contents/ui/main.qml:267
+#: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Son masaüstünü kaldır"
 
-#: package/contents/ui/main.qml:275
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Geçerli masaüstünü yeniden adlandır…"
 
-#: package/contents/ui/main.qml:283
+#: package/contents/ui/main.qml:286
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "Sanal masaüstlerini yapılandır…"

@@ -54,13 +54,18 @@ Item {
     // Panel orientation. false = horizontal row (also the Planar/floating default); true = vertical column.
     property bool vertical: false
 
+    // When true, ignore KWin's grid rows and lay every desktop out in ONE strip along the panel (a vertical
+    // strip on a vertical panel). Forces desktopRows to 1 below, so matchDesktopGrid then has no grid to mirror.
+    property bool singleLine: Logic.DEFAULTS.singleLine
+
     // When true on a vertical panel, lay the grid out in KWin's orientation (rows top-to-bottom) instead of
     // transposing it to run down the panel (the GNOME-reflow default). No effect on a horizontal panel.
     property bool matchDesktopGrid: Logic.DEFAULTS.matchDesktopGrid
 
     // Effective grid orientation: vertical panel AND not matching KWin's grid. ALL grid geometry below (the two
     // Grid flows, the metrics axis, the Layout hints, the dot's capsule axis) keys off THIS, not the raw `vertical`.
-    readonly property bool gridVertical: vertical && !matchDesktopGrid
+    // singleLine wins over matchDesktopGrid (one line has no grid to mirror) → the normal panel-following strip.
+    readonly property bool gridVertical: vertical && (singleLine || !matchDesktopGrid)
 
     // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder carries).
     property real wheelAccumulator: 0
@@ -68,8 +73,9 @@ Item {
 
     readonly property int desktopCount: desktopIds.length
 
-    // KWin's grid row count, read live (null-guarded, >= 1). We MIRROR KWin rather than add a setting, so "Rows" re-lays out reactively.
-    readonly property int desktopRows: virtualDesktopInfo?.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1
+    // KWin's grid row count, read live (null-guarded, >= 1). We MIRROR KWin so "Rows" re-lays out reactively —
+    // unless singleLine overrides it to 1 (collapse the grid into a single strip of all desktops).
+    readonly property int desktopRows: singleLine ? 1 : (virtualDesktopInfo?.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1)
 
     // Desktops per line (columns = ceil(count / rows)) and the row-major split into lines.
     readonly property int perLine: Logic.gridColumns(desktopCount, desktopRows)

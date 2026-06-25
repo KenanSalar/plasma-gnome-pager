@@ -20,6 +20,7 @@ ConfigPageBase {
     id: root
 
     property alias cfg_dotStyle: dotStyle.currentIndex
+    property alias cfg_singleLine: singleLine.checked
     property alias cfg_matchDesktopGrid: matchDesktopGrid.checked
     property alias cfg_dotSize: dotSize.value
     property alias cfg_pillSize: pillSize.value
@@ -37,6 +38,7 @@ ConfigPageBase {
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property int cfg_dotStyleDefault
+    property bool cfg_singleLineDefault
     property bool cfg_matchDesktopGridDefault
     property int cfg_dotSizeDefault
     property int cfg_pillSizeDefault
@@ -56,6 +58,7 @@ ConfigPageBase {
     // (reals within epsilon, colours via Qt.colorEqual).
     configKeys: [
         { n: "dotStyle", t: "int" },
+        { n: "singleLine", t: "bool" },
         { n: "matchDesktopGrid", t: "bool" },
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
@@ -94,9 +97,25 @@ ConfigPageBase {
         }
 
         QQC2.CheckBox {
+            id: singleLine
+            Kirigami.FormData.label: i18n("Multiple rows:")
+            text: i18n("Show all desktops in a single line")
+        }
+        QQC2.Label {
+            // Hint: ignore the KWin grid entirely and lay everything out as one strip following the panel.
+            text: i18n("Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel).")
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+            Layout.fillWidth: true
+            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
+        }
+        QQC2.CheckBox {
             id: matchDesktopGrid
             Kirigami.FormData.label: i18n("Vertical panels:")
             text: i18n("Match the virtual-desktop grid layout")
+            // A single line has no grid to mirror, so this is moot while "single line" is on.
+            enabled: !singleLine.checked
         }
         QQC2.Label {
             // Hint: this only matters on a vertical panel (a horizontal panel already mirrors the grid).

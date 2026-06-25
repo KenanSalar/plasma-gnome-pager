@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-25 22:26+0200\n"
+"POT-Creation-Date: 2026-06-25 23:49+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Italian\n"
@@ -26,149 +26,164 @@ msgstr "Comportamento"
 msgid "Appearance"
 msgstr "Aspetto"
 
-#: package/contents/ui/config/ConfigAppearance.qml:84
+#: package/contents/ui/config/ConfigAppearance.qml:87
 #, kde-format
 msgid "Pager style:"
 msgstr "Stile del pager:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Sliding pill"
 msgstr "Pillola scorrevole"
 
-#: package/contents/ui/config/ConfigAppearance.qml:86
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Filled & ring"
 msgstr "Pieno e anello"
 
-#: package/contents/ui/config/ConfigAppearance.qml:98
+#: package/contents/ui/config/ConfigAppearance.qml:101
+#, kde-format
+msgid "Multiple rows:"
+msgstr "Più righe:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:102
+#, kde-format
+msgid "Show all desktops in a single line"
+msgstr "Mostra tutti i desktop su un’unica linea"
+
+#: package/contents/ui/config/ConfigAppearance.qml:106
+#, kde-format
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Ignora le righe della griglia nelle Impostazioni di sistema e dispone ogni desktop in un’unica striscia lungo il pannello (un’unica striscia verticale su un pannello verticale)."
+
+#: package/contents/ui/config/ConfigAppearance.qml:115
 #, kde-format
 msgid "Vertical panels:"
 msgstr "Pannelli verticali:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:99
+#: package/contents/ui/config/ConfigAppearance.qml:116
 #, kde-format
 msgid "Match the virtual-desktop grid layout"
 msgstr "Adatta alla griglia dei desktop virtuali"
 
-#: package/contents/ui/config/ConfigAppearance.qml:103
+#: package/contents/ui/config/ConfigAppearance.qml:122
 #, kde-format
 msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
 msgstr "Dispone i punti come la griglia dei desktop nelle Impostazioni di sistema (righe dall’alto in basso) invece di allinearli lungo il pannello. Nessun effetto sui pannelli orizzontali."
 
-#: package/contents/ui/config/ConfigAppearance.qml:113
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Dot size:"
 msgstr "Dimensione dei punti:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:118 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "Predefinito"
 
-#: package/contents/ui/config/ConfigAppearance.qml:118 package/contents/ui/config/ConfigAppearance.qml:130
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:124
+#: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Spessore della pillola:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:130
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Match dots"
 msgstr "Adatta ai punti"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
 msgstr "Spaziatura:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:139
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× punto"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
 msgstr "Lunghezza della pillola:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:150
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× pillola"
 
-#: package/contents/ui/config/ConfigAppearance.qml:155
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Opacità inattiva:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:164
+#: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Opacità al passaggio:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:173
+#: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Desktop occupati:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:174
+#: package/contents/ui/config/ConfigAppearance.qml:193
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Evidenzia i desktop con finestre aperte"
 
-#: package/contents/ui/config/ConfigAppearance.qml:178
+#: package/contents/ui/config/ConfigAppearance.qml:197
 #, kde-format
 msgid "Indicator style:"
 msgstr "Stile dell'indicatore:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Filled"
 msgstr "Pieno"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Inner dot"
 msgstr "Punto interno"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Hollow ring"
 msgstr "Anello vuoto"
 
-#: package/contents/ui/config/ConfigAppearance.qml:196
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Opacità occupata:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:210
+#: package/contents/ui/config/ConfigAppearance.qml:229
 #, kde-format
 msgid "Colors:"
 msgstr "Colori:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:211
+#: package/contents/ui/config/ConfigAppearance.qml:230
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Segui lo schema di colori"
 
-#: package/contents/ui/config/ConfigAppearance.qml:215
+#: package/contents/ui/config/ConfigAppearance.qml:234
 #, kde-format
 msgid "Active desktop:"
 msgstr "Desktop attivo:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:221
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Desktop inattivo:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:227
+#: package/contents/ui/config/ConfigAppearance.qml:246
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Desktop occupato:"
@@ -274,7 +289,7 @@ msgid "New desktop name:"
 msgstr "Nome dei nuovi desktop:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:217
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -297,27 +312,27 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Valori predefiniti"
 
-#: package/contents/ui/main.qml:197
+#: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
 msgstr "Nuovo desktop"
 
-#: package/contents/ui/main.qml:259
+#: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
 msgstr "Aggiungi desktop"
 
-#: package/contents/ui/main.qml:267
+#: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Rimuovi l'ultimo desktop"
 
-#: package/contents/ui/main.qml:275
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Rinomina il desktop attuale…"
 
-#: package/contents/ui/main.qml:283
+#: package/contents/ui/main.qml:286
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "Configura i desktop virtuali…"
