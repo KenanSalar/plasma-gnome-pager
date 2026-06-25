@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-25 13:04+0200\n"
+"POT-Creation-Date: 2026-06-25 22:26+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Arabic\n"
@@ -26,32 +26,47 @@ msgstr "السلوك"
 msgid "Appearance"
 msgstr "المظهر"
 
-#: package/contents/ui/config/ConfigAppearance.qml:75
+#: package/contents/ui/config/ConfigAppearance.qml:84
 #, kde-format
 msgid "Pager style:"
 msgstr "نمط المُبدّل:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:86
 #, kde-format
 msgid "Sliding pill"
 msgstr "كبسولة منزلقة"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:86
 #, kde-format
 msgid "Filled & ring"
 msgstr "ممتلئ وحلقة"
 
-#: package/contents/ui/config/ConfigAppearance.qml:83
+#: package/contents/ui/config/ConfigAppearance.qml:98
+#, kde-format
+msgid "Vertical panels:"
+msgstr "اللوحات الرأسية:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:99
+#, kde-format
+msgid "Match the virtual-desktop grid layout"
+msgstr "طابِق تخطيط شبكة أسطح المكتب الافتراضية"
+
+#: package/contents/ui/config/ConfigAppearance.qml:103
+#, kde-format
+msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
+msgstr "يُرتّب النقاط مثل شبكة أسطح المكتب في إعدادات النظام (صفوف من الأعلى إلى الأسفل) بدلاً من ترتيبها على طول اللوحة. لا تأثير له على اللوحات الأفقية."
+
+#: package/contents/ui/config/ConfigAppearance.qml:113
 #, kde-format
 msgid "Dot size:"
 msgstr "حجم النقطة:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:118 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "افتراضي"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88 package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:118 package/contents/ui/config/ConfigAppearance.qml:130
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
@@ -62,102 +77,102 @@ msgstr[3] "%1 px"
 msgstr[4] "%1 px"
 msgstr[5] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:94
+#: package/contents/ui/config/ConfigAppearance.qml:124
 #, kde-format
 msgid "Pill thickness:"
 msgstr "سماكة الكبسولة:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:130
 #, kde-format
 msgid "Match dots"
 msgstr "مطابقة النقاط"
 
-#: package/contents/ui/config/ConfigAppearance.qml:105
+#: package/contents/ui/config/ConfigAppearance.qml:135
 #, kde-format
 msgid "Spacing:"
 msgstr "التباعد:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:109
+#: package/contents/ui/config/ConfigAppearance.qml:139
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× نقطة"
 
-#: package/contents/ui/config/ConfigAppearance.qml:114
+#: package/contents/ui/config/ConfigAppearance.qml:144
 #, kde-format
 msgid "Pill length:"
 msgstr "طول الكبسولة:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:120
+#: package/contents/ui/config/ConfigAppearance.qml:150
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× كبسولة"
 
-#: package/contents/ui/config/ConfigAppearance.qml:125
+#: package/contents/ui/config/ConfigAppearance.qml:155
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "عتامة غير النشط:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:134
+#: package/contents/ui/config/ConfigAppearance.qml:164
 #, kde-format
 msgid "Hover opacity:"
 msgstr "عتامة التحويم:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:143
+#: package/contents/ui/config/ConfigAppearance.qml:173
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "أسطح المكتب المشغولة:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "إبراز أسطح المكتب التي بها نوافذ مفتوحة"
 
-#: package/contents/ui/config/ConfigAppearance.qml:148
+#: package/contents/ui/config/ConfigAppearance.qml:178
 #, kde-format
 msgid "Indicator style:"
 msgstr "نمط المؤشر:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:181
 #, kde-format
 msgid "Filled"
 msgstr "ممتلئ"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:181
 #, kde-format
 msgid "Inner dot"
 msgstr "نقطة داخلية"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:181
 #, kde-format
 msgid "Hollow ring"
 msgstr "حلقة مجوّفة"
 
-#: package/contents/ui/config/ConfigAppearance.qml:166
+#: package/contents/ui/config/ConfigAppearance.qml:196
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "عتامة المشغول:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:180
+#: package/contents/ui/config/ConfigAppearance.qml:210
 #, kde-format
 msgid "Colors:"
 msgstr "الألوان:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:211
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "اتّباع مخطط الألوان"
 
-#: package/contents/ui/config/ConfigAppearance.qml:185
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Active desktop:"
 msgstr "سطح المكتب النشط:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:191
+#: package/contents/ui/config/ConfigAppearance.qml:221
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "سطح المكتب غير النشط:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:197
+#: package/contents/ui/config/ConfigAppearance.qml:227
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "سطح المكتب المشغول:"
@@ -263,7 +278,7 @@ msgid "New desktop name:"
 msgstr "اسم أسطح المكتب الجديدة:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:205
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:217
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -290,27 +305,27 @@ msgstr[5] "%1 ms"
 msgid "Defaults"
 msgstr "الافتراضيات"
 
-#: package/contents/ui/main.qml:185
+#: package/contents/ui/main.qml:197
 #, kde-format
 msgid "New Desktop"
 msgstr "سطح مكتب جديد"
 
-#: package/contents/ui/main.qml:247
+#: package/contents/ui/main.qml:259
 #, kde-format
 msgid "Add Desktop"
 msgstr "إضافة سطح مكتب"
 
-#: package/contents/ui/main.qml:255
+#: package/contents/ui/main.qml:267
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "إزالة آخر سطح مكتب"
 
-#: package/contents/ui/main.qml:263
+#: package/contents/ui/main.qml:275
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "إعادة تسمية سطح المكتب الحالي…"
 
-#: package/contents/ui/main.qml:271
+#: package/contents/ui/main.qml:283
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "اضبط أسطح المكتب الافتراضية…"

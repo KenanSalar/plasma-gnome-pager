@@ -943,6 +943,7 @@ TestCase {
             { tag: "dynamicNamePrefix", key: "dynamicNamePrefix", exp: "" },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
             { tag: "dotStyle", key: "dotStyle", exp: 0 },
+            { tag: "matchDesktopGrid", key: "matchDesktopGrid", exp: false },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
             { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
@@ -977,10 +978,10 @@ TestCase {
         var expected = ["activeColor", "animationDuration", "dotSize", "dotStyle", "dynamicNamePrefix",
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
-                        "inactiveOpacity", "invertScroll", "occupancyStyle", "occupiedColor", "occupiedOpacity",
+                        "inactiveOpacity", "invertScroll", "matchDesktopGrid", "occupancyStyle", "occupiedColor", "occupiedOpacity",
                         "pillClickAction", "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
                         "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 26, "DEFAULTS has exactly 26 keys");
+        compare(keys.length, 27, "DEFAULTS has exactly 27 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 

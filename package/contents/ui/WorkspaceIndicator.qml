@@ -54,6 +54,14 @@ Item {
     // Panel orientation. false = horizontal row (also the Planar/floating default); true = vertical column.
     property bool vertical: false
 
+    // When true on a vertical panel, lay the grid out in KWin's orientation (rows top-to-bottom) instead of
+    // transposing it to run down the panel (the GNOME-reflow default). No effect on a horizontal panel.
+    property bool matchDesktopGrid: Logic.DEFAULTS.matchDesktopGrid
+
+    // Effective grid orientation: vertical panel AND not matching KWin's grid. ALL grid geometry below (the two
+    // Grid flows, the metrics axis, the Layout hints, the dot's capsule axis) keys off THIS, not the raw `vertical`.
+    readonly property bool gridVertical: vertical && !matchDesktopGrid
+
     // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder carries).
     property real wheelAccumulator: 0
     readonly property int wheelNotchDelta: Logic.DEFAULTS.wheelNotchDelta
@@ -100,8 +108,8 @@ Item {
         pillSizeRequest: indicator.effPillSizeRequest   // ring style: 0 → pill thickness == dot (no pill)
         spacingFactor: indicator.spacingFactor
         pillWidthFactor: indicator.effPillWidthFactor   // ring style: 1 → active extent == dot (no pill)
-        availableMajor: indicator.vertical ? indicator.height : indicator.width
-        availableCross: indicator.vertical ? indicator.width : indicator.height
+        availableMajor: indicator.gridVertical ? indicator.height : indicator.width
+        availableCross: indicator.gridVertical ? indicator.width : indicator.height
         perLine: indicator.perLine
         lineCount: indicator.lineCount
     }
@@ -155,15 +163,15 @@ Item {
     }
 
     // Size hints. Major axis: preferred==max==naturalStripLength, min==floorStripLength (panel can compress
-    // → dots scale to fit). Cross axis: preferred==natural, max==-1 (fill thickness), min==floor. Swaps with `vertical`.
-    implicitWidth: vertical ? naturalCrossThickness : naturalStripLength
-    implicitHeight: vertical ? naturalStripLength : naturalCrossThickness
-    Layout.minimumWidth: vertical ? floorCrossThickness : floorStripLength
+    // → dots scale to fit). Cross axis: preferred==natural, max==-1 (fill thickness), min==floor. Swaps with `gridVertical`.
+    implicitWidth: gridVertical ? naturalCrossThickness : naturalStripLength
+    implicitHeight: gridVertical ? naturalStripLength : naturalCrossThickness
+    Layout.minimumWidth: gridVertical ? floorCrossThickness : floorStripLength
     Layout.preferredWidth: implicitWidth
-    Layout.maximumWidth: vertical ? -1 : naturalStripLength
-    Layout.minimumHeight: vertical ? floorStripLength : floorCrossThickness
+    Layout.maximumWidth: gridVertical ? -1 : naturalStripLength
+    Layout.minimumHeight: gridVertical ? floorStripLength : floorCrossThickness
     Layout.preferredHeight: implicitHeight
-    Layout.maximumHeight: vertical ? naturalStripLength : -1
+    Layout.maximumHeight: gridVertical ? naturalStripLength : -1
 
     // Gate the morph so the FIRST valid placement is instant (no grow-in on reload), later switches animate.
     // ScreenCurrentDesktop (a child) resolves currentDesktop in its onCompleted first, so activeIndex is valid here.
@@ -192,8 +200,8 @@ Item {
         id: strip
         anchors.centerIn: parent
         spacing: indicator.dotSpacing
-        rows: indicator.vertical ? 1 : -1
-        columns: indicator.vertical ? -1 : 1
+        rows: indicator.gridVertical ? 1 : -1
+        columns: indicator.gridVertical ? -1 : 1
 
         Repeater {
             // `lines` is [] while the source is transiently null/empty, so the outer Repeater is empty.
@@ -206,11 +214,11 @@ Item {
                 required property int index        // line index (KWin row)
 
                 spacing: indicator.dotSpacing
-                rows: indicator.vertical ? -1 : 1
-                columns: indicator.vertical ? 1 : -1
+                rows: indicator.gridVertical ? -1 : 1
+                columns: indicator.gridVertical ? 1 : -1
                 // Centre every element on the CROSS axis: the line is as thick as its tallest element (the capsule when pillSize > dotSize).
-                verticalItemAlignment: indicator.vertical ? Grid.AlignTop : Grid.AlignVCenter
-                horizontalItemAlignment: indicator.vertical ? Grid.AlignHCenter : Grid.AlignLeft
+                verticalItemAlignment: indicator.gridVertical ? Grid.AlignTop : Grid.AlignVCenter
+                horizontalItemAlignment: indicator.gridVertical ? Grid.AlignHCenter : Grid.AlignLeft
 
                 Repeater {
                     model: lineStrip.modelData
@@ -224,7 +232,7 @@ Item {
                         // Position in the flat desktopIds/desktopNames: earlier lines are full at perLine.
                         readonly property int globalIndex: lineStrip.index * indicator.perLine + workspaceDot.index
 
-                        vertical: indicator.vertical
+                        vertical: indicator.gridVertical
                         dotStyle: indicator.dotStyle
                         dotSize: indicator.dotSize
                         pillSize: indicator.pillSize                  // == dotSize in ring mode (no pill)

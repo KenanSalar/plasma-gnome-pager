@@ -70,6 +70,11 @@
         <entry name="dotStyle" type="Int">
             <default>0</default>
         </entry>
+        <!-- Vertical panels: lay the grid out in KWin's orientation (rows top-to-bottom) instead of transposing
+             it to run down the panel. Off = the GNOME-reflow look (strip follows the panel). No effect when horizontal. -->
+        <entry name="matchDesktopGrid" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- Inactive-dot diameter in px; 0 = auto (Kirigami.Units.iconSizes.small / 2, HiDPI-aware). -->
         <entry name="dotSize" type="Int">
             <default>0</default>

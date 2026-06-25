@@ -303,6 +303,29 @@ how GNOME and the KDE `compact_pager` actually work.
 > Guarded by `test_grid*` (mirrors-rows, uneven-last-line, reactive-to-rows, second-line capsule,
 > vertical transpose) + `tst_logic.qml::{test_gridColumns,test_chunk}`.
 
+> **Grid ORIENTATION toggle (`matchDesktopGrid`) — a presentation choice, distinct from the grid SHAPE
+> (still mirrored, no setting).** On a vertical panel the strip is normally *transposed* (lines along the
+> cross/horizontal axis, dots along the major/vertical axis) so a single-row strip flows nicely DOWN the
+> panel — but that same transpose stacks a multi-row grid (e.g. KWin Rows=2 over 2 vertically-stacked
+> desktops) **side-by-side**, which surprised an issue reporter who wanted it to match their vertical
+> desktop layout (issue #23). The row COUNT is still mirrored from KWin (`desktopLayoutRows` — no widget
+> knob, see above); only the on-screen ORIENTATION is ours to choose, and there is **no** KWin setting to
+> mirror for it — so `matchDesktopGrid` (Bool, default OFF, `ConfigAppearance` "Vertical panels:") is an
+> appropriate widget toggle (NOT a duplicate of a System Settings knob). The whole feature is **one derived
+> bool** in `WorkspaceIndicator`: `readonly property bool gridVertical: vertical && !matchDesktopGrid`,
+> substituted for the raw panel `vertical` at the FIVE geometry sites — `availableMajor`/`availableCross`,
+> the `Layout.*` size hints, the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment,
+> and `WorkspaceDot.vertical` (the capsule's elongation axis). Truth table: horizontal panel → always
+> `false` (toggle inert); vertical + OFF → `true` (transpose preserved, byte-for-byte, every prior test
+> green); vertical + ON → `false` (the grid renders in KWin orientation — rows top-to-bottom, columns
+> left-to-right — exactly like a horizontal panel, matching the stock pager). Applies to **all row counts**
+> (a single-row strip on a vertical panel also renders horizontally when ON — chosen for literal grid
+> fidelity; scale-to-fit shrinks it to the panel thickness, never overflows). `IndicatorMetrics` is
+> **untouched** (orientation-agnostic — it only sees `availableMajor`/`availableCross`). Guarded by
+> `tst_indicator_layout.qml::{test_gridVerticalResolution,test_matchDesktopGridFaithfulMultiRow,
+> test_matchDesktopGridReporterCase,test_matchDesktopGridIgnoredHorizontal}`; the existing
+> `test_gridVerticalTranspose` pins the default-OFF transpose. The config page is e2e-only.
+
 > **Gotcha — animate the first *placement*, not the first frame.** The morph is gated by an
 > `animate` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the active
 > element is **already a capsule** on shell reload (no grow-in from a dot, even when
@@ -651,6 +674,9 @@ tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox
 appearance — `dotStyle` (the OVERALL look, a `ConfigAppearance` combo whose index mirrors
 `Logic.DOT_STYLE`: `0 = Sliding pill` (default, the REFLOW look), `1 = Filled & ring` (no pill;
 current = filled circle, others = hollow rings — see the Filled & ring gotcha below)),
+`matchDesktopGrid` (Bool, default off — on a VERTICAL panel lay the grid out in KWin orientation, rows
+top-to-bottom, instead of transposing it down the panel; a presentation toggle, not a grid-shape knob —
+see the grid-orientation gotcha above),
 `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
 thickness — "× pill"; both pill keys are ignored/greyed in the Filled & ring style),

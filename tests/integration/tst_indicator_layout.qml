@@ -225,6 +225,61 @@ IndicatorTestCase {
         verify(p2.x > p0.x + 0.5, "the second line sits beside the first (transposed)");
     }
 
+    // --- matchDesktopGrid: lay the grid out in KWin orientation on a vertical panel (issue #23) -----------
+
+    // gridVertical (the effective grid orientation) is the panel `vertical` UNLESS matchDesktopGrid un-transposes
+    // it. The toggle is inert on a horizontal panel and applies to every row count on a vertical one.
+    function test_gridVerticalResolution() {
+        const transpose = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true });
+        compare(transpose.gridVertical, true, "vertical panel, toggle off → transpose");
+
+        const matched = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, matchDesktopGrid: true });
+        compare(matched.gridVertical, false, "vertical panel, toggle on → match KWin (no transpose)");
+
+        const horizontal = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { matchDesktopGrid: true });
+        compare(horizontal.gridVertical, false, "horizontal panel: the toggle has no effect");
+    }
+
+    // Vertical panel, 2 rows, toggle ON: the grid is NOT transposed — it lays out exactly like a horizontal
+    // panel (lines stack along Y, dots within a line share a row). The inverse of test_gridVerticalTranspose.
+    function test_matchDesktopGridFaithfulMultiRow() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, matchDesktopGrid: true });
+        compare(indicator.perLine, 2, "2 dots per line");
+        compare(indicator.lineCount, 2, "two lines");
+        const dots = dotsByIndex(indicator);   // [0,1] line 0, [2,3] line 1
+        const y0 = dots[0].mapToItem(indicator, 0, 0).y;
+        const y1 = dots[1].mapToItem(indicator, 0, 0).y;
+        const y2 = dots[2].mapToItem(indicator, 0, 0).y;
+        fuzzyCompare(y1, y0, 0.5, "the two dots of line 0 share a row (not stacked → not transposed)");
+        verify(y2 > y0 + 0.5, "line 1 sits below line 0 (rows run top-to-bottom, like KWin)");
+    }
+
+    // The exact issue-#23 scenario: 2 desktops with KWin Rows=2 on a vertical panel. With the toggle ON the
+    // two dots stack vertically (one column) to match the desktop layout, instead of sitting side by side.
+    // current is a transient/unknown uuid so neither dot is the wider capsule — both are equal-size dots,
+    // making the single-column assertion exact no matter how the lines align.
+    function test_matchDesktopGridReporterCase() {
+        const indicator = makeIndicator(makeMock(["uuid-a", "uuid-b"], staleUuid, [], 2), { vertical: true, matchDesktopGrid: true });
+        compare(indicator.perLine, 1, "2 desktops / 2 rows → 1 per line");
+        compare(indicator.lineCount, 2, "two lines");
+        const dots = dotsByIndex(indicator);
+        const p0 = dots[0].mapToItem(indicator, 0, 0);
+        const p1 = dots[1].mapToItem(indicator, 0, 0);
+        verify(p1.y > p0.y + 0.5, "the second desktop stacks below the first");
+        fuzzyCompare(p1.x, p0.x, 0.5, "both desktops share one column (a vertical stack, not side by side)");
+    }
+
+    // A horizontal panel already mirrors KWin's grid, so the toggle is a no-op there: same layout as toggle off.
+    function test_matchDesktopGridIgnoredHorizontal() {
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { matchDesktopGrid: true });
+        const dots = dotsByIndex(indicator);
+        const y0 = dots[0].mapToItem(indicator, 0, 0).y;
+        const y1 = dots[1].mapToItem(indicator, 0, 0).y;
+        const y2 = dots[2].mapToItem(indicator, 0, 0).y;
+        fuzzyCompare(y1, y0, 0.5, "line 0 dots share a row (unchanged by the toggle)");
+        verify(y2 > y0 + 0.5, "line 1 below line 0 (unchanged by the toggle)");
+    }
+
     // per-dot tooltip data: the indicator feeds each dot its name and the flag.
 
     // Metrics reach the derived sizes and every dot.

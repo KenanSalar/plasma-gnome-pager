@@ -20,6 +20,7 @@ ConfigPageBase {
     id: root
 
     property alias cfg_dotStyle: dotStyle.currentIndex
+    property alias cfg_matchDesktopGrid: matchDesktopGrid.checked
     property alias cfg_dotSize: dotSize.value
     property alias cfg_pillSize: pillSize.value
     property alias cfg_spacingFactor: spacingFactor.value
@@ -36,6 +37,7 @@ ConfigPageBase {
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property int cfg_dotStyleDefault
+    property bool cfg_matchDesktopGridDefault
     property int cfg_dotSizeDefault
     property int cfg_pillSizeDefault
     property real cfg_spacingFactorDefault
@@ -54,6 +56,7 @@ ConfigPageBase {
     // (reals within epsilon, colours via Qt.colorEqual).
     configKeys: [
         { n: "dotStyle", t: "int" },
+        { n: "matchDesktopGrid", t: "bool" },
         { n: "dotSize", t: "int" },
         { n: "pillSize", t: "int" },
         { n: "spacingFactor", t: "real" },
@@ -88,6 +91,21 @@ ConfigPageBase {
                 if (root.ringStyle && occupancyStyle.currentIndex === 2)
                     occupancyStyle.currentIndex = 0;
             }
+        }
+
+        QQC2.CheckBox {
+            id: matchDesktopGrid
+            Kirigami.FormData.label: i18n("Vertical panels:")
+            text: i18n("Match the virtual-desktop grid layout")
+        }
+        QQC2.Label {
+            // Hint: this only matters on a vertical panel (a horizontal panel already mirrors the grid).
+            text: i18n("Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels.")
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+            Layout.fillWidth: true
+            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
         }
 
         ConfigSlider {

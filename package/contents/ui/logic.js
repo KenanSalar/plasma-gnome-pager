@@ -26,6 +26,7 @@ var DEFAULTS = Object.freeze({
     animationDuration: 0,        // ms; 0 = follow the theme
     // Appearance
     dotStyle: 0,                 // overall look; see DOT_STYLE (0 = Sliding pill, mirrors main.xml)
+    matchDesktopGrid: false,     // vertical panel: render the grid in KWin orientation instead of transposing
     dotSize: 0,                  // px; 0 = auto (HiDPI themed)
     pillSize: 0,                 // px pill thickness; 0 = auto (match dots)
     spacingFactor: 0.5,
