@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-24 14:11+0200\n"
+"POT-Creation-Date: 2026-06-25 11:35+0200\n"
 "PO-Revision-Date: 2026-06-18 18:04+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: German\n"
@@ -244,7 +244,7 @@ msgid "New desktop name:"
 msgstr "Name neuer Arbeitsflächen:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:201
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:202
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -267,25 +267,30 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Voreinstellungen"
 
-#: package/contents/ui/main.qml:181
+#: package/contents/ui/main.qml:182
 #, kde-format
 msgid "New Desktop"
 msgstr "Neue Arbeitsfläche"
 
-#: package/contents/ui/main.qml:234
+#: package/contents/ui/main.qml:244
 #, kde-format
 msgid "Add Desktop"
 msgstr "Arbeitsfläche hinzufügen"
 
-#: package/contents/ui/main.qml:242
+#: package/contents/ui/main.qml:252
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Letzte Arbeitsfläche entfernen"
 
-#: package/contents/ui/main.qml:250
+#: package/contents/ui/main.qml:260
 #, kde-format
 msgid "Rename Current Desktop…"
-msgstr "Aktuelle Arbeitsfläche umbenennen …"
+msgstr "Aktuelle Arbeitsfläche umbenennen…"
+
+#: package/contents/ui/main.qml:268
+#, kde-format
+msgid "Configure Virtual Desktops…"
+msgstr "Konfiguriere Virtuelle Arbeitsflächen…"
 
 #: package/contents/ui/RenameDialog.qml:54
 #, kde-format

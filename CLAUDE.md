@@ -292,6 +292,19 @@ the tested sub-components never touch `plasmoid.configuration`. `main.qml` owns 
 DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActions`, gated by
 `enableAddRemove` / `enableRename`, never removing the last desktop via `logic.js::canRemoveDesktop`).
 
+> **Gotcha — "Configure Virtual Desktops…" is a GUI launch, NOT a DBus/`logic.js` spec.** A fourth,
+> **always-shown** (no config key — matches the stock pager) `Plasmoid.contextualAction` opens the
+> SYSTEM virtual-desktops KCM via the public KF6 `org.kde.kcmutils` `KCM.KCMLauncher.openSystemSettings(name)`
+> — what the stock `org.kde.plasma.pager` does. The module name is platform-branched in `main.qml`'s
+> `openVirtualDesktopsKcm()` (`Qt.platform.pluginName.includes("wayland") ? "kcm_kwin_virtualdesktops" :
+> "kcm_kwin_virtualdesktops_x11"`). Because it's an imperative GUI launch (not a
+> `{service,path,iface,member,args}` DBus write), it stays a direct `main.qml` function — it does NOT
+> go through `dispatch`/`logic.js` (which is DBus-spec-only) and adds no test. This is **distinct from**
+> the "Configure Workspaces…" entry Plasma auto-adds, which opens THIS widget's own settings. The
+> `org.kde.kcmutils` import is added to robustness.md's allowlist — public KF6, a hard Plasma dependency
+> (effectively always present, like the Breeze-icon fallback), so importing it into the always-on
+> `main.qml` is safe. e2e-only (verify in-shell).
+
 > **Gotcha — KWin DBus call SHAPES live in pure `logic.js`, so they are unit-tested (not e2e-only).**
 > Each write's exact `{ service, path, iface, member, args:[{t,v}] }` is built by a pure
 > `logic.js::{switchSpec, addSpec, removeSpec, renameSpec}` (with the robustness guards folded IN, so

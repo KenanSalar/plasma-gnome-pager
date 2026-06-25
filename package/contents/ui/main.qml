@@ -17,6 +17,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action + PlasmaCore.Types
 import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksModel/ActivityInfo (read)
 import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
+import org.kde.kcmutils as KCM                   // KCMLauncher — open the system Virtual Desktops settings module
 
 import "logic.js" as Logic
 
@@ -227,8 +228,17 @@ PlasmoidItem {
         renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
     }
 
+    // Open the system "Virtual Desktops" settings module (like the stock pager). NOT a DBus write — an imperative
+    // GUI launch via the public KCMLauncher, so it lives here, not in logic.js. Module name is platform-branched.
+    function openVirtualDesktopsKcm() {
+        KCM.KCMLauncher.openSystemSettings(Qt.platform.pluginName.includes("wayland")
+            ? "kcm_kwin_virtualdesktops"
+            : "kcm_kwin_virtualdesktops_x11");
+    }
+
     // Right-click menu. Add/Remove gated by canAddRemove (they conflict with dynamic workspaces); Remove
-    // also disables at the last desktop. ("Configure…" is auto-added by Plasma.)
+    // also disables at the last desktop. "Configure Virtual Desktops…" is always shown and opens the SYSTEM
+    // KCM (distinct from "Configure Workspaces…", which Plasma auto-adds for THIS widget's own settings).
     Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: i18n("Add Desktop")
@@ -253,6 +263,12 @@ PlasmoidItem {
             visible: root.enableRename
             enabled: root.enableRename
             onTriggered: root.openRenameDialog(vdi.currentDesktop)
+        },
+        PlasmaCore.Action {
+            text: i18n("Configure Virtual Desktops…")
+            icon.name: "preferences-desktop-virtual"   // the icon the Virtual Desktops KCM itself uses
+            priority: Plasmoid.LowPriorityAction
+            onTriggered: root.openVirtualDesktopsKcm()
         }
     ]
 
