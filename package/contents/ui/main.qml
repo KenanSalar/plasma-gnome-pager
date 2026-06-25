@@ -149,13 +149,22 @@ PlasmoidItem {
         if (!spec) {
             return;
         }
-        DBus.SessionBus.asyncCall({
+        // Async fire-and-forget — VirtualDesktopInfo reflects the resulting state, not a return value.
+        // We capture the reply ONLY to warn on a rejected call (the silent-DBus-drop class this widget avoids).
+        const reply = DBus.SessionBus.asyncCall({
             "service": spec.service,
             "path": spec.path,
             "iface": spec.iface,
             "member": spec.member,
             "arguments": spec.args.map(a => root.toDBusArg(a))
         });
+        if (reply) {
+            reply.finished.connect(() => {
+                if (reply.isError) {
+                    console.warn("plasma-gnome-pager: DBus call failed:", spec.member, "-", reply.error.name, reply.error.message);
+                }
+            });
+        }
     }
 
     // Map ONE spec arg { t, v } to its DBus.* constructor. The "v" case wraps a PLAIN value — a wrapped DBus.string is silently rejected by KWin.

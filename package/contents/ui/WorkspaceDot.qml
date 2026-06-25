@@ -62,6 +62,8 @@ Item {
     readonly property bool hasRing: Logic.dotHasRing(dot.dotStyle, dot.active)
     readonly property bool bodyIsHollow: Logic.dotBodyIsHollow(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)
     readonly property bool ringFilled: Logic.dotBodyFilled(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)   // occupied + Filled: ring outline + filled interior
+    // Filled-occupied ring interior: the occupied colour with its own alpha baked in (so the ring outline stays opaque). Only meaningful when ringFilled.
+    readonly property color filledBodyColor: Qt.rgba(dot.resolvedOccupied.r, dot.resolvedOccupied.g, dot.resolvedOccupied.b, dot.occupiedOpacity)
 
     // Morph duration: configured value, else themed default, 0 when "reduce animations" is on. One source for the Behaviors below.
     readonly property int effectiveDuration: Logic.effectiveDuration(dot.animationDuration, Kirigami.Units.longDuration)
@@ -103,7 +105,7 @@ Item {
             // "Filled & ring" style: a hollow interior (transparent), OR a Filled-occupied interior (occupied
             // colour at occupiedOpacity, baked into the fill so the ring border below stays crisp), else dotColor.
             color: dot.bodyIsHollow ? "transparent"
-                 : dot.ringFilled ? Qt.rgba(dot.resolvedOccupied.r, dot.resolvedOccupied.g, dot.resolvedOccupied.b, dot.occupiedOpacity)
+                 : dot.ringFilled ? dot.filledBodyColor
                  : Logic.dotColor(dot.active, dot.occupied, dot.occupancyStyle, dot.resolvedActive, dot.resolvedInactive, dot.resolvedOccupied)
             // Ring outline: drawn for every non-current dot in the Filled & ring style (in the dim/inactive colour), independent of the fill.
             border.width: dot.hasRing ? Logic.ringThickness(dot.dotSize) : 0
@@ -163,7 +165,7 @@ Item {
         Component {
             id: innerDotComponent
             Rectangle {
-                width: dot.dotSize * 0.45
+                width: Logic.innerDotDiameter(dot.dotSize)
                 height: width
                 radius: width / 2
                 color: dot.resolvedOccupied
