@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-25 13:04+0200\n"
+"POT-Creation-Date: 2026-06-25 23:49+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Greek\n"
@@ -26,134 +26,166 @@ msgstr "Συμπεριφορά"
 msgid "Appearance"
 msgstr "Εμφάνιση"
 
-#: package/contents/ui/config/ConfigAppearance.qml:75
+#: package/contents/ui/config/ConfigAppearance.qml:87
 #, kde-format
 msgid "Pager style:"
 msgstr "Στυλ εναλλάκτη:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Sliding pill"
 msgstr "Ολισθαίνον χάπι"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Filled & ring"
 msgstr "Γεμάτο & δακτύλιος"
 
-#: package/contents/ui/config/ConfigAppearance.qml:83
+#: package/contents/ui/config/ConfigAppearance.qml:101
+#, kde-format
+msgid "Multiple rows:"
+msgstr "Πολλές γραμμές:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:102
+#, kde-format
+msgid "Show all desktops in a single line"
+msgstr "Εμφάνιση όλων των επιφανειών εργασίας σε μία γραμμή"
+
+#: package/contents/ui/config/ConfigAppearance.qml:106
+#, kde-format
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Αγνοεί τις γραμμές του πλέγματος από τις Ρυθμίσεις συστήματος και τοποθετεί κάθε επιφάνεια εργασίας σε μία λωρίδα κατά μήκος του πίνακα (μία κατακόρυφη λωρίδα σε κατακόρυφο πίνακα)."
+
+#: package/contents/ui/config/ConfigAppearance.qml:115
+#, kde-format
+msgid "Vertical panels:"
+msgstr "Κατακόρυφοι πίνακες:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:116
+#, kde-format
+msgid "Match the virtual-desktop grid layout"
+msgstr "Αντιστοίχιση με το πλέγμα των εικονικών επιφανειών εργασίας"
+
+#: package/contents/ui/config/ConfigAppearance.qml:122
+#, kde-format
+msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
+msgstr ""
+"Διατάσσει τις κουκκίδες όπως το πλέγμα επιφανειών εργασίας στις Ρυθμίσεις συστήματος (γραμμές από πάνω προς τα κάτω), αντί να τις τοποθετεί κατά μήκος του πίνακα. Δεν επηρεάζει τους οριζόντιους "
+"πίνακες."
+
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Dot size:"
 msgstr "Μέγεθος κουκκίδας:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "Προεπιλογή"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88 package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:94
+#: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Πάχος χαπιού:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Match dots"
 msgstr "Αντιστοίχιση με κουκκίδες"
 
-#: package/contents/ui/config/ConfigAppearance.qml:105
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
 msgstr "Απόσταση:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:109
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× κουκκίδα"
 
-#: package/contents/ui/config/ConfigAppearance.qml:114
+#: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
 msgstr "Μήκος χαπιού:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:120
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× χάπι"
 
-#: package/contents/ui/config/ConfigAppearance.qml:125
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Αδιαφάνεια ανενεργού:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:134
+#: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Αδιαφάνεια κατά το πέρασμα:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:143
+#: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Κατειλημμένες επιφάνειες εργασίας:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:193
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Επισήμανση επιφανειών εργασίας με ανοικτά παράθυρα"
 
-#: package/contents/ui/config/ConfigAppearance.qml:148
+#: package/contents/ui/config/ConfigAppearance.qml:197
 #, kde-format
 msgid "Indicator style:"
 msgstr "Στυλ ένδειξης:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Filled"
 msgstr "Γεμάτο"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Inner dot"
 msgstr "Εσωτερική κουκκίδα"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Hollow ring"
 msgstr "Κενός δακτύλιος"
 
-#: package/contents/ui/config/ConfigAppearance.qml:166
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Αδιαφάνεια κατειλημμένου:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:180
+#: package/contents/ui/config/ConfigAppearance.qml:229
 #, kde-format
 msgid "Colors:"
 msgstr "Χρώματα:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:230
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Ακολουθία του χρωματικού σχήματος"
 
-#: package/contents/ui/config/ConfigAppearance.qml:185
+#: package/contents/ui/config/ConfigAppearance.qml:234
 #, kde-format
 msgid "Active desktop:"
 msgstr "Ενεργή επιφάνεια εργασίας:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:191
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Ανενεργή επιφάνεια εργασίας:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:197
+#: package/contents/ui/config/ConfigAppearance.qml:246
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Κατειλημμένη επιφάνεια εργασίας:"
@@ -259,7 +291,7 @@ msgid "New desktop name:"
 msgstr "Όνομα νέων επιφανειών εργασίας:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:205
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -282,27 +314,27 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Προκαθορισμένα"
 
-#: package/contents/ui/main.qml:185
+#: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
 msgstr "Νέα επιφάνεια εργασίας"
 
-#: package/contents/ui/main.qml:247
+#: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
 msgstr "Προσθήκη επιφάνειας εργασίας"
 
-#: package/contents/ui/main.qml:255
+#: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Αφαίρεση τελευταίας επιφάνειας εργασίας"
 
-#: package/contents/ui/main.qml:263
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Μετονομασία τρέχουσας επιφάνειας εργασίας…"
 
-#: package/contents/ui/main.qml:271
+#: package/contents/ui/main.qml:286
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "Διαμόρφωση εικονικών επιφανειών εργασίας…"

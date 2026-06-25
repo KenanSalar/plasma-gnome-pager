@@ -71,7 +71,11 @@ the same widget, transposed:
 - **Works everywhere a pager goes** — **a vertical side panel behaves identically to a
   horizontal one** (the row of dots becomes a column and the pill grows vertically), plus a
   multi-row grid that mirrors KWin's "Rows" setting live. On a thin or crowded panel the dots
-  **scale to fit** on both axes rather than overflowing onto neighbours.
+  **scale to fit** on both axes rather than overflowing onto neighbours. Two optional layout tweaks
+  for multi-row setups (**Appearance**): **"Show all desktops in a single line"** ignores the grid
+  rows and lays everything out as one strip following the panel (a single vertical strip on a vertical
+  panel), and **"Match the virtual-desktop grid layout"** lays a multi-row grid out in KWin's
+  orientation (rows top-to-bottom) on a vertical panel instead of running it down the panel.
 - **Per-screen current desktop** — Plasma 6.7's "switch desktops independently for each
   screen": each pager reflects *its* monitor's current desktop, not the global one.
 - **Theme-following, or your own colours** — by default dim dots use the text colour at reduced
@@ -165,6 +169,8 @@ restart; the defaults give the intended GNOME look out of the box.
 | Setting | Default | Description |
 |---|---|---|
 | `dotStyle` | `Sliding pill` | Overall look: **Sliding pill** (the reflow pill) or **Filled & ring** (no pill; current = filled circle, others = hollow rings). The pill-size settings apply only to Sliding pill. |
+| `singleLine` | `false` | Ignore the virtual-desktop grid **rows** and lay every desktop out in a single line, regardless of KWin's "Rows" setting. Combine with `matchDesktopGrid` to choose the direction (one vertical strip on its own, or one horizontal row with `matchDesktopGrid` on). |
+| `matchDesktopGrid` | `false` | **Vertical panels only:** run the layout **across** the panel instead of down it — for a multi-row grid this mirrors KWin's orientation (rows top-to-bottom, like the stock pager); combined with `singleLine` it gives a single horizontal row. No effect on a horizontal panel. |
 | `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
 | `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
 | `spacingFactor` | `0.5` | Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). |

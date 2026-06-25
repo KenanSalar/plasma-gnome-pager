@@ -54,6 +54,10 @@ PlasmoidItem {
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     // Overall pager look (Sliding pill / Filled & ring — see Logic.DOT_STYLE); the indicator neutralizes the pill in ring mode.
     readonly property int dotStyle: Plasmoid.configuration.dotStyle ?? Logic.DEFAULTS.dotStyle
+    // Ignore KWin's grid rows: lay every desktop out in one strip along the panel (a vertical strip on a vertical panel).
+    readonly property bool singleLine: Plasmoid.configuration.singleLine ?? Logic.DEFAULTS.singleLine
+    // Vertical panels: lay the grid out in KWin orientation (rows top-to-bottom) instead of transposing it down the panel.
+    readonly property bool matchDesktopGrid: Plasmoid.configuration.matchDesktopGrid ?? Logic.DEFAULTS.matchDesktopGrid
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
     readonly property int pillSize: Plasmoid.configuration.pillSize ?? Logic.DEFAULTS.pillSize
     readonly property real spacingFactor: Plasmoid.configuration.spacingFactor ?? Logic.DEFAULTS.spacingFactor
@@ -83,6 +87,8 @@ PlasmoidItem {
         desktopTooltips: root.desktopTooltips
 
         dotStyle: root.dotStyle
+        singleLine: root.singleLine
+        matchDesktopGrid: root.matchDesktopGrid
         // dotSize/pillSize passed as raw 0=auto requests; resolved in the indicator (pillSize 0 = match dots).
         dotSizeRequest: root.dotSize
         pillSizeRequest: root.pillSize

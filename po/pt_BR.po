@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-25 13:04+0200\n"
+"POT-Creation-Date: 2026-06-25 23:49+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Brazilian Portuguese\n"
@@ -26,134 +26,164 @@ msgstr "Comportamento"
 msgid "Appearance"
 msgstr "Aparência"
 
-#: package/contents/ui/config/ConfigAppearance.qml:75
+#: package/contents/ui/config/ConfigAppearance.qml:87
 #, kde-format
 msgid "Pager style:"
 msgstr "Estilo do paginador:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Sliding pill"
 msgstr "Pílula deslizante"
 
-#: package/contents/ui/config/ConfigAppearance.qml:77
+#: package/contents/ui/config/ConfigAppearance.qml:89
 #, kde-format
 msgid "Filled & ring"
 msgstr "Preenchido e anel"
 
-#: package/contents/ui/config/ConfigAppearance.qml:83
+#: package/contents/ui/config/ConfigAppearance.qml:101
+#, kde-format
+msgid "Multiple rows:"
+msgstr "Várias linhas:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:102
+#, kde-format
+msgid "Show all desktops in a single line"
+msgstr "Mostrar todas as áreas de trabalho em uma única linha"
+
+#: package/contents/ui/config/ConfigAppearance.qml:106
+#, kde-format
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Ignora as linhas da grade nas Configurações do Sistema e dispõe cada área de trabalho em uma única faixa ao longo do painel (uma única faixa vertical em um painel vertical)."
+
+#: package/contents/ui/config/ConfigAppearance.qml:115
+#, kde-format
+msgid "Vertical panels:"
+msgstr "Painéis verticais:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:116
+#, kde-format
+msgid "Match the virtual-desktop grid layout"
+msgstr "Corresponder à grade das áreas de trabalho virtuais"
+
+#: package/contents/ui/config/ConfigAppearance.qml:122
+#, kde-format
+msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
+msgstr "Dispõe os pontos como a grade de áreas de trabalho nas Configurações do Sistema (linhas de cima para baixo) em vez de alinhá-los ao longo do painel. Sem efeito em painéis horizontais."
+
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Dot size:"
 msgstr "Tamanho dos pontos:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "Padrão"
 
-#: package/contents/ui/config/ConfigAppearance.qml:88 package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:94
+#: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Espessura da pílula:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:100
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Match dots"
 msgstr "Corresponder aos pontos"
 
-#: package/contents/ui/config/ConfigAppearance.qml:105
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
 msgstr "Espaçamento:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:109
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× ponto"
 
-#: package/contents/ui/config/ConfigAppearance.qml:114
+#: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
 msgstr "Comprimento da pílula:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:120
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× pílula"
 
-#: package/contents/ui/config/ConfigAppearance.qml:125
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Opacidade inativa:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:134
+#: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Opacidade ao passar o cursor:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:143
+#: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Áreas de trabalho ocupadas:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:144
+#: package/contents/ui/config/ConfigAppearance.qml:193
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Realçar áreas de trabalho com janelas abertas"
 
-#: package/contents/ui/config/ConfigAppearance.qml:148
+#: package/contents/ui/config/ConfigAppearance.qml:197
 #, kde-format
 msgid "Indicator style:"
 msgstr "Estilo do indicador:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Filled"
 msgstr "Preenchido"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Inner dot"
 msgstr "Ponto interno"
 
-#: package/contents/ui/config/ConfigAppearance.qml:151
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Hollow ring"
 msgstr "Anel vazado"
 
-#: package/contents/ui/config/ConfigAppearance.qml:166
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Opacidade ocupada:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:180
+#: package/contents/ui/config/ConfigAppearance.qml:229
 #, kde-format
 msgid "Colors:"
 msgstr "Cores:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:181
+#: package/contents/ui/config/ConfigAppearance.qml:230
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Seguir o esquema de cores"
 
-#: package/contents/ui/config/ConfigAppearance.qml:185
+#: package/contents/ui/config/ConfigAppearance.qml:234
 #, kde-format
 msgid "Active desktop:"
 msgstr "Área de trabalho ativa:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:191
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Área de trabalho inativa:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:197
+#: package/contents/ui/config/ConfigAppearance.qml:246
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Área de trabalho ocupada:"
@@ -259,7 +289,7 @@ msgid "New desktop name:"
 msgstr "Nome das novas áreas de trabalho:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:205
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -282,27 +312,27 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Padrões"
 
-#: package/contents/ui/main.qml:185
+#: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
 msgstr "Nova área de trabalho"
 
-#: package/contents/ui/main.qml:247
+#: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
 msgstr "Adicionar área de trabalho"
 
-#: package/contents/ui/main.qml:255
+#: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Remover a última área de trabalho"
 
-#: package/contents/ui/main.qml:263
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Renomear a área de trabalho atual…"
 
-#: package/contents/ui/main.qml:271
+#: package/contents/ui/main.qml:286
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "Configurar as áreas de trabalho virtuais…"

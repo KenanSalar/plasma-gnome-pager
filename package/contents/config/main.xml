@@ -70,6 +70,18 @@
         <entry name="dotStyle" type="Int">
             <default>0</default>
         </entry>
+        <!-- Ignore KWin's virtual-desktop grid rows and lay every desktop out in ONE line. Off = honour the grid
+             (mirror "Rows" from System Settings). Orthogonal to matchDesktopGrid (which sets the direction): single
+             line alone is a vertical strip on a vertical panel; single line + matchDesktopGrid is one horizontal row. -->
+        <entry name="singleLine" type="Bool">
+            <default>false</default>
+        </entry>
+        <!-- Vertical panels: run the layout ACROSS the panel instead of down it — for a multi-row grid this mirrors
+             KWin's orientation (rows top-to-bottom); with singleLine it makes the one line horizontal. Off = the
+             GNOME-reflow look (run down the panel). No effect on a horizontal panel (already runs across). -->
+        <entry name="matchDesktopGrid" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- Inactive-dot diameter in px; 0 = auto (Kirigami.Units.iconSizes.small / 2, HiDPI-aware). -->
         <entry name="dotSize" type="Int">
             <default>0</default>

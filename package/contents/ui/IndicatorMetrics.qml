@@ -47,4 +47,11 @@ QtObject {
     readonly property real pillSize: dotSize * pillThicknessRatio   // scales in lockstep with the dot
     readonly property real pillWidth: pillSize * pillWidthFactor    // active capsule LENGTH (major axis)
     readonly property real dotSpacing: dotSize * spacingFactor      // uniform gap between every element
+
+    // Conserved (capsule-bearing) line extents — the length/thickness of a line that HOLDS the capsule, which
+    // is the MAX over all lines and is independent of the morph progress. The indicator pins the strip to these
+    // so a cross-row morph can't resize+recenter it (else the dots "breathe"/drift). Effective (post-scale-to-fit).
+    // Assumes pillWidth >= dotSize, the same assumption naturalStripLength already makes.
+    readonly property real stripLength: Logic.lineExtent(perLine, dotSize, dotSpacing, pillWidth)
+    readonly property real crossThickness: Logic.lineExtent(lineCount, dotSize, dotSpacing, Math.max(dotSize, pillSize))
 }
