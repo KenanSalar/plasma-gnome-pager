@@ -164,6 +164,38 @@ slider. This replaced an earlier *sliding overlay pill* — which could not
 give GNOME's uniform spacing (a wide overlay needs clearance, forcing wide dot gaps) — and matches
 how GNOME and the KDE `compact_pager` actually work.
 
+> **Filled & ring style (`dotStyle`, `Logic.DOT_STYLE`) — a SECOND top-level look: no pill, the body
+> ITSELF becomes a hollow ring (distinct axis from `occupancyStyle`).** `dotStyle` (config key, combo
+> "Pager style:") selects the OVERALL look: `0 = Pill` (the REFLOW model above, default) or `1 = Ring`
+> ("Filled & ring" — the dhruv8sh "Desktop Indicator" look: every dot the same size, current = a solid
+> filled circle, non-current = a HOLLOW RING — transparent fill + border). Two mechanical effects, both
+> isolated so the Pill look (and every prior test) is **byte-for-byte unchanged** when `dotStyle == Pill`:
+> (1) **No pill (uniform sizing)** — the active element must not widen. The indicator NEUTRALIZES the pill
+> params in ring mode (`effPillWidthFactor = 1`, `effPillSizeRequest = 0`) and feeds those to BOTH
+> `IndicatorMetrics` and each `WorkspaceDot`, so `pillThicknessRatio → 1` and the active extent collapses
+> to `dotSize`. **`IndicatorMetrics` is UNTOUCHED** — it just receives uniform inputs (so its unit tests
+> stay valid). (2) **Ring body — OUTLINE decoupled from INTERIOR.** Two independent pure predicates drive
+> `WorkspaceDot`'s capsule Rectangle: `Logic.dotHasRing(dotStyle, active)` (`Ring && !active`) draws the
+> ring **outline** (`border.width = max(1, round(dotSize*0.18))`, `border.color = resolvedInactive`) for
+> EVERY non-current dot; `Logic.dotBodyIsHollow(dotStyle, active, occupied, occupancyStyle)` makes the
+> **interior** `color: "transparent"` unless the `Filled` occupancy marker fills it. The whole body is
+> drawn at **full opacity** in this style (`opacity: ringStyle ? 1.0 : dotOpacity(...)`) — crisp solid
+> rings (the user's ask) — so the occupied **fill carries its own alpha**, baked in via
+> `Qt.rgba(resolvedOccupied.r/g/b, occupiedOpacity)`, leaving the outline opaque. **Occupancy COMPOSES**
+> (per the user's note "reuse the ones we have except the hollow ring"): a `Filled`-occupied dot is the
+> ring outline PLUS a filled interior ("ring and dot background" — the outline must NOT vanish, that was a
+> bug); `InnerDot` keeps the hollow ring + its centre dot; the `Ring` OCCUPANCY overlay is SUPPRESSED
+> (`ringOverlayVisible` gained a `dotStyle` arg) because the body is already a ring. `dotColor`/`dotOpacity`/
+> `innerDotVisible` are reused **unchanged**. **Config robustness:** the `ConfigAppearance` "Indicator style"
+> combo DISABLES the "Hollow ring" item via a custom delegate when Filled & ring is selected, and the
+> "Pager style" combo's `onActivated` **migrates** a previously-chosen Hollow ring occupancy → Filled on
+> switch (needs `pragma ComponentBehavior: Bound` for the delegate's outer-id refs). The two pill-only
+> sliders (Pill thickness/length) are `enabled:`-off under this style. Guarded by
+> `tst_logic.qml::{test_dotStyleConstants,test_dotHasRing,test_dotBodyIsHollow,test_ringOverlayVisible}` +
+> `tst_workspacedot.qml::{test_filledRingStyleInactiveIsHollow,test_filledRingStyleOccupancyComposition}` +
+> `tst_indicator_layout.qml::test_filledRingStyleNoPill`. The config disable/migration is e2e-only (config
+> pages aren't headless-tested). More styles are planned — `DOT_STYLE` is the extension point.
+
 > **Uniform spacing + reflow — don't reintroduce the overlay or a coupled slot.**
 > One uniform `spacing` (`dotSpacing = dotSize * spacingFactor`, default `spacingFactor 0.5`)
 > sits between **every** adjacent element, so the pill-to-dot gap equals the dot-to-dot gap (the
@@ -610,9 +642,13 @@ tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox
 (GNOME-style auto add/remove of one empty trailing desktop, default off; GLOBAL across panels via
 `coordinator.js`), `dynamicNamePrefix` (base name for auto-created desktops — a `String` edited via a
 `ConfigGeneral` `TextField`, `"" = the i18n default "Desktop"`; also globally synced), `animationDuration`;
-appearance — `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
+appearance — `dotStyle` (the OVERALL look, a `ConfigAppearance` combo whose index mirrors
+`Logic.DOT_STYLE`: `0 = Sliding pill` (default, the REFLOW look), `1 = Filled & ring` (no pill;
+current = filled circle, others = hollow rings — see the Filled & ring gotcha below)),
+`dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
-thickness — "× pill"), `inactiveOpacity`, `hoverOpacity`, `showOccupancy` (occupied-dot indicator,
+thickness — "× pill"; both pill keys are ignored/greyed in the Filled & ring style),
+`inactiveOpacity`, `hoverOpacity`, `showOccupancy` (occupied-dot indicator,
 default off — mark desktops that hold windows) + `occupiedOpacity` (marker opacity, all styles) +
 `occupancyStyle` (Filled/InnerDot/Ring, a `ConfigAppearance` combo whose index mirrors `Logic.OCCUPANCY`),
 `followThemeColors`, `activeColor`, `inactiveColor`, `occupiedColor` (the occupied-marker colour, used

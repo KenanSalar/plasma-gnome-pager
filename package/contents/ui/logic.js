@@ -25,6 +25,7 @@ var DEFAULTS = Object.freeze({
     pillClickAction: 0,          // what clicking the CURRENT desktop's pill does; see PILL_CLICK_ACTION (0 = None)
     animationDuration: 0,        // ms; 0 = follow the theme
     // Appearance
+    dotStyle: 0,                 // overall look; see DOT_STYLE (0 = Sliding pill, mirrors main.xml)
     dotSize: 0,                  // px; 0 = auto (HiDPI themed)
     pillSize: 0,                 // px pill thickness; 0 = auto (match dots)
     spacingFactor: 0.5,
@@ -50,6 +51,15 @@ var DEFAULTS = Object.freeze({
 // InnerDot and Ring keep the normal dim dot as their background and add an overlay marker; only Filled
 // recolours/brightens the dot body itself.
 var OCCUPANCY = Object.freeze({ Filled: 0, InnerDot: 1, Ring: 2 });
+
+// Overall pager look (the top-level style selector — a DIFFERENT axis from OCCUPANCY above). The int
+// values MIRROR the main.xml dotStyle choices and the ConfigAppearance combo order, so a stored index
+// always maps to the same style.
+//   Pill — GNOME REFLOW: dim filled dots, the current desktop morphs into a wider highlighted pill.
+//   Ring — "Filled & ring": no pill, every dot the same size; the current desktop is a solid filled
+//          circle and non-current desktops are hollow rings (transparent body + border). Occupancy still
+//          composes via Filled/InnerDot (Ring occupancy is suppressed — see ringOverlayVisible).
+var DOT_STYLE = Object.freeze({ Pill: 0, Ring: 1 });
 
 // Action taken when the ALREADY-CURRENT desktop's pill is clicked (default None). Int values MIRROR the
 // main.xml pillClickAction choices and the ConfigGeneral combo order, so a stored index always maps to the
@@ -133,9 +143,33 @@ function dotColor(active, occupied, style, activeColor, inactiveColor, occupiedC
     return inactiveColor;
 }
 
-// Ring style: an OCCUPIED inactive dot shows a hollow occupied-colour ring OVERLAY on top of the dim dot (empty/active do not).
-function ringOverlayVisible(active, occupied, style) {
-    return style === OCCUPANCY.Ring && !active && occupied;
+// "Filled & ring" dot-style (DOT_STYLE.Ring): does THIS dot draw the ring OUTLINE (border)? Every
+// non-current dot does, regardless of occupancy — so a Filled-occupied dot is a filled disc WITH the
+// ring still around it ("ring and dot background"). Always false in the Pill style and for the current
+// (filled-circle) dot.
+function dotHasRing(dotStyle, active) {
+    return dotStyle === DOT_STYLE.Ring && !active;
+}
+
+// "Filled & ring" dot-style: is the dot's INTERIOR hollow (transparent fill)? True for a non-current ring
+// dot UNLESS the Filled occupancy marker is filling its interior (occupied + Filled). Decoupled from
+// dotHasRing so an occupied+Filled dot keeps its ring outline but gets a filled background. Always false
+// in the Pill style, so the default look is unchanged.
+function dotBodyIsHollow(dotStyle, active, occupied, occupancyStyle) {
+    if (dotStyle !== DOT_STYLE.Ring)
+        return false;
+    if (active)
+        return false;                                          // current desktop: filled circle
+    if (occupied && occupancyStyle === OCCUPANCY.Filled)
+        return false;                                          // Filled occupancy fills the ring interior
+    return true;
+}
+
+// Ring style: an OCCUPIED inactive dot shows a hollow occupied-colour ring OVERLAY on top of the dim dot
+// (empty/active do not). Suppressed in the DOT_STYLE.Ring look, where the dot body is ALREADY a ring
+// (a ring-on-a-ring would be redundant), so Ring occupancy has no visible effect in that style.
+function ringOverlayVisible(active, occupied, style, dotStyle) {
+    return style === OCCUPANCY.Ring && !active && occupied && dotStyle !== DOT_STYLE.Ring;
 }
 
 // InnerDot style: an OCCUPIED inactive dot shows a small occupied-colour dot OVERLAY in its centre (empty/active do not).

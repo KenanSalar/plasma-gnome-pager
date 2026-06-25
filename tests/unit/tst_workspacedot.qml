@@ -318,6 +318,65 @@ TestCase {
         compare(ring.border.color, ringStyle.occupiedColor, "Ring: border uses the custom occupiedColor");
     }
 
+    // Filled & ring dot-style (DOT_STYLE.Ring): the current dot is a solid filled circle; a non-current dot is
+    // a HOLLOW ring — the BODY itself (transparent fill + a coloured border), not an overlay. The indicator
+    // neutralizes the pill so every element is dot-sized; we feed pillWidthFactor:1 here to mirror that.
+    function test_filledRingStyleInactiveIsHollow() {
+        const dot = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, active: false, inactiveOpacity: 0.45 });
+        verify(dot.hasRing, "a non-current dot in the Filled & ring style draws the ring outline");
+        verify(dot.bodyIsHollow, "an empty non-current dot has a transparent interior");
+        const circle = circleOf(dot);
+        verify(Qt.colorEqual(circle.color, "transparent"), "inactive ring body has a transparent fill (hollow)");
+        verify(circle.border.width > 0, "inactive ring body has a visible border");
+        compare(circle.border.color, Kirigami.Theme.textColor, "the ring border uses the inactive (text) colour");
+        // A hollow ring is drawn at full opacity (solid ring) — it IGNORES inactiveOpacity (0.45 here).
+        fuzzyCompare(circle.opacity, 1.0, 0.001, "the ring body is full opacity, not dimmed to inactiveOpacity");
+        // The body IS the ring — a single element, no separate overlay node.
+        compare(TreeWalk.collect(dot, Elements.isCircle).filter(c => c.visible).length, 1, "ring body is the single element (no overlay)");
+
+        // The current desktop is a solid filled highlight circle with no border.
+        dot.active = true;
+        verify(!dot.hasRing, "the current dot has no ring outline (filled circle)");
+        verify(!dot.bodyIsHollow, "the current dot is filled, not hollow");
+        compare(circle.color, Kirigami.Theme.highlightColor, "active → filled highlight circle");
+        fuzzyCompare(circle.border.width, 0, 0.001, "active → no ring border (solid fill)");
+    }
+
+    // Occupancy composes in the Filled & ring style: Filled fills the ring INTERIOR but keeps the ring outline
+    // ("ring and dot background"); InnerDot adds a centre dot on the ring; the Ring occupancy overlay is
+    // SUPPRESSED (the body is already a ring, so it would be redundant).
+    function test_filledRingStyleOccupancyComposition() {
+        // Filled occupancy: the ring OUTLINE stays (crisp, full opacity) AND the interior fills with the
+        // occupied colour at occupiedOpacity. Regression guard: the outline must NOT disappear.
+        const filled = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, occupied: true,
+                                 occupancyStyle: Logic.OCCUPANCY.Filled, occupiedOpacity: 0.7, active: false });
+        verify(filled.hasRing, "Filled occupancy keeps the ring outline in the Filled & ring style");
+        verify(!filled.bodyIsHollow, "Filled occupancy fills the ring interior");
+        verify(filled.ringFilled, "occupied + Filled → ring outline + filled background");
+        const fc = circleOf(filled);
+        verify(fc.border.width > 0, "the ring outline stays visible (regression: it must not vanish)");
+        compare(fc.border.color, Kirigami.Theme.textColor, "the outline keeps the dim ring colour");
+        fuzzyCompare(fc.opacity, 1.0, 0.001, "the body opacity is full (the outline stays crisp)");
+        verify(!Qt.colorEqual(fc.color, "transparent"), "the interior is filled, not transparent");
+        fuzzyCompare(fc.color.a, filled.occupiedOpacity, 0.01, "the filled interior carries the occupied opacity (baked into the fill)");
+
+        // InnerDot occupancy: the body stays a hollow ring AND a centre dot marks it occupied.
+        const inner = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, occupied: true,
+                                occupancyStyle: Logic.OCCUPANCY.InnerDot, active: false });
+        verify(inner.hasRing, "InnerDot occupancy keeps the ring outline");
+        verify(inner.bodyIsHollow, "InnerDot occupancy keeps a hollow interior");
+        verify(inner.showInnerDot, "InnerDot occupancy still adds the centre dot on the ring");
+        compare(TreeWalk.collect(inner, Elements.isCircle).filter(c => c.visible).length, 2, "ring body + inner dot");
+
+        // Ring occupancy: suppressed — the body is already a ring, so no overlay (occupied looks like empty).
+        const ring = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, occupied: true,
+                               occupancyStyle: Logic.OCCUPANCY.Ring, active: false });
+        verify(ring.hasRing, "Ring occupancy keeps the ring outline");
+        verify(ring.bodyIsHollow, "Ring occupancy keeps a hollow interior");
+        verify(!ring.showRing, "the Ring occupancy overlay is suppressed in the Filled & ring style");
+        compare(TreeWalk.collect(ring, Elements.isCircle).filter(c => c.visible).length, 1, "only the ring body (no overlay)");
+    }
+
     // tooltip
 
     // The dot carries a tooltip whose text is the desktop name it was given.

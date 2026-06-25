@@ -21,6 +21,7 @@ Item {
 
     // Inputs supplied by WorkspaceIndicator's Repeater delegate (with sane defaults).
     property bool active: false
+    property int dotStyle: Logic.DEFAULTS.dotStyle   // overall look (Logic.DOT_STYLE); Ring → non-current dots are hollow rings
     property real dotSize: Kirigami.Units.iconSizes.small / 2
     property real pillSize: Kirigami.Units.iconSizes.small / 2  // active-pill thickness, sized independently of the dot
     property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor   // capsule length / pill thickness
@@ -52,7 +53,15 @@ Item {
     readonly property color resolvedOccupied: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.occupiedColor
     // Occupied-indicator overlay flags (showOccupancy on) — both drawn ON TOP of the normal dim dot.
     readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.occupancyStyle) // InnerDot style: occupied → centre dot
-    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle)  // Ring style: occupied → ring overlay
+    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle, dot.dotStyle)  // Ring occupancy overlay (suppressed in the Filled & ring look)
+
+    // "Filled & ring" style. The ring OUTLINE (hasRing) is decoupled from the INTERIOR (bodyIsHollow): a
+    // non-current dot always draws the ring border, and its interior is transparent UNLESS the Filled
+    // occupancy marker fills it (ringFilled → ring + filled background). Both false in the Pill style.
+    readonly property bool ringStyle: dot.dotStyle === Logic.DOT_STYLE.Ring
+    readonly property bool hasRing: Logic.dotHasRing(dot.dotStyle, dot.active)
+    readonly property bool bodyIsHollow: Logic.dotBodyIsHollow(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)
+    readonly property bool ringFilled: dot.hasRing && !dot.bodyIsHollow   // occupied + Filled: ring outline + filled interior
 
     // Morph duration: configured value, else themed default, 0 when "reduce animations" is on. One source for the Behaviors below.
     readonly property int effectiveDuration: Logic.effectiveDuration(dot.animationDuration, Kirigami.Units.longDuration)
@@ -90,9 +99,17 @@ Item {
             height: dot.vertical ? dot.longExtent : dot.crossExtent
             radius: Math.min(capsule.width, capsule.height) / 2
             anchors.centerIn: parent
-            // The dot body: the active capsule, a Filled-occupied dot (occupied colour), or the normal dim dot (InnerDot/Ring add an overlay on top).
-            color: Logic.dotColor(dot.active, dot.occupied, dot.occupancyStyle, dot.resolvedActive, dot.resolvedInactive, dot.resolvedOccupied)
-            opacity: Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.occupied, dot.occupancyStyle, dot.inactiveOpacity, dot.hoverOpacity, dot.occupiedOpacity)
+            // The dot body. Pill style: the active capsule, a Filled-occupied dot, or the dim dot (dotColor).
+            // "Filled & ring" style: a hollow interior (transparent), OR a Filled-occupied interior (occupied
+            // colour at occupiedOpacity, baked into the fill so the ring border below stays crisp), else dotColor.
+            color: dot.bodyIsHollow ? "transparent"
+                 : dot.ringFilled ? Qt.rgba(dot.resolvedOccupied.r, dot.resolvedOccupied.g, dot.resolvedOccupied.b, dot.occupiedOpacity)
+                 : Logic.dotColor(dot.active, dot.occupied, dot.occupancyStyle, dot.resolvedActive, dot.resolvedInactive, dot.resolvedOccupied)
+            // Ring outline: drawn for every non-current dot in the Filled & ring style (in the dim/inactive colour), independent of the fill.
+            border.width: dot.hasRing ? Math.max(1, Math.round(dot.dotSize * 0.18)) : 0
+            border.color: dot.resolvedInactive
+            // In the Filled & ring style the body is full opacity (crisp rings; the occupied fill carries its own alpha above); the Pill style uses the dim/hover/occupied logic.
+            opacity: dot.ringStyle ? 1.0 : Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.occupied, dot.occupancyStyle, dot.inactiveOpacity, dot.hoverOpacity, dot.occupiedOpacity)
 
             // Morph, gated by morphEnabled. The major axis always morphs; the cross axis too when pillSize != dotSize (so width and/or height fire).
             Behavior on width {
@@ -113,6 +130,14 @@ Item {
                 enabled: dot.morphEnabled
                 ColorAnimation {
                     duration: dot.effectiveDuration
+                }
+            }
+            // Ring⇄fill: the border grows/shrinks as a dot switches between hollow-ring and filled in the "Filled & ring" style.
+            Behavior on border.width {
+                enabled: dot.morphEnabled
+                NumberAnimation {
+                    duration: dot.effectiveDuration
+                    easing.type: Easing.OutCubic
                 }
             }
             Behavior on opacity {

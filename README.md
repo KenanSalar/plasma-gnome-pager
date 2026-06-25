@@ -37,6 +37,10 @@ the same widget, transposed:
   of the dots (`pillSize`, `0` = match dots), so a thick pill can sit over thin dots or vice
   versa. The first placement is instant (no grow-in on shell reload); later switches animate,
   and motion respects the "reduce animations" setting.
+- **Pager styles** — pick the overall look in **Appearance → Pager style**: the default
+  **Sliding pill** (the reflow look above), or **Filled & ring** — no pill, every desktop the
+  same size with the current one a solid filled circle and the others hollow rings (the
+  GNOME-style "Desktop Indicator" look). The occupied-desktop markers still apply in both.
 - **Reactive** — bound to `VirtualDesktopInfo`, so switches made from the keyboard, another
   pager, or KWin settings update the widget immediately (state is never cached).
 - **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
@@ -160,6 +164,7 @@ restart; the defaults give the intended GNOME look out of the box.
 
 | Setting | Default | Description |
 |---|---|---|
+| `dotStyle` | `Sliding pill` | Overall look: **Sliding pill** (the reflow pill) or **Filled & ring** (no pill; current = filled circle, others = hollow rings). The pill-size settings apply only to Sliding pill. |
 | `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
 | `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
 | `spacingFactor` | `0.5` | Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). |

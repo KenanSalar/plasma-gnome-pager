@@ -65,6 +65,11 @@
     </group>
 
     <group name="Appearance">
+        <!-- Overall pager look. Index mirrors Logic.DOT_STYLE + the combo order:
+             0 = Sliding pill (GNOME reflow), 1 = Filled & ring (no pill; current = filled dot, others = hollow rings). -->
+        <entry name="dotStyle" type="Int">
+            <default>0</default>
+        </entry>
         <!-- Inactive-dot diameter in px; 0 = auto (Kirigami.Units.iconSizes.small / 2, HiDPI-aware). -->
         <entry name="dotSize" type="Int">
             <default>0</default>

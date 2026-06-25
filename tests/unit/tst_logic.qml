@@ -209,12 +209,21 @@ TestCase {
         compare(Logic.PILL_CLICK_ACTION.Grid, 3, "Grid is index 3");
     }
 
-    // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring style shows the ring overlay.
+    // Pager-style indices mirror main.xml dotStyle + the ConfigAppearance combo order.
+    function test_dotStyleConstants() {
+        compare(Logic.DOT_STYLE.Pill, 0, "Pill is index 0 (the default)");
+        compare(Logic.DOT_STYLE.Ring, 1, "Ring (Filled & ring) is index 1");
+    }
+
+    // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring occupancy style (and NOT the Filled & ring dot-style) shows the ring overlay.
     function test_ringOverlayVisible() {
-        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring), "Ring + inactive + occupied → ring overlay");
-        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring), "Ring + empty → no overlay");
-        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring), "Ring + active → no overlay (it's the pill)");
-        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled), "non-Ring style → no ring overlay");
+        var pill = Logic.DOT_STYLE.Pill;
+        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring, pill), "Ring + inactive + occupied → ring overlay");
+        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring, pill), "Ring + empty → no overlay");
+        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring, pill), "Ring + active → no overlay (it's the pill)");
+        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled, pill), "non-Ring style → no ring overlay");
+        // Suppressed in the Filled & ring dot-style: the body is ALREADY a ring, so the overlay would be redundant.
+        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring, Logic.DOT_STYLE.Ring), "Filled & ring dot-style → ring overlay suppressed");
     }
 
     // innerDotVisible: ONLY an occupied inactive dot in the InnerDot style shows the centre dot.
@@ -223,6 +232,38 @@ TestCase {
         verify(!Logic.innerDotVisible(false, false, Logic.OCCUPANCY.InnerDot), "InnerDot + empty → no centre dot");
         verify(!Logic.innerDotVisible(true, true, Logic.OCCUPANCY.InnerDot), "InnerDot + active → no centre dot (it's the pill)");
         verify(!Logic.innerDotVisible(false, true, Logic.OCCUPANCY.Ring), "non-InnerDot style → no centre dot");
+    }
+
+    // dotHasRing: a dot draws the ring OUTLINE only for a non-current dot in the Filled & ring style
+    // (independent of occupancy). Always false in the Pill style and for the current dot.
+    function test_dotHasRing() {
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, false), "Pill style → no ring outline");
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, true), "Pill style + active → no ring outline");
+        verify(Logic.dotHasRing(Logic.DOT_STYLE.Ring, false), "Ring style + non-current → ring outline");
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Ring, true), "Ring style + current → no outline (filled circle)");
+    }
+
+    // dotBodyIsHollow: the dot's INTERIOR is transparent ONLY in the Filled & ring dot-style for a
+    // non-current dot, and NOT when the Filled occupancy marker is filling its interior. Always false in
+    // the Pill style. (The ring OUTLINE is dotHasRing — decoupled, so occupied+Filled keeps its outline.)
+    function test_dotBodyIsHollow_data() {
+        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring;
+        var F = Logic.OCCUPANCY.Filled, I = Logic.OCCUPANCY.InnerDot, R = Logic.OCCUPANCY.Ring;
+        return [
+            // Pill style: never hollow, whatever the occupancy.
+            { tag: "pill-inactive", style: Pill, active: false, occupied: false, occ: F, exp: false },
+            { tag: "pill-active", style: Pill, active: true, occupied: false, occ: F, exp: false },
+            { tag: "pill-occupied-filled", style: Pill, active: false, occupied: true, occ: F, exp: false },
+            // Ring style.
+            { tag: "ring-active", style: Ring, active: true, occupied: false, occ: F, exp: false }, // current = filled circle
+            { tag: "ring-empty", style: Ring, active: false, occupied: false, occ: F, exp: true }, // hollow ring
+            { tag: "ring-occupied-filled", style: Ring, active: false, occupied: true, occ: F, exp: false }, // Filled fills the interior (keeps the outline)
+            { tag: "ring-occupied-innerdot", style: Ring, active: false, occupied: true, occ: I, exp: true }, // hollow + inner dot
+            { tag: "ring-occupied-ring", style: Ring, active: false, occupied: true, occ: R, exp: true } // hollow (overlay suppressed)
+        ];
+    }
+    function test_dotBodyIsHollow(data) {
+        compare(Logic.dotBodyIsHollow(data.style, data.active, data.occupied, data.occ), data.exp, data.tag);
     }
 
     // --- effectiveDuration: override vs themed default, reduce-animations always wins ---
@@ -866,6 +907,7 @@ TestCase {
             { tag: "dynamicWorkspaces", key: "dynamicWorkspaces", exp: false },
             { tag: "dynamicNamePrefix", key: "dynamicNamePrefix", exp: "" },
             { tag: "animationDuration", key: "animationDuration", exp: 0 },
+            { tag: "dotStyle", key: "dotStyle", exp: 0 },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
             { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
@@ -897,13 +939,13 @@ TestCase {
     // The exact key SET is pinned (test_defaults checks only values). A new key must be added here too.
     function test_defaultsKeySet() {
         var keys = Object.keys(Logic.DEFAULTS).sort();
-        var expected = ["activeColor", "animationDuration", "dotSize", "dynamicNamePrefix",
+        var expected = ["activeColor", "animationDuration", "dotSize", "dotStyle", "dynamicNamePrefix",
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
                         "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
                         "inactiveOpacity", "invertScroll", "occupancyStyle", "occupiedColor", "occupiedOpacity",
                         "pillClickAction", "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
                         "showWindowList", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 25, "DEFAULTS has exactly 25 keys");
+        compare(keys.length, 26, "DEFAULTS has exactly 26 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 

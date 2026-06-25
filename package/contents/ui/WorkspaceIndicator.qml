@@ -71,6 +71,14 @@ Item {
     // Active element index, or -1 for any transient state (empty ids, empty/absent current) → no capsule.
     readonly property int activeIndex: desktopIds.indexOf(currentDesktop)
 
+    // Overall pager look (Logic.DOT_STYLE). The "Filled & ring" style has NO pill, so we neutralize the
+    // pill params below: feeding pillWidthFactor=1 + pillSizeRequest=0 makes the metrics AND each dot size
+    // every element uniformly (the active extent collapses to dotSize) without touching IndicatorMetrics.
+    property int dotStyle: Logic.DEFAULTS.dotStyle
+    readonly property bool ringStyle: dotStyle === Logic.DOT_STYLE.Ring
+    readonly property real effPillWidthFactor: ringStyle ? 1.0 : pillWidthFactor
+    readonly property int effPillSizeRequest: ringStyle ? 0 : pillSizeRequest
+
     // Config requests fed to the sizing engine; dotSize/pillSize `0 = auto` resolved in IndicatorMetrics.
     property int dotSizeRequest: Logic.DEFAULTS.dotSize    // px override; 0 = auto
     property int pillSizeRequest: Logic.DEFAULTS.pillSize  // px pill thickness; 0 = auto (match dots)
@@ -89,9 +97,9 @@ Item {
     IndicatorMetrics {
         id: metrics
         dotSizeRequest: indicator.dotSizeRequest
-        pillSizeRequest: indicator.pillSizeRequest
+        pillSizeRequest: indicator.effPillSizeRequest   // ring style: 0 → pill thickness == dot (no pill)
         spacingFactor: indicator.spacingFactor
-        pillWidthFactor: indicator.pillWidthFactor
+        pillWidthFactor: indicator.effPillWidthFactor   // ring style: 1 → active extent == dot (no pill)
         availableMajor: indicator.vertical ? indicator.height : indicator.width
         availableCross: indicator.vertical ? indicator.width : indicator.height
         perLine: indicator.perLine
@@ -217,9 +225,10 @@ Item {
                         readonly property int globalIndex: lineStrip.index * indicator.perLine + workspaceDot.index
 
                         vertical: indicator.vertical
+                        dotStyle: indicator.dotStyle
                         dotSize: indicator.dotSize
-                        pillSize: indicator.pillSize
-                        pillWidthFactor: indicator.pillWidthFactor
+                        pillSize: indicator.pillSize                  // == dotSize in ring mode (no pill)
+                        pillWidthFactor: indicator.effPillWidthFactor // == 1 in ring mode (active extent == dot)
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
                         // Gating on showOccupancy here keeps a stale/short desktopOccupancy array harmless when the feature is off.
