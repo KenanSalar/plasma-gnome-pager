@@ -176,9 +176,12 @@ how GNOME and the KDE `compact_pager` actually work.
 > to `dotSize`. **`IndicatorMetrics` is UNTOUCHED** — it just receives uniform inputs (so its unit tests
 > stay valid). (2) **Ring body — OUTLINE decoupled from INTERIOR.** Two independent pure predicates drive
 > `WorkspaceDot`'s capsule Rectangle: `Logic.dotHasRing(dotStyle, active)` (`Ring && !active`) draws the
-> ring **outline** (`border.width = max(1, round(dotSize*0.18))`, `border.color = resolvedInactive`) for
+> ring **outline** (`border.width = Logic.ringThickness(dotSize)` = `max(1, round(dotSize*0.18))`, shared
+> with the Ring-occupancy overlay's rim; `border.color = resolvedInactive`) for
 > EVERY non-current dot; `Logic.dotBodyIsHollow(dotStyle, active, occupied, occupancyStyle)` makes the
-> **interior** `color: "transparent"` unless the `Filled` occupancy marker fills it. The whole body is
+> **interior** `color: "transparent"` unless the `Filled` occupancy marker fills it, and
+> `Logic.dotBodyFilled(...)` (`dotHasRing && !dotBodyIsHollow`) names the third state (ring outline + filled
+> interior). The whole body is
 > drawn at **full opacity** in this style (`opacity: ringStyle ? 1.0 : dotOpacity(...)`) — crisp solid
 > rings (the user's ask) — so the occupied **fill carries its own alpha**, baked in via
 > `Qt.rgba(resolvedOccupied.r/g/b, occupiedOpacity)`, leaving the outline opaque. **Occupancy COMPOSES**
@@ -186,12 +189,15 @@ how GNOME and the KDE `compact_pager` actually work.
 > ring outline PLUS a filled interior ("ring and dot background" — the outline must NOT vanish, that was a
 > bug); `InnerDot` keeps the hollow ring + its centre dot; the `Ring` OCCUPANCY overlay is SUPPRESSED
 > (`ringOverlayVisible` gained a `dotStyle` arg) because the body is already a ring. `dotColor`/`dotOpacity`/
-> `innerDotVisible` are reused **unchanged**. **Config robustness:** the `ConfigAppearance` "Indicator style"
+> `innerDotVisible` are reused **unchanged**. The single `dotStyle === Ring` comparison lives in one
+> predicate `Logic.isRingStyle(dotStyle)` (used by `dotHasRing`/`dotBodyIsHollow`/`ringOverlayVisible` and the
+> two QML `ringStyle` properties). **Config robustness:** the `ConfigAppearance` "Indicator style"
 > combo DISABLES the "Hollow ring" item via a custom delegate when Filled & ring is selected, and the
 > "Pager style" combo's `onActivated` **migrates** a previously-chosen Hollow ring occupancy → Filled on
-> switch (needs `pragma ComponentBehavior: Bound` for the delegate's outer-id refs). The two pill-only
-> sliders (Pill thickness/length) are `enabled:`-off under this style. Guarded by
-> `tst_logic.qml::{test_dotStyleConstants,test_dotHasRing,test_dotBodyIsHollow,test_ringOverlayVisible}` +
+> switch (needs `pragma ComponentBehavior: Bound` for the delegate's outer-id refs; both the disable and
+> the migration key off one `root.ringStyle` bool, and the pill sliders off `root.pillStyle`). The two
+> pill-only sliders (Pill thickness/length) are `enabled:`-off under this style. Guarded by
+> `tst_logic.qml::{test_dotStyleConstants,test_isRingStyle,test_ringThickness,test_dotHasRing,test_dotBodyIsHollow,test_dotBodyFilled,test_ringOverlayVisible}` +
 > `tst_workspacedot.qml::{test_filledRingStyleInactiveIsHollow,test_filledRingStyleOccupancyComposition}` +
 > `tst_indicator_layout.qml::test_filledRingStyleNoPill`. The config disable/migration is e2e-only (config
 > pages aren't headless-tested). More styles are planned — `DOT_STYLE` is the extension point.

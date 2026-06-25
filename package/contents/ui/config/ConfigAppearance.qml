@@ -8,7 +8,7 @@
  * sliders where 0 reads "Default"/"Match dots" (the 0 = auto sentinel). Colours use ColorButton, lazy-loaded
  * with the dialog so the import never affects the always-on widget. Each `cfg_<key>` MUST match main.xml.
  */
-pragma ComponentBehavior: Bound   // the occupancyStyle delegate references outer ids (occupancyStyle/dotStyle)
+pragma ComponentBehavior: Bound   // the occupancyStyle delegate references outer ids (occupancyStyle/root)
 
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -69,6 +69,12 @@ ConfigPageBase {
         { n: "occupiedColor", t: "color" }
     ]
 
+    // Which pager style is selected, by the dotStyle combo index (order matches Logic.DOT_STYLE / main.xml:
+    // 0 = Sliding pill, 1 = Filled & ring). The pill knobs only apply to Sliding pill; Filled & ring disables
+    // the redundant Hollow ring occupancy marker. Named once here so the index checks aren't repeated below.
+    readonly property bool pillStyle: dotStyle.currentIndex === 0
+    readonly property bool ringStyle: dotStyle.currentIndex === 1
+
     Kirigami.FormLayout {
         QQC2.ComboBox {
             id: dotStyle
@@ -76,10 +82,10 @@ ConfigPageBase {
             // Order MUST match Logic.DOT_STYLE / main.xml dotStyle (currentIndex is stored as the index).
             model: [i18n("Sliding pill"), i18n("Filled & ring")]
             Layout.preferredWidth: root.fieldWidth   // match the other field widths (ConfigPageBase.fieldWidth)
-            // Filled & ring (1) disables the Hollow ring occupancy marker (2) — the dot is already a ring —
+            // Filled & ring disables the Hollow ring occupancy marker (index 2) — the dot is already a ring —
             // so migrate a previously-chosen Hollow ring to Filled (0) when the user switches to it.
             onActivated: {
-                if (dotStyle.currentIndex === 1 && occupancyStyle.currentIndex === 2)
+                if (root.ringStyle && occupancyStyle.currentIndex === 2)
                     occupancyStyle.currentIndex = 0;
             }
         }
@@ -98,7 +104,7 @@ ConfigPageBase {
             id: pillSize
             // "Thickness" (not "size") disambiguates from "Pill length:" below — the pill's two axes (also avoids an msgmerge fuzzy collision).
             label: i18n("Pill thickness:")
-            enabled: dotStyle.currentIndex === 0   // the pill only exists in the Sliding pill style
+            enabled: root.pillStyle   // the pill only exists in the Sliding pill style
             from: 0
             to: 64
             stepSize: 1
@@ -118,7 +124,7 @@ ConfigPageBase {
         ConfigSlider {
             id: pillWidthFactor
             label: i18n("Pill length:")
-            enabled: dotStyle.currentIndex === 0   // the pill only exists in the Sliding pill style
+            enabled: root.pillStyle   // the pill only exists in the Sliding pill style
             from: 1.0
             to: 10.0
             stepSize: 0.1
@@ -163,7 +169,7 @@ ConfigPageBase {
                 required property string modelData
                 width: occupancyStyle.width
                 text: occStyleItem.modelData
-                enabled: !(dotStyle.currentIndex === 1 && occStyleItem.index === 2)
+                enabled: !(root.ringStyle && occStyleItem.index === 2)
                 highlighted: occupancyStyle.highlightedIndex === occStyleItem.index
             }
         }

@@ -215,6 +215,20 @@ TestCase {
         compare(Logic.DOT_STYLE.Ring, 1, "Ring (Filled & ring) is index 1");
     }
 
+    // isRingStyle: true only for the Filled & ring pager look (the one DOT_STYLE.Ring comparison).
+    function test_isRingStyle() {
+        verify(Logic.isRingStyle(Logic.DOT_STYLE.Ring), "Ring style → true");
+        verify(!Logic.isRingStyle(Logic.DOT_STYLE.Pill), "Pill style → false");
+    }
+
+    // ringThickness: ring outline width = round(dotSize * 0.18), floored at 1px so a tiny dot still shows a ring.
+    function test_ringThickness() {
+        compare(Logic.ringThickness(100), 18, "100 → 18 (0.18×)");
+        compare(Logic.ringThickness(16), 3, "16 → 3 (rounded)");
+        compare(Logic.ringThickness(2), 1, "2 → 1 (min-1 clamp, not 0)");
+        compare(Logic.ringThickness(0), 1, "0 → 1 (min-1 clamp)");
+    }
+
     // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring occupancy style (and NOT the Filled & ring dot-style) shows the ring overlay.
     function test_ringOverlayVisible() {
         var pill = Logic.DOT_STYLE.Pill;
@@ -264,6 +278,19 @@ TestCase {
     }
     function test_dotBodyIsHollow(data) {
         compare(Logic.dotBodyIsHollow(data.style, data.active, data.occupied, data.occ), data.exp, data.tag);
+    }
+
+    // dotBodyFilled: the third ring body state — a ring OUTLINE plus a filled interior. True ONLY for a
+    // non-current Filled-occupied dot in the Filled & ring style (= hasRing && !bodyIsHollow). False
+    // everywhere in the Pill style, for the current dot (filled circle, no outline), and for a hollow ring.
+    function test_dotBodyFilled() {
+        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring;
+        var F = Logic.OCCUPANCY.Filled, I = Logic.OCCUPANCY.InnerDot;
+        verify(Logic.dotBodyFilled(Ring, false, true, F), "Ring + non-current + occupied + Filled → ring outline + filled interior");
+        verify(!Logic.dotBodyFilled(Ring, false, false, F), "Ring + empty → hollow, not filled");
+        verify(!Logic.dotBodyFilled(Ring, false, true, I), "Ring + occupied + InnerDot → hollow (marker is an overlay)");
+        verify(!Logic.dotBodyFilled(Ring, true, true, F), "Ring + current → filled circle, but no ring outline → not 'ring filled'");
+        verify(!Logic.dotBodyFilled(Pill, false, true, F), "Pill style → never a filled ring");
     }
 
     // --- effectiveDuration: override vs themed default, reduce-animations always wins ---

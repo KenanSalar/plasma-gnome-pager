@@ -75,7 +75,7 @@ Item {
     // pill params below: feeding pillWidthFactor=1 + pillSizeRequest=0 makes the metrics AND each dot size
     // every element uniformly (the active extent collapses to dotSize) without touching IndicatorMetrics.
     property int dotStyle: Logic.DEFAULTS.dotStyle
-    readonly property bool ringStyle: dotStyle === Logic.DOT_STYLE.Ring
+    readonly property bool ringStyle: Logic.isRingStyle(dotStyle)
     readonly property real effPillWidthFactor: ringStyle ? 1.0 : pillWidthFactor
     readonly property int effPillSizeRequest: ringStyle ? 0 : pillSizeRequest
 
