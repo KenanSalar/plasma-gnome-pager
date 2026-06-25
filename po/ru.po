@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-24 14:11+0200\n"
+"POT-Creation-Date: 2026-06-25 23:49+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Russian\n"
@@ -26,17 +26,62 @@ msgstr "Поведение"
 msgid "Appearance"
 msgstr "Внешний вид"
 
-#: package/contents/ui/config/ConfigAppearance.qml:69
+#: package/contents/ui/config/ConfigAppearance.qml:87
+#, kde-format
+msgid "Pager style:"
+msgstr "Стиль переключателя:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:89
+#, kde-format
+msgid "Sliding pill"
+msgstr "Скользящая капсула"
+
+#: package/contents/ui/config/ConfigAppearance.qml:89
+#, kde-format
+msgid "Filled & ring"
+msgstr "Заполненный и кольцо"
+
+#: package/contents/ui/config/ConfigAppearance.qml:101
+#, kde-format
+msgid "Multiple rows:"
+msgstr "Несколько рядов:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:102
+#, kde-format
+msgid "Show all desktops in a single line"
+msgstr "Показывать все рабочие столы в одну линию"
+
+#: package/contents/ui/config/ConfigAppearance.qml:106
+#, kde-format
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Игнорирует ряды сетки из «Параметров системы» и располагает все рабочие столы в одну полосу вдоль панели (одна вертикальная полоса на вертикальной панели)."
+
+#: package/contents/ui/config/ConfigAppearance.qml:115
+#, kde-format
+msgid "Vertical panels:"
+msgstr "Вертикальные панели:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:116
+#, kde-format
+msgid "Match the virtual-desktop grid layout"
+msgstr "Повторять сетку виртуальных рабочих столов"
+
+#: package/contents/ui/config/ConfigAppearance.qml:122
+#, kde-format
+msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
+msgstr "Располагает точки как сетку рабочих столов в «Параметрах системы» (ряды сверху вниз), а не вдоль панели. Не влияет на горизонтальные панели."
+
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Dot size:"
 msgstr "Размер точки:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:74 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "По умолчанию"
 
-#: package/contents/ui/config/ConfigAppearance.qml:74 package/contents/ui/config/ConfigAppearance.qml:85
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
@@ -44,102 +89,102 @@ msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 msgstr[2] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:80
+#: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Толщина капсулы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:85
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Match dots"
 msgstr "Как у точек"
 
-#: package/contents/ui/config/ConfigAppearance.qml:90
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
 msgstr "Интервал:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:94
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× точка"
 
-#: package/contents/ui/config/ConfigAppearance.qml:99
+#: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
 msgstr "Длина капсулы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:104
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× капсула"
 
-#: package/contents/ui/config/ConfigAppearance.qml:109
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Непрозрачность неактивных:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:118
+#: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Непрозрачность при наведении:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:127
+#: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Занятые рабочие столы:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:128
+#: package/contents/ui/config/ConfigAppearance.qml:193
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Подсвечивать рабочие столы с открытыми окнами"
 
-#: package/contents/ui/config/ConfigAppearance.qml:132
+#: package/contents/ui/config/ConfigAppearance.qml:197
 #, kde-format
 msgid "Indicator style:"
 msgstr "Стиль индикатора:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Filled"
 msgstr "Заполненный"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Inner dot"
 msgstr "Внутренняя точка"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Hollow ring"
 msgstr "Контурное кольцо"
 
-#: package/contents/ui/config/ConfigAppearance.qml:139
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Непрозрачность занятых:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:153
+#: package/contents/ui/config/ConfigAppearance.qml:229
 #, kde-format
 msgid "Colors:"
 msgstr "Цвета:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:154
+#: package/contents/ui/config/ConfigAppearance.qml:230
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Следовать цветовой схеме"
 
-#: package/contents/ui/config/ConfigAppearance.qml:158
+#: package/contents/ui/config/ConfigAppearance.qml:234
 #, kde-format
 msgid "Active desktop:"
 msgstr "Активный рабочий стол:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:164
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Неактивный рабочий стол:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:170
+#: package/contents/ui/config/ConfigAppearance.qml:246
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Занятый рабочий стол:"
@@ -245,7 +290,7 @@ msgid "New desktop name:"
 msgstr "Имя новых рабочих столов:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:201
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -269,25 +314,30 @@ msgstr[2] "%1 ms"
 msgid "Defaults"
 msgstr "По умолчанию"
 
-#: package/contents/ui/main.qml:181
+#: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
 msgstr "Новый рабочий стол"
 
-#: package/contents/ui/main.qml:234
+#: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
 msgstr "Добавить рабочий стол"
 
-#: package/contents/ui/main.qml:242
+#: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Удалить последний рабочий стол"
 
-#: package/contents/ui/main.qml:250
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Переименовать текущий рабочий стол…"
+
+#: package/contents/ui/main.qml:286
+#, kde-format
+msgid "Configure Virtual Desktops…"
+msgstr "Настроить виртуальные рабочие столы…"
 
 #: package/contents/ui/RenameDialog.qml:54
 #, kde-format

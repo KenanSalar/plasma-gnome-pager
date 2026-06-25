@@ -17,6 +17,7 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore         // PlasmaCore.Action + PlasmaCore.Types
 import org.kde.taskmanager as TaskManager        // VirtualDesktopInfo + TasksModel/ActivityInfo (read)
 import org.kde.plasma.workspace.dbus as DBus     // KWin DBus (switch/add/remove/rename)
+import org.kde.kcmutils as KCM                   // KCMLauncher — open the system Virtual Desktops settings module
 
 import "logic.js" as Logic
 
@@ -51,6 +52,12 @@ PlasmoidItem {
 
     // Appearance/animation settings, read the same way. dotSize/pillSize/animationDuration use a 0 = auto sentinel resolved in the indicator/dot.
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
+    // Overall pager look (Sliding pill / Filled & ring — see Logic.DOT_STYLE); the indicator neutralizes the pill in ring mode.
+    readonly property int dotStyle: Plasmoid.configuration.dotStyle ?? Logic.DEFAULTS.dotStyle
+    // Ignore KWin's grid rows: lay every desktop out in one strip along the panel (a vertical strip on a vertical panel).
+    readonly property bool singleLine: Plasmoid.configuration.singleLine ?? Logic.DEFAULTS.singleLine
+    // Vertical panels: lay the grid out in KWin orientation (rows top-to-bottom) instead of transposing it down the panel.
+    readonly property bool matchDesktopGrid: Plasmoid.configuration.matchDesktopGrid ?? Logic.DEFAULTS.matchDesktopGrid
     readonly property int dotSize: Plasmoid.configuration.dotSize ?? Logic.DEFAULTS.dotSize
     readonly property int pillSize: Plasmoid.configuration.pillSize ?? Logic.DEFAULTS.pillSize
     readonly property real spacingFactor: Plasmoid.configuration.spacingFactor ?? Logic.DEFAULTS.spacingFactor
@@ -79,6 +86,9 @@ PlasmoidItem {
         showTooltips: root.showTooltips
         desktopTooltips: root.desktopTooltips
 
+        dotStyle: root.dotStyle
+        singleLine: root.singleLine
+        matchDesktopGrid: root.matchDesktopGrid
         // dotSize/pillSize passed as raw 0=auto requests; resolved in the indicator (pillSize 0 = match dots).
         dotSizeRequest: root.dotSize
         pillSizeRequest: root.pillSize
@@ -145,13 +155,22 @@ PlasmoidItem {
         if (!spec) {
             return;
         }
-        DBus.SessionBus.asyncCall({
+        // Async fire-and-forget — VirtualDesktopInfo reflects the resulting state, not a return value.
+        // We capture the reply ONLY to warn on a rejected call (the silent-DBus-drop class this widget avoids).
+        const reply = DBus.SessionBus.asyncCall({
             "service": spec.service,
             "path": spec.path,
             "iface": spec.iface,
             "member": spec.member,
             "arguments": spec.args.map(a => root.toDBusArg(a))
         });
+        if (reply) {
+            reply.finished.connect(() => {
+                if (reply.isError) {
+                    console.warn("plasma-gnome-pager: DBus call failed:", spec.member, "-", reply.error.name, reply.error.message);
+                }
+            });
+        }
     }
 
     // Map ONE spec arg { t, v } to its DBus.* constructor. The "v" case wraps a PLAIN value — a wrapped DBus.string is silently rejected by KWin.
@@ -227,8 +246,17 @@ PlasmoidItem {
         renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
     }
 
+    // Open the system "Virtual Desktops" settings module (like the stock pager). NOT a DBus write — an imperative
+    // GUI launch via the public KCMLauncher, so it lives here, not in logic.js. Module name is platform-branched.
+    function openVirtualDesktopsKcm() {
+        KCM.KCMLauncher.openSystemSettings(Qt.platform.pluginName.includes("wayland")
+            ? "kcm_kwin_virtualdesktops"
+            : "kcm_kwin_virtualdesktops_x11");
+    }
+
     // Right-click menu. Add/Remove gated by canAddRemove (they conflict with dynamic workspaces); Remove
-    // also disables at the last desktop. ("Configure…" is auto-added by Plasma.)
+    // also disables at the last desktop. "Configure Virtual Desktops…" is always shown and opens the SYSTEM
+    // KCM (distinct from "Configure Workspaces…", which Plasma auto-adds for THIS widget's own settings).
     Plasmoid.contextualActions: [
         PlasmaCore.Action {
             text: i18n("Add Desktop")
@@ -253,6 +281,12 @@ PlasmoidItem {
             visible: root.enableRename
             enabled: root.enableRename
             onTriggered: root.openRenameDialog(vdi.currentDesktop)
+        },
+        PlasmaCore.Action {
+            text: i18n("Configure Virtual Desktops…")
+            icon.name: "preferences-desktop-virtual"   // the icon the Virtual Desktops KCM itself uses
+            priority: Plasmoid.LowPriorityAction
+            onTriggered: root.openVirtualDesktopsKcm()
         }
     ]
 

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-24 14:11+0200\n"
+"POT-Creation-Date: 2026-06-25 23:49+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: French\n"
@@ -26,119 +26,166 @@ msgstr "Comportement"
 msgid "Appearance"
 msgstr "Apparence"
 
-#: package/contents/ui/config/ConfigAppearance.qml:69
+#: package/contents/ui/config/ConfigAppearance.qml:87
+#, kde-format
+msgid "Pager style:"
+msgstr "Style du gestionnaire de bureaux :"
+
+#: package/contents/ui/config/ConfigAppearance.qml:89
+#, kde-format
+msgid "Sliding pill"
+msgstr "Pilule glissante"
+
+#: package/contents/ui/config/ConfigAppearance.qml:89
+#, kde-format
+msgid "Filled & ring"
+msgstr "Plein et anneau"
+
+#: package/contents/ui/config/ConfigAppearance.qml:101
+#, kde-format
+msgid "Multiple rows:"
+msgstr "Plusieurs lignes :"
+
+#: package/contents/ui/config/ConfigAppearance.qml:102
+#, kde-format
+msgid "Show all desktops in a single line"
+msgstr "Afficher tous les bureaux sur une seule ligne"
+
+#: package/contents/ui/config/ConfigAppearance.qml:106
+#, kde-format
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Ignore les lignes de la grille définies dans la Configuration du système et dispose chaque bureau en une seule bande le long du tableau de bord (une seule bande verticale sur un tableau de bord vertical)."
+
+#: package/contents/ui/config/ConfigAppearance.qml:115
+#, kde-format
+msgid "Vertical panels:"
+msgstr "Tableaux de bord verticaux :"
+
+#: package/contents/ui/config/ConfigAppearance.qml:116
+#, kde-format
+msgid "Match the virtual-desktop grid layout"
+msgstr "Adapter à la grille des bureaux virtuels"
+
+#: package/contents/ui/config/ConfigAppearance.qml:122
+#, kde-format
+msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
+msgstr ""
+"Dispose les points comme la grille des bureaux dans la Configuration du système (lignes de haut en bas), au lieu de les aligner le long du tableau de bord. Sans effet sur les tableaux de bord "
+"horizontaux."
+
+#: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
 msgid "Dot size:"
 msgstr "Taille des points :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:74 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "Default"
 msgstr "Par défaut"
 
-#: package/contents/ui/config/ConfigAppearance.qml:74 package/contents/ui/config/ConfigAppearance.qml:85
+#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:80
+#: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
 msgstr "Épaisseur de la pilule :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:85
+#: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
 msgid "Match dots"
 msgstr "Adapter aux points"
 
-#: package/contents/ui/config/ConfigAppearance.qml:90
+#: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
 msgstr "Espacement :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:94
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× point"
 
-#: package/contents/ui/config/ConfigAppearance.qml:99
+#: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
 msgstr "Longueur de la pilule :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:104
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× pilule"
 
-#: package/contents/ui/config/ConfigAppearance.qml:109
+#: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Opacité inactive :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:118
+#: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Opacité au survol :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:127
+#: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "Bureaux occupés :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:128
+#: package/contents/ui/config/ConfigAppearance.qml:193
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Mettre en surbrillance les bureaux avec des fenêtres ouvertes"
 
-#: package/contents/ui/config/ConfigAppearance.qml:132
+#: package/contents/ui/config/ConfigAppearance.qml:197
 #, kde-format
 msgid "Indicator style:"
 msgstr "Style de l'indicateur :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Filled"
 msgstr "Plein"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Inner dot"
 msgstr "Point intérieur"
 
-#: package/contents/ui/config/ConfigAppearance.qml:135
+#: package/contents/ui/config/ConfigAppearance.qml:200
 #, kde-format
 msgid "Hollow ring"
 msgstr "Anneau creux"
 
-#: package/contents/ui/config/ConfigAppearance.qml:139
+#: package/contents/ui/config/ConfigAppearance.qml:215
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Opacité occupée :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:153
+#: package/contents/ui/config/ConfigAppearance.qml:229
 #, kde-format
 msgid "Colors:"
 msgstr "Couleurs :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:154
+#: package/contents/ui/config/ConfigAppearance.qml:230
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Suivre le schéma de couleurs"
 
-#: package/contents/ui/config/ConfigAppearance.qml:158
+#: package/contents/ui/config/ConfigAppearance.qml:234
 #, kde-format
 msgid "Active desktop:"
 msgstr "Bureau actif :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:164
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Bureau inactif :"
 
-#: package/contents/ui/config/ConfigAppearance.qml:170
+#: package/contents/ui/config/ConfigAppearance.qml:246
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Bureau occupé :"
@@ -244,7 +291,7 @@ msgid "New desktop name:"
 msgstr "Nom des nouveaux bureaux :"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:201
+#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
@@ -267,25 +314,30 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Par défaut"
 
-#: package/contents/ui/main.qml:181
+#: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
 msgstr "Nouveau bureau"
 
-#: package/contents/ui/main.qml:234
+#: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
 msgstr "Ajouter un bureau"
 
-#: package/contents/ui/main.qml:242
+#: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Supprimer le dernier bureau"
 
-#: package/contents/ui/main.qml:250
+#: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Renommer le bureau actuel…"
+
+#: package/contents/ui/main.qml:286
+#, kde-format
+msgid "Configure Virtual Desktops…"
+msgstr "Configurer les bureaux virtuels…"
 
 #: package/contents/ui/RenameDialog.qml:54
 #, kde-format

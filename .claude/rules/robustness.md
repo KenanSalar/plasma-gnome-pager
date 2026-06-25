@@ -28,6 +28,7 @@ import org.kde.kirigami as Kirigami        // Units, Theme, Icon, FormLayout
 import org.kde.taskmanager as TaskManager  // VirtualDesktopInfo, TasksModel
 import org.kde.plasma.workspace.dbus as DBus  // KWin DBus (switch/add/remove desktops)
 import org.kde.plasma.configuration        // ConfigModel / ConfigCategory
+import org.kde.kcmutils as KCM             // KCMLauncher — open a System Settings KCM (public KF6, what the stock pager uses)
 ```
 
 Anything **not** on this list — especially a `private` segment — is a red flag. Confirm it's
