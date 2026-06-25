@@ -54,6 +54,8 @@ the same widget, transposed:
   on it is on that screen), matching the per-screen current desktop below.
 - **Add / remove / rename desktops** — from the right-click menu (each entry individually
   toggleable; never removes the last desktop).
+- **Configure Virtual Desktops…** — a right-click entry (like the stock pager) that opens System
+  Settings' Virtual Desktops page.
 - **Dynamic workspaces (GNOME-style)** — optional (default off): automatically keeps exactly one
   empty desktop at the end — open a window on the last desktop and a new empty one appears; close
   the windows and the surplus empties are removed. Auto-created desktops are named from a
