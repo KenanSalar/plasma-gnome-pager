@@ -54,18 +54,20 @@ Item {
     // Panel orientation. false = horizontal row (also the Planar/floating default); true = vertical column.
     property bool vertical: false
 
-    // When true, ignore KWin's grid rows and lay every desktop out in ONE strip along the panel (a vertical
-    // strip on a vertical panel). Forces desktopRows to 1 below, so matchDesktopGrid then has no grid to mirror.
+    // When true, ignore KWin's grid rows and lay every desktop out in ONE line (forces desktopRows = 1 below).
+    // ORTHOGONAL to matchDesktopGrid: this sets the line COUNT, that sets the DIRECTION — so singleLine +
+    // matchDesktopGrid on a vertical panel gives a single HORIZONTAL row, while singleLine alone is a vertical strip.
     property bool singleLine: Logic.DEFAULTS.singleLine
 
-    // When true on a vertical panel, lay the grid out in KWin's orientation (rows top-to-bottom) instead of
-    // transposing it to run down the panel (the GNOME-reflow default). No effect on a horizontal panel.
+    // When true on a vertical panel, run the layout ACROSS the panel instead of down it: for a multi-row grid that
+    // mirrors KWin's orientation (rows top-to-bottom, the GNOME-reflow default is to transpose it down); with
+    // singleLine it makes the one line horizontal. No effect on a horizontal panel (it already runs across).
     property bool matchDesktopGrid: Logic.DEFAULTS.matchDesktopGrid
 
-    // Effective grid orientation: vertical panel AND not matching KWin's grid. ALL grid geometry below (the two
-    // Grid flows, the metrics axis, the Layout hints, the dot's capsule axis) keys off THIS, not the raw `vertical`.
-    // singleLine wins over matchDesktopGrid (one line has no grid to mirror) → the normal panel-following strip.
-    readonly property bool gridVertical: vertical && (singleLine || !matchDesktopGrid)
+    // Effective major-axis orientation: true = down the panel (vertical), false = across it (horizontal). ALL grid
+    // geometry below (the two Grid flows, the metrics axis, the Layout hints, the dot's capsule axis) keys off THIS.
+    // singleLine changes the line COUNT (above), matchDesktopGrid the DIRECTION — independent.
+    readonly property bool gridVertical: vertical && !matchDesktopGrid
 
     // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder carries).
     property real wheelAccumulator: 0
@@ -74,7 +76,7 @@ Item {
     readonly property int desktopCount: desktopIds.length
 
     // KWin's grid row count, read live (null-guarded, >= 1). We MIRROR KWin so "Rows" re-lays out reactively —
-    // unless singleLine overrides it to 1 (collapse the grid into a single strip of all desktops).
+    // unless singleLine forces it to 1 (collapse the grid into one line of all desktops).
     readonly property int desktopRows: singleLine ? 1 : (virtualDesktopInfo?.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1)
 
     // Desktops per line (columns = ceil(count / rows)) and the row-major split into lines.

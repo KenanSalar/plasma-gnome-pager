@@ -114,8 +114,8 @@ ConfigPageBase {
             id: matchDesktopGrid
             Kirigami.FormData.label: i18n("Vertical panels:")
             text: i18n("Match the virtual-desktop grid layout")
-            // A single line has no grid to mirror, so this is moot while "single line" is on.
-            enabled: !singleLine.checked
+            // Orthogonal to "single line": this sets the direction (across vs. down), so it composes — single
+            // line + match grid gives a single HORIZONTAL row. Hence no longer greyed while single line is on.
         }
         QQC2.Label {
             // Hint: this only matters on a vertical panel (a horizontal panel already mirrors the grid).

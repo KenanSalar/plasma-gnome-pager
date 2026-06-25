@@ -239,12 +239,12 @@ IndicatorTestCase {
         const horizontal = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { matchDesktopGrid: true });
         compare(horizontal.gridVertical, false, "horizontal panel: the toggle has no effect");
 
-        // singleLine collapses to one strip following the panel, so it forces the vertical strip on a vertical
-        // panel and WINS over matchDesktopGrid (a single line has no grid to mirror).
+        // singleLine sets the line COUNT, not the direction — gridVertical still keys off matchDesktopGrid only
+        // (orthogonal). So singleLine alone is a vertical strip, but singleLine + matchDesktopGrid is horizontal.
         const single = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true });
-        compare(single.gridVertical, true, "single line, vertical panel → vertical strip");
-        const singleWins = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
-        compare(singleWins.gridVertical, true, "single line overrides match-grid → still the vertical strip");
+        compare(single.gridVertical, true, "single line alone, vertical panel → vertical strip (down the panel)");
+        const both = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
+        compare(both.gridVertical, false, "single line + match-grid → one HORIZONTAL row (match-grid sets the direction)");
         const singleHoriz = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { singleLine: true });
         compare(singleHoriz.gridVertical, false, "single line on a horizontal panel → horizontal strip");
     }
@@ -309,13 +309,15 @@ IndicatorTestCase {
         verify(active.height > active.width + 0.5, "the active desktop is a vertical (tall) pill, not a horizontal one");
     }
 
-    // singleLine wins over matchDesktopGrid (a single line has no grid to mirror): still one vertical strip.
-    function test_singleLineOverridesMatchDesktopGrid() {
+    // singleLine + matchDesktopGrid COMPOSE (they are orthogonal): one line laid HORIZONTALLY across a vertical
+    // panel — a single horizontal row with a horizontal pill. matchDesktopGrid sets the direction, singleLine the count.
+    function test_singleLineHorizontalRowOnVerticalPanel() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
         compare(indicator.lineCount, 1, "one line (grid collapsed)");
+        compare(indicator.gridVertical, false, "laid out across the panel, not down it");
         const dots = dotsByIndex(indicator);
-        verify(dots[1].mapToItem(indicator, 0, 0).y > dots[0].mapToItem(indicator, 0, 0).y + 0.5, "still a vertical strip, not a mirrored grid");
-        verify(dots[0].height > dots[0].width + 0.5, "still a vertical pill (single line wins)");
+        verify(dots[1].mapToItem(indicator, 0, 0).x > dots[0].mapToItem(indicator, 0, 0).x + 0.5, "desktops run horizontally across the panel");
+        verify(dots[0].width > dots[0].height + 0.5, "the active desktop is a horizontal pill");
     }
 
     // Multi-row "breathing" fix: the strip is pinned to the conserved (capsule-bearing) extent, so its footprint

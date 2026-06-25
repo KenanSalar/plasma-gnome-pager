@@ -169,8 +169,8 @@ restart; the defaults give the intended GNOME look out of the box.
 | Setting | Default | Description |
 |---|---|---|
 | `dotStyle` | `Sliding pill` | Overall look: **Sliding pill** (the reflow pill) or **Filled & ring** (no pill; current = filled circle, others = hollow rings). The pill-size settings apply only to Sliding pill. |
-| `singleLine` | `false` | Ignore the virtual-desktop grid **rows** and lay every desktop out in a single strip along the panel (one vertical strip on a vertical panel), regardless of KWin's "Rows" setting. |
-| `matchDesktopGrid` | `false` | **Vertical panels only:** lay a multi-row grid out in KWin's orientation (rows top-to-bottom, like the stock pager) instead of transposing it down the panel. No effect on a horizontal panel, or while `singleLine` is on. |
+| `singleLine` | `false` | Ignore the virtual-desktop grid **rows** and lay every desktop out in a single line, regardless of KWin's "Rows" setting. Combine with `matchDesktopGrid` to choose the direction (one vertical strip on its own, or one horizontal row with `matchDesktopGrid` on). |
+| `matchDesktopGrid` | `false` | **Vertical panels only:** run the layout **across** the panel instead of down it — for a multi-row grid this mirrors KWin's orientation (rows top-to-bottom, like the stock pager); combined with `singleLine` it gives a single horizontal row. No effect on a horizontal panel. |
 | `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
 | `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
 | `spacingFactor` | `0.5` | Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). |
