@@ -155,6 +155,12 @@ function ringThickness(dotSize) {
     return Math.max(1, Math.round(dotSize * 0.18));
 }
 
+// Inner-dot occupancy marker diameter for a given dot diameter (the InnerDot style centre dot) — a
+// fixed fraction of the dot, kept here so the geometry constant lives in one place (cf. ringThickness).
+function innerDotDiameter(dotSize) {
+    return dotSize * 0.45;
+}
+
 // "Filled & ring" dot-style (DOT_STYLE.Ring): does THIS dot draw the ring OUTLINE (border)? Every
 // non-current dot does, regardless of occupancy — so a Filled-occupied dot is a filled disc WITH the
 // ring still around it ("ring and dot background"). Always false in the Pill style and for the current

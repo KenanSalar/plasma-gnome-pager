@@ -229,6 +229,14 @@ TestCase {
         compare(Logic.ringThickness(0), 1, "0 → 1 (min-1 clamp)");
     }
 
+    // innerDotDiameter: the InnerDot occupancy marker is a fixed fraction (0.45×) of the dot diameter
+    // (no round/floor, unlike ringThickness — it renders the centre dot directly).
+    function test_innerDotDiameter() {
+        fuzzyCompare(Logic.innerDotDiameter(100), 45, 0.001, "100 → 45 (0.45×)");
+        fuzzyCompare(Logic.innerDotDiameter(16), 7.2, 0.001, "16 → 7.2");
+        fuzzyCompare(Logic.innerDotDiameter(0), 0, 0.001, "0 → 0");
+    }
+
     // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring occupancy style (and NOT the Filled & ring dot-style) shows the ring overlay.
     function test_ringOverlayVisible() {
         var pill = Logic.DOT_STYLE.Pill;
