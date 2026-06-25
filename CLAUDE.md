@@ -326,6 +326,28 @@ how GNOME and the KDE `compact_pager` actually work.
 > test_matchDesktopGridReporterCase,test_matchDesktopGridIgnoredHorizontal}`; the existing
 > `test_gridVerticalTranspose` pins the default-OFF transpose. The config page is e2e-only.
 
+> **Gotcha — PIN the `strip` Grid to the conserved extent, never leave it content-sized (multi-row morph
+> "breathing").** The outer `strip` Grid is `anchors.centerIn: parent`. If it sizes to its CONTENT (its
+> implicit size), a multi-row morph makes the dots drift: during a switch the de-activating capsule animates
+> `pillWidth → dotSize` in one line while the activating one animates `dotSize → pillWidth` in ANOTHER line, so
+> with `Δ = pillWidth − dotSize` and progress `f` the content width is `L + Δ·max(1−f, f)` — it **dips by Δ/2
+> at f=0.5** and the centred strip re-centres every frame, dragging all dots ("breathing"). A SINGLE-LINE (or
+> same-row) switch keeps both morphing dots in one line, so the length is conserved (`L + Δ`, constant) → no
+> drift — which is why only multi-row CROSS-line switches show it. Fix: pin `strip.width`/`strip.height` to the
+> **effective conserved extents** `IndicatorMetrics.{stripLength,crossThickness}` (= `Logic.lineExtent(perLine,
+> dotSize, dotSpacing, pillWidth)` / `lineExtent(lineCount, …, max(dotSize,pillSize))` — the length of a
+> capsule-bearing line, the MAX, independent of `f`), swapped by `gridVertical` like the `implicitWidth/Height`
+> hints. These are the **effective** (post-scale-to-fit) analogs of `naturalStripLength`/`naturalCrossThickness`
+> and must stay EFFECTIVE (natural would overflow under compression); they feed ONLY the strip, never the
+> `Layout.*` hints (those stay natural — the binding-loop gotcha). No loop: `strip` is a child, its size never
+> feeds back into `indicator.width`. Trade-off: a multi-row grid whose current desktop is in a SHORT trailing
+> line renders ~Δ/2 left of centre at rest (the footprint is now constant instead of re-centring per switch —
+> which also removes a pre-existing rest jump); common layouts (single row, even grids, current in a full line)
+> are unchanged. Assumes `pillWidth ≥ dotSize` (same as `naturalStripLength`). Guarded by
+> `tst_indicatormetrics.qml::{test_stripLengthMatchesFormula,test_crossThicknessMatchesFormula,
+> test_stripLengthTracksEffectiveUnderShrink}` + `tst_indicator_layout.qml::test_multiRowStripPinnedRegardlessOfCapsule`
+> (deterministic proxy) + `tst_indicator_morph.qml::test_crossRowMorphDoesNotDriftOtherDots` (samples mid-morph).
+
 > **Gotcha — animate the first *placement*, not the first frame.** The morph is gated by an
 > `animate` latch flipped via `Qt.callLater` once `activeIndex` is first valid, so the active
 > element is **already a capsule** on shell reload (no grow-in from a dot, even when

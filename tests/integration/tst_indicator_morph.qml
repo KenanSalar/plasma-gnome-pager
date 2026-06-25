@@ -360,6 +360,26 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, before, 0.5, "advertised width is conserved across the switch");
     }
 
+    // Multi-row "breathing" fix, observed DURING the morph: a cross-row switch animates the capsule from line 0
+    // to line 1; a non-morphing dot in the gaining line must hold its position the whole time. Reference dot[3]
+    // is the leftmost of line 1 — never a capsule here (current goes 0 → 5) and left of the growing dot[5], so it
+    // never reflows; its only possible motion source is the strip resizing+recentering. Before the fix the strip
+    // dips by Δ/2 at the morph midpoint and the dot drifts ~Δ/4; after the fix the pinned strip never moves.
+    function test_crossRowMorphDoesNotDriftOtherDots() {
+        const vdi = makeMock(sixIds, sixIds[0], [], 2);   // 2 rows → lines [0,1,2],[3,4,5]
+        const indicator = makeIndicator(vdi, { animationDuration: 600, width: 400, height: 200, dotSizeRequest: 16, pillWidthFactor: 4 });
+        const ref = dotsByIndex(indicator)[3];            // leftmost of line 1 (cached; not destroyed by the switch)
+        const before = ref.mapToItem(indicator, 0, 0).x;
+
+        vdi.currentDesktop = sixIds[5];                   // cross-row switch: capsule line 0 → line 1
+        let maxDrift = 0;
+        for (let i = 0; i < 8; i++) {                     // sample ~400ms of the 600ms morph, incl. the f≈0.5 dip
+            wait(50);
+            maxDrift = Math.max(maxDrift, Math.abs(ref.mapToItem(indicator, 0, 0).x - before));
+        }
+        verify(maxDrift <= 0.75, "a non-morphing dot stays put during a cross-row morph (max drift " + maxDrift.toFixed(2) + " px)");
+    }
+
     // robustness.md: a populated → empty → populated round-trip. No dots while empty, the size stays
     // finite, the one-way latch survives, and exactly one capsule returns on repopulation.
     function test_transientEmptyIdsThenRepopulate() {

@@ -119,6 +119,9 @@ Item {
     readonly property real pillSize: metrics.pillSize          // effective pill thickness (tracks the dot)
     readonly property real pillWidth: metrics.pillWidth        // active capsule LENGTH (major axis)
     readonly property real dotSpacing: metrics.dotSpacing      // uniform gap between every element
+    // Conserved (capsule-bearing) extents — the strip is pinned to these so a cross-row morph can't drift it.
+    readonly property real stripLength: metrics.stripLength
+    readonly property real crossThickness: metrics.crossThickness
     // Natural/floor extents (geometry-independent — feed the Layout hints; no loop).
     readonly property real naturalDotSize: metrics.naturalDotSize
     readonly property real naturalPillSize: metrics.naturalPillSize
@@ -199,6 +202,10 @@ Item {
     Grid {
         id: strip
         anchors.centerIn: parent
+        // Pin to the conserved extent so a cross-row morph can't resize+recenter the strip (else the dots drift).
+        // Content-sized would dip mid-morph as the capsule moves between lines; this keeps the footprint constant.
+        width: indicator.gridVertical ? indicator.crossThickness : indicator.stripLength
+        height: indicator.gridVertical ? indicator.stripLength : indicator.crossThickness
         spacing: indicator.dotSpacing
         rows: indicator.gridVertical ? 1 : -1
         columns: indicator.gridVertical ? -1 : 1

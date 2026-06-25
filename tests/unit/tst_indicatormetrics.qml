@@ -127,4 +127,31 @@ TestCase {
         // availableMajor/Cross default 0 → fitDotSize +Infinity → min keeps natural
         compare(m.dotSize, m.naturalDotSize, "no allocation yet → effective == natural (no premature shrink)");
     }
+
+    // Conserved (capsule-bearing) extents the indicator pins the strip to: lineExtent over the EFFECTIVE sizes.
+    // When there is room they equal the natural extents (the strip is pinned to the same value it sizes to today).
+    function test_stripLengthMatchesFormula() {
+        const m = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 2 });
+        const expected = Logic.lineExtent(4, m.dotSize, m.dotSpacing, m.pillWidth);   // a full capsule-bearing line
+        fuzzyCompare(m.stripLength, expected, 0.001, "stripLength == lineExtent(perLine, dot, gap, pillWidth)");
+        fuzzyCompare(m.stripLength, m.naturalStripLength, 0.001, "== naturalStripLength when there is room");
+    }
+
+    function test_crossThicknessMatchesFormula() {
+        const m = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 30, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 2, lineCount: 3 });
+        const expected = Logic.lineExtent(3, m.dotSize, m.dotSpacing, Math.max(m.dotSize, m.pillSize));
+        fuzzyCompare(m.crossThickness, expected, 0.001, "crossThickness == lineExtent(lineCount, dot, gap, max(dot,pill))");
+        fuzzyCompare(m.crossThickness, m.naturalCrossThickness, 0.001, "== naturalCrossThickness when there is room");
+    }
+
+    // stripLength tracks the EFFECTIVE (shrunk) size, not natural — so the pinned strip fits a compressed panel
+    // (a full capsule line at the effective dot exactly fills the allocation, the inverse of lineExtent).
+    function test_stripLengthTracksEffectiveUnderShrink() {
+        const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
+        m.availableCross = m.naturalCrossThickness * 2;     // cross unconstrained
+        m.availableMajor = m.naturalStripLength * 0.6;      // compress the major axis
+        verify(m.dotSize < m.naturalDotSize, "the dot shrank");
+        fuzzyCompare(m.stripLength, m.availableMajor, 0.01, "stripLength tracks the effective size → fills the narrow allocation");
+        verify(m.stripLength < m.naturalStripLength, "and is below the natural strip length");
+    }
 }

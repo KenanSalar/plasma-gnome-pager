@@ -280,6 +280,20 @@ IndicatorTestCase {
         verify(y2 > y0 + 0.5, "line 1 below line 0 (unchanged by the toggle)");
     }
 
+    // Multi-row "breathing" fix: the strip is pinned to the conserved (capsule-bearing) extent, so its footprint
+    // — and so the dots — do NOT depend on whether/where the capsule is. A cross-row morph therefore can't
+    // resize+recenter the strip and drag the dots. Deterministic proxy: the leftmost dot's absolute position is
+    // identical with a capsule present (valid current) vs. transiently absent (stale current). Before the fix the
+    // content-sized strip is narrower with no capsule, so its centred dots sit further right (test fails).
+    function test_multiRowStripPinnedRegardlessOfCapsule() {
+        const opts = { width: 400, height: 200, dotSizeRequest: 16, pillWidthFactor: 4 };   // big Δ, ample room
+        const withCapsule = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), opts);
+        const noCapsule = makeIndicator(makeMock(fourIds, staleUuid, [], 2), opts);
+        const xCapsule = dotsByIndex(withCapsule)[0].mapToItem(withCapsule, 0, 0).x;
+        const xNoCapsule = dotsByIndex(noCapsule)[0].mapToItem(noCapsule, 0, 0).x;
+        fuzzyCompare(xNoCapsule, xCapsule, 0.5, "the strip (and so the dots) keep their position whether or not a capsule is present");
+    }
+
     // per-dot tooltip data: the indicator feeds each dot its name and the flag.
 
     // Metrics reach the derived sizes and every dot.
