@@ -154,4 +154,16 @@ TestCase {
         fuzzyCompare(m.stripLength, m.availableMajor, 0.01, "stripLength tracks the effective size → fills the narrow allocation");
         verify(m.stripLength < m.naturalStripLength, "and is below the natural strip length");
     }
+
+    // Symmetric to the above on the CROSS axis: crossThickness tracks the EFFECTIVE size, so the pinned strip fits a
+    // thin panel. pillSizeRequest 0 (ratio 1) → the cross fit is the exact inverse of naturalCrossThickness, so a
+    // full stack of lines at the effective dot exactly fills the compressed cross allocation.
+    function test_crossThicknessTracksEffectiveUnderShrink() {
+        const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 1, lineCount: 4 });
+        m.availableMajor = m.naturalStripLength * 2;        // major unconstrained
+        m.availableCross = m.naturalCrossThickness * 0.6;   // compress the cross axis
+        verify(m.dotSize < m.naturalDotSize, "the dot shrank");
+        fuzzyCompare(m.crossThickness, m.availableCross, 0.01, "crossThickness tracks the effective size → fills the thin allocation");
+        verify(m.crossThickness < m.naturalCrossThickness, "and is below the natural cross thickness");
+    }
 }

@@ -313,8 +313,9 @@ how GNOME and the KDE `compact_pager` actually work.
 > mirror for it — so `matchDesktopGrid` (Bool, default OFF, `ConfigAppearance` "Vertical panels:") is an
 > appropriate widget toggle (NOT a duplicate of a System Settings knob). The whole feature is **one derived
 > bool** in `WorkspaceIndicator`: `readonly property bool gridVertical: vertical && !matchDesktopGrid`,
-> substituted for the raw panel `vertical` at the FIVE geometry sites — `availableMajor`/`availableCross`,
-> the `Layout.*` size hints, the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment,
+> substituted for the raw panel `vertical` at the SIX geometry sites — `availableMajor`/`availableCross`,
+> the `Layout.*` size hints, the `strip` size pin (`strip.width`/`height`, see the strip-pin gotcha below),
+> the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment,
 > and `WorkspaceDot.vertical` (the capsule's elongation axis). Truth table: horizontal panel → always
 > `false` (toggle inert); vertical + OFF → `true` (transpose preserved, byte-for-byte, every prior test
 > green); vertical + ON → `false` (the grid renders in KWin orientation — rows top-to-bottom, columns
