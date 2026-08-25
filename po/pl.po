@@ -61,7 +61,7 @@ msgid ""
 "Ignore the grid rows from System Settings and lay every desktop out in one "
 "strip along the panel (a single vertical strip on a vertical panel)."
 msgstr ""
-"Ignoruj rzędy siatki z Ustawień Systemowych i ułóż każdy z pulpitów w jednej  "
+"Ignoruj rzędy siatki z Ustawień Systemowych i ułóż każdy z pulpitów w jednej "
 "linii "
 "wzdłuż panelu (pojedynczy pionowy pasek w panelu pionowym)."
 
@@ -82,7 +82,7 @@ msgid ""
 "bottom) instead of running them down the panel. No effect on horizontal "
 "panels."
 msgstr ""
-"Ułóż punkty  zgodnie z siatką pulpitów w Ustawieniach Systemowych (rzędy od "
+"Ułóż punkty zgodnie z siatką pulpitów w Ustawieniach Systemowych (rzędy od "
 "góry do dołu), zamiast ustawiać je dałn panelu. Nie wpływa na panele horyzonta"
 "lne."
 
@@ -109,7 +109,7 @@ msgstr[2] "%1 px"
 #: package/contents/ui/config/ConfigAppearance.qml:143
 #, kde-format
 msgid "Pill thickness:"
-msgstr "Grubość kapsułki"
+msgstr "Grubość kapsułki:"
 
 #: package/contents/ui/config/ConfigAppearance.qml:149
 #, kde-format
@@ -119,22 +119,22 @@ msgstr "Zrównaj z kropkami"
 #: package/contents/ui/config/ConfigAppearance.qml:154
 #, kde-format
 msgid "Spacing:"
-msgstr "Odstęp"
+msgstr "Odstęp:"
 
 #: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "%1× dot"
-msgstr "%1×  kropka"
+msgstr "%1× kropka"
 
 #: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
-msgstr "Szerokość kapsułki"
+msgstr "Szerokość kapsułki:"
 
 #: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
-msgstr "%1×  pigułka"
+msgstr "%1× pigułka"
 
 #: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
@@ -144,7 +144,7 @@ msgstr "Nieprzezroczystość nieaktywnych:"
 #: package/contents/ui/config/ConfigAppearance.qml:183
 #, kde-format
 msgid "Hover opacity:"
-msgstr "Nieprzezroczystość  po najechaniu:"
+msgstr "Nieprzezroczystość po najechaniu:"
 
 #: package/contents/ui/config/ConfigAppearance.qml:192
 #, kde-format
@@ -358,7 +358,7 @@ msgstr "Usuń Ostatni Pulpit"
 #: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
-msgstr "Zmień Nazwę Bieżącego Pulpitu"
+msgstr "Zmień Nazwę Bieżącego Pulpitu…"
 
 #: package/contents/ui/main.qml:286
 #, kde-format
