@@ -82,9 +82,9 @@ msgid ""
 "bottom) instead of running them down the panel. No effect on horizontal "
 "panels."
 msgstr ""
-"Ułóż punkty zgodnie z siatką pulpitów w Ustawieniach Systemowych (rzędy od "
-"góry do dołu), zamiast ustawiać je dałn panelu. Nie wpływa na panele horyzonta"
-"lne."
+"Ułóż kropki zgodnie z siatką pulpitów w Ustawieniach Systemowych (rzędy od "
+"góry do dołu), zamiast ustawiać je pionowo wzdłuż panelu. Nie wpływa na panele"
+" poziome."
 
 #: package/contents/ui/config/ConfigAppearance.qml:132
 #, kde-format
@@ -306,8 +306,8 @@ msgid ""
 "While on, desktops are managed automatically — the menu Add/Remove options "
 "are disabled."
 msgstr ""
-"Gdy aktywne, pulpity zarządzane są automatycznie — menu Dodań/Usuń zostaje wył"
-"ączone."
+"Gdy aktywne, pulpity zarządzane są automatycznie — opcje Dodań/Usuń w menu są "
+"wyłączone."
 
 #: package/contents/ui/config/ConfigGeneral.qml:128
 #, kde-format
