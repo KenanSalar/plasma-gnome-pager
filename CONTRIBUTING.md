@@ -31,8 +31,28 @@ the issue number in front of the slug where there is one, like
 
 ## Getting set up
 
-There's no build step. plasmashell interprets the QML directly, so "building" means symlinking the
-package and reloading the shell:
+There's no build step — plasmashell interprets the QML directly, so "building" means symlinking the
+package and reloading the shell. You do need three things a KDE install doesn't pull in on its own:
+
+```bash
+sudo dnf install qt6-qtdeclarative-devel gettext nodejs npm   # Fedora
+npm ci                                                        # once, for ESLint
+```
+
+`qt6-qtdeclarative-devel` is what carries `qmllint-qt6` and `qmltestrunner-qt6`; gettext is needed
+even if you never touch a `.po`, because `make dev` compiles the catalogs.
+
+The `-qt6` suffix is a Fedora naming habit and the Makefile calls the tools by it. Elsewhere
+they're unsuffixed — Arch ships them in `qt6-declarative`, Debian and Ubuntu in
+`qt6-declarative-dev-tools` alongside `qml6-module-qttest` — usually under `/usr/lib/qt6/bin`
+(`ls /usr/lib/qt6/bin` to check). Link them into your `PATH` under the names the Makefile wants:
+
+```bash
+ln -s /usr/lib/qt6/bin/qmllint       ~/.local/bin/qmllint-qt6
+ln -s /usr/lib/qt6/bin/qmltestrunner ~/.local/bin/qmltestrunner-qt6
+```
+
+With that in place, the loop is:
 
 ```bash
 make dev      # symlink package/ into ~/.local/share/plasma/plasmoids
@@ -40,8 +60,7 @@ make test     # run it standalone; QML errors print to the terminal
 make restart  # reload the panel — plasmashell caches QML, so editing alone isn't enough
 ```
 
-The rest of the targets are in the [README](README.md#development). One thing that isn't obvious:
-`make lint-js` and `make verify` need `npm ci` once first, for the ESLint dev dependency.
+The rest of the targets are in the [README](README.md#development).
 
 ## Before you push
 
@@ -68,6 +87,35 @@ upgraded. This one survived 6.6 → 6.7 untouched, and I'd like to keep it that 
 looks like it needs a private import, there's almost always a public equivalent in
 `org.kde.taskmanager` or on KWin's DBus interface.
 
+In practice that fixes the import surface to this, and adding to it is a conversation:
+
+```qml
+import QtQuick
+import QtQml                                  // Instantiator, in the window aggregator
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2               // config pages only
+import org.kde.plasma.plasmoid                // PlasmoidItem, the Plasmoid attached property
+import org.kde.plasma.core as PlasmaCore      // Types, Action, ToolTipArea
+import org.kde.plasma.components as PlasmaComponents3
+import org.kde.plasma.configuration           // ConfigModel, in contents/config/config.qml
+import org.kde.plasma.workspace.dbus as DBus  // the KWin DBus writes
+import org.kde.kirigami as Kirigami           // Units, Theme, Icon, FormLayout
+import org.kde.taskmanager as TaskManager     // VirtualDesktopInfo, TasksModel
+import org.kde.kcmutils as KCM                // opening a System Settings page
+```
+
+The settings pages get a little more latitude — `org.kde.kquickcontrols` for the colour buttons —
+because the config dialog is loaded on demand, so a break there can't take the running panel with
+it. Nothing the always-on widget instantiates gets that leeway.
+
+Imports are un-versioned on Plasma 6: `import QtQuick`, not `import QtQuick 2.15`. And if you're
+adapting code from a Plasma 5 widget or an older tutorial, much of what it reaches for no longer
+exists — `PlasmaCore.Units` is now `Kirigami.Units`, `PlasmaCore.Theme` is `Kirigami.Theme`,
+`PlasmaCore.IconItem` is `Kirigami.Icon`, and the root item is a `PlasmoidItem` rather than an
+`Item`. `make lint` catches the renamed symbols. The root item it can't — `Item` is still a valid
+QML type, so that one fails silently: the applet loads, renders nothing at all, and puts nothing in
+the journal.
+
 ## Writing the code
 
 Size and space everything with `Kirigami.Units`, and take colours from `Kirigami.Theme` unless the
@@ -84,6 +132,19 @@ else. One component in isolation goes in `tests/unit/`, components wired togethe
 needs a live plasmashell and KWin, so changes there are verified through the `make dev` →
 `make test` → `make restart` loop instead.
 
+Virtual desktops have a read/write split worth knowing before you touch them. **Read** state from
+`TaskManager.VirtualDesktopInfo` and bind to it — it updates whichever way the desktop changed, a
+keyboard shortcut or another pager included, so a cached index only drifts out of sync. **Write**
+through KWin's DBus interface, which is async fire-and-forget: you issue the call and let
+`VirtualDesktopInfo` report the result back. Desktops are keyed by UUID, never by index, so map a
+dot through `desktopIds[i]` rather than counting. The exact call shapes are built in `logic.js`
+(`switchSpec`, `addSpec`, `removeSpec`, `renameSpec`) and pinned by tests, because KWin silently
+drops a call whose argument types are wrong — no error, nothing happens.
+
+Both of those sources go briefly empty during a desktop add/remove or a shell reload; `desktopIds`
+can be `[]` for a frame. Guard every index and UUID before using it. A fair number of the tests
+exist only to hold that line.
+
 ## Commit messages
 
 Conventional Commits, with an optional scope:
@@ -94,8 +155,9 @@ fix: pin the dot strip so multi-row morphs don't drift the dots
 fix(i18n): correct punctuation and spacing in the Polish catalog
 ```
 
-Nothing enforces this — it's the house style, and it keeps the generated release notes readable.
-If you've contributed to KDE upstream: this repo doesn't use the `BUG:` footer convention from
+Nothing enforces this — it's the house style. Use it for the PR title too: the release notes are
+generated from merged PR titles, so that's the line that ends up in the changelog. If you've
+contributed to KDE upstream: this repo doesn't use the `BUG:` footer convention from
 invent.kde.org.
 
 ## Translations
@@ -113,8 +175,10 @@ Tell me your Plasma version (`plasmashell --version`), your distro, and how you 
 widget. Panel orientation and monitor layout matter too — several bugs have only ever appeared on
 multi-monitor or fractional-scaling setups.
 
-If it misbehaves rather than just looking wrong, run `make test` and paste any QML errors from the
-terminal. That step is usually the difference between a report I can fix and one I can't reproduce.
+If it misbehaves rather than just looking wrong, the logs are usually the difference between a
+report I can fix and one I can't reproduce. From a clone, `make test` prints QML errors straight to
+the terminal; if you installed from the KDE Store or a `.plasmoid`, use
+`journalctl --user -b -t plasmashell` instead.
 
 ## License
 
