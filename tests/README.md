@@ -17,12 +17,12 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
 
 - **unit** (`tests/unit/`) — `tst_workspacedot.qml`, `tst_indicatormetrics.qml` (the dot-strip sizing
   engine extracted from the indicator), `tst_screencurrentdesktop.qml` (the per-screen current-desktop
-  resolver, driven by the shared `VdiMock`), and the three reusable config-page controls
-  (`tst_configslider.qml`, `tst_confighint.qml`, `tst_configpercentslider.qml` — the config *pages* stay
-  e2e-only, but these controls are Kirigami-only and so do load headless) — one component each, driven only
-  by properties — plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier) and `tst_coordinator.qml`
-  (the `coordinator.js` shared-state machine), which import the `.js` directly, no Plasma/Kirigami, so
-  they run on bare qt6 + qttest.
+  resolver, driven by the shared `VdiMock`), and the four reusable config-page controls
+  (`tst_configslider.qml`, `tst_confighint.qml`, `tst_configpercentslider.qml`, `tst_configsection.qml`
+  — the config *pages* stay e2e-only, but these controls are Kirigami-only and so do load headless) — one
+  component each, driven only by properties — plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier)
+  and `tst_coordinator.qml` (the `coordinator.js` shared-state machine), which import the `.js` directly,
+  no Plasma/Kirigami, so they run on bare qt6 + qttest.
 - **Plasma deps in tested components are OK *if* they load headless.** The goal is headless
   testability, not zero Plasma imports. `WorkspaceDot` imports `org.kde.plasma.core` for its
   per-dot `ToolTipArea` — that type loads and tracks hover under offscreen `qmltestrunner`, so the
