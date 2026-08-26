@@ -4,8 +4,10 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Behavior page, built on ConfigPageBase. Each `cfg_<key>` alias MUST match a main.xml entry exactly
- * (the dialog wires load/save); `cfg_<key>Default` is injected from the schema.
+ * The Behavior page, built on ConfigPageBase. Rows are grouped under ConfigSection headings; the first
+ * control of a group carries no label of its own, since the heading names the group. Each `cfg_<key>`
+ * alias MUST match a main.xml entry exactly (the dialog wires load/save); `cfg_<key>Default` is injected
+ * from the schema.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -59,9 +61,11 @@ ConfigPageBase {
     ]
 
     Kirigami.FormLayout {
+        ConfigSection {
+            title: i18n("Mouse")
+        }
         QQC2.CheckBox {
             id: enableScroll
-            Kirigami.FormData.label: i18n("Mouse:")
             text: i18n("Scroll over the pager to switch desktops")
         }
         QQC2.CheckBox {
@@ -95,9 +99,12 @@ ConfigPageBase {
             // The hint above already covers what clicking another desktop does — don't repeat it.
             text: i18n("Click the space around the dots, not just the highlighted desktop.")
         }
+
+        ConfigSection {
+            title: i18n("Tooltips")
+        }
         QQC2.CheckBox {
             id: showTooltips
-            Kirigami.FormData.label: i18n("Tooltips:")
             text: i18n("Show the desktop name on hover")
         }
         QQC2.CheckBox {
@@ -105,9 +112,14 @@ ConfigPageBase {
             text: i18n("List the open windows in the tooltip")
             enabled: showTooltips.checked   // the window list only shows when tooltips are on
         }
+
+        ConfigSection {
+            // The menu entries and dynamic workspaces share a heading because they are mutually exclusive —
+            // seeing them adjacent is what makes the greyed-out Add/Remove read as deliberate.
+            title: i18n("Desktop management")
+        }
         QQC2.CheckBox {
             id: enableAddRemove
-            Kirigami.FormData.label: i18n("Menu:")
             text: i18n("Add and remove desktops from the right-click menu")
             // Greyed while dynamic workspaces is on (mutually exclusive); value preserved, returns when off.
             enabled: !dynamicWorkspaces.checked
@@ -118,7 +130,6 @@ ConfigPageBase {
         }
         QQC2.CheckBox {
             id: dynamicWorkspaces
-            Kirigami.FormData.label: i18n("Dynamic desktops:")
             text: i18n("Automatically add and remove desktops (GNOME-style)")
         }
         ConfigHint {
@@ -135,6 +146,9 @@ ConfigPageBase {
             Layout.preferredWidth: root.fieldWidth   // match the slider track width (ConfigPageBase.fieldWidth)
         }
 
+        ConfigSection {
+            title: i18n("Animation")
+        }
         ConfigSlider {
             id: animationDuration
             label: i18n("Animation duration:")

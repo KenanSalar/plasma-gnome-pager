@@ -845,18 +845,20 @@ TEXT colour — not the accent — when following). The settings UI is two files
   entry exactly. Both pages subclass the shared **`ConfigPageBase.qml`** (a `Kirigami.ScrollablePage`
   — on robustness.md's allowlist; the stock `KCM.SimpleKCM` is just a subclass) so the dialog renders
   the standard KDE title header + spacing + scrolling AND each page gets the Defaults header action
-  for free (see below). Three reusable controls carry the repeated rows: **`ConfigSlider.qml`** (every
+  for free (see below). Four reusable controls carry the repeated rows: **`ConfigSlider.qml`** (every
   numeric metric — sizes, ratios, opacities, duration, including the integer keys),
   **`ConfigPercentSlider.qml`** (a `ConfigSlider` preset for the `0..1` opacity keys: one home for the
-  range, the 1% step and the `NN%` read-out) and **`ConfigHint.qml`** (the dimmed wrapped explanatory line
-  under a row, pinning its wrap width to the field column). Only the colours use `org.kde.kquickcontrols`
+  range, the 1% step and the `NN%` read-out), **`ConfigHint.qml`** (the dimmed wrapped explanatory line
+  under a row, pinning its wrap width to the field column) and **`ConfigSection.qml`** (the heading that
+  groups a run of rows — see the section gotcha below). Only the colours use `org.kde.kquickcontrols`
   `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
   **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
   always-on widget), so a break there cannot kill the running pager. The config **pages**
   (`ConfigGeneral`/`ConfigAppearance`/`config.qml`) are **e2e-only** (the dialog needs
   `org.kde.plasma.configuration`), so they are not in the headless test harness — `make lint` covers
-  them, but verify behaviour in-shell. The three shared controls are the exception: being Kirigami-only they
-  **are** headless-unit-tested, by `tests/unit/tst_{configslider,configpercentslider,confighint}.qml`.
+  them, but verify behaviour in-shell. The four shared controls are the exception: being Kirigami-only they
+  **are** headless-unit-tested, by
+  `tests/unit/tst_{configslider,configpercentslider,confighint,configsection}.qml`.
 - **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
   **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
   `root.isModified`, firing `root.defaultsRequested()`) **and** owns the whole contract off a single
@@ -870,6 +872,25 @@ TEXT colour — not the accent — when following). The settings UI is two files
 - **Gotcha:** `ConfigCategory.source` paths resolve relative to `contents/ui/`, which is why
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
+
+> **Gotcha — group rows with `ConfigSection`, and DON'T also label the group's first control.** Both
+> pages are long (Behavior 12 keys, Appearance 21), so rows are grouped under headings rather than run
+> flat. A heading is `ConfigSection { title: i18n("…") }` — a bare `Item` carrying
+> `Kirigami.FormData.isSection: true` + `Kirigami.FormData.label`, which `Kirigami.FormLayout` promotes
+> to a `Heading` (`type: Primary`, `level: 3`) spanning both columns with `largeSpacing * 2` above it.
+> Three things are easy to get wrong: (1) **the carrier must be an `Item`** — upstream documents
+> `isSection` as unreliable on arbitrary controls, and a `Kirigami.Separator` would draw a rule under
+> every title (Kirigami's own source comment prefers the whitespace); (2) **a title-less
+> `ConfigSection {}` is just a gap** — with an empty label FormLayout falls through to `smallSpacing`,
+> which is exactly what the old anonymous spacer before the colours did; (3) **headings are CENTRED**
+> over the two columns (`effectiveLayout()` returns `Qt.AlignHCenter` for a section, unconditionally),
+> not left-aligned to the label column — that is Kirigami's design, not a bug to "fix" locally. Grouping
+> used to be faked by putting a label like `"Mouse:"`/`"Colors:"` on the group's FIRST control; with a
+> real heading that label is a duplicated word, so the group's opening control now carries **no**
+> `Kirigami.FormData.label` and the heading names the group. A control that needs its own label keeps it
+> (`"Click current desktop:"`, `"Pill length:"`). Appearance leads with the ungrouped `dotStyle` row on
+> purpose — it selects which groups below even apply. Guarded by `tests/unit/tst_configsection.qml`
+> (the attached flag + the `title` → label alias); the rendered heading is e2e-only.
 
 > **Gotcha — reserve the value-label width AND fix the track width; the slider is NOT `fillWidth`.**
 > `ConfigSlider.qml` makes two coupled layout decisions. **(1) Reserve the read-out width** or the
