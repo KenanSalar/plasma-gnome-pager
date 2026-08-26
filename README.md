@@ -230,6 +230,9 @@ plasma-gnome-pager/
 
 ## Development
 
+Planning to send a patch? [CONTRIBUTING.md](CONTRIBUTING.md) covers the branch rule, the CI gates,
+and what gets checked on review.
+
 ```bash
 make dev                # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
 make test               # run the widget standalone in a window (shows QML errors in the terminal)
@@ -277,9 +280,11 @@ $EDITOR po/ko.po                           # translate each msgstr (Lokalize / P
 make i18n                                  # compile, then `make restart` to see it in the panel
 ```
 
-Open a pull request with the new `po/ko.po` (and, optionally, a `Description[ko]` key in
-`package/metadata.json` so the description in **Add Widgets** is localized too). After changing
-any in-code string, re-run `make messages` and commit the updated `.po` (the `.pot` is gitignored).
+Open a pull request **against `dev`** with the new `po/ko.po` (and, optionally, a
+`Description[ko]` key in `package/metadata.json` so the description in **Add Widgets** is localized
+too). After changing any in-code string, re-run `make messages` and commit the updated `.po` (the
+`.pot` is gitignored). [CONTRIBUTING.md](CONTRIBUTING.md#translations) lists what gets checked on
+review.
 
 ## License
 
