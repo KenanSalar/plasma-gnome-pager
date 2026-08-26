@@ -460,7 +460,13 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > outgoing dot reports its leave, and the fresh dot under a *stationary* pointer reports no hover — so the
 > background goes dark after an add/remove/dynamic-workspace change until the pointer moves. Keying the index by
 > UUID instead does NOT fix it (the delegate is destroyed either way — measured, don't re-try it); only a
-> re-delivered hover event does.
+> re-delivered hover event does. Because the OR's two sources flip in SEPARATE notifications, correctness rests
+> on Qt delivering HoverEnter to the new item BEFORE pruning the stale one — reverse that and `hovered` dips
+> inside a single move, restarting the fade (a blink, plus two animation starts per dot crossed). So
+> `test_hoverBackgroundStaysVisibleOverADot` walks gap→dot→adjacent dot→gap and asserts **synchronously**
+> (`fuzzyCompare` right after each `mouseMove`): a settled `tryCompare` cannot see a dip that has already
+> healed. Mutation-checked — dropping the delegate's `else if (hoveredDotIndex === globalIndex)` guard fails
+> the dot→dot step, and passed the old single-hop test.
 >
 > **Gotcha — the background's padding lives in the SIZE HINTS (BOTH axes), not in `IndicatorMetrics`; and the
 > CROSS extent grows FROM the strip, it is never an inset OF the cell.** The cell is otherwise EXACTLY the strip
@@ -517,7 +523,7 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > test_hoverBackgroundPaddingNotInMinimum,test_hoverBackgroundOffKeepsBareHints,test_hoverBackgroundFillsCellStadium,
 > test_hoverBackgroundStadiumVertical,test_hoverBackgroundNeverOverflowsThinPanel,
 > test_hoverBackgroundDoesNotFillAnOversizedPanel,test_hoverClearanceFactorsDriveGeometry,
-> test_hoverClearanceZeroHugsTheStrip}` +
+> test_hoverClearanceZeroHugsTheStrip,test_hoverHintsAreGeometryIndependent}` +
 > `tst_indicator_content.qml::{test_hoverBackgroundAppearsOnHover,test_hoverBackgroundStaysVisibleOverADot,
 > test_hoverBackgroundDisabledNeverShows,test_hoverBackgroundFollowsThemeColor,test_hoverBackgroundCustomColor}` +
 > `tst_indicator_input.qml::{test_clickBackgroundEmitsActiveClicked,test_clickBackgroundIgnoredWhenDisabled,

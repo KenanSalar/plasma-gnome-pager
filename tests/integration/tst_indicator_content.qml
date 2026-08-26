@@ -278,17 +278,30 @@ IndicatorTestCase {
 
     // The regression this design exists for: the dots sit ON TOP of the wheel layer and take hover from it,
     // so a background driven by wheelArea alone would blink off every time the pointer crossed a dot.
+    // Every assertion after the first fade-in is SYNCHRONOUS on purpose: `hovered` ORs two sources that flip
+    // in separate notifications, so a change in Qt's hover delivery order would dip it inside a single
+    // mouseMove — restarting the fade — and a settled tryCompare would still pass while the user saw the blink.
     function test_hoverBackgroundStaysVisibleOverADot() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const bg = hoverBackgroundOf(indicator);
+        const lit = indicator.hoverBackgroundOpacity;
 
-        mouseMove(indicator, 5, indicator.height / 2);   // over the gap first
-        tryCompare(bg, "opacity", indicator.hoverBackgroundOpacity, 2000, "lit over a dot-free spot");
+        mouseMove(indicator, 5, indicator.height / 2);   // over the gap first — only this one has to settle
+        tryCompare(bg, "opacity", lit, 2000, "lit over a dot-free spot");
 
-        const c = Elements.centerOf(dotByUuid(indicator, ids[0]), indicator);
-        mouseMove(indicator, c.x, c.y);                  // now straight onto a dot
+        const inactive = Elements.centerOf(dotByUuid(indicator, ids[0]), indicator);
+        mouseMove(indicator, inactive.x, inactive.y);    // gap → dot
         compare(indicator.hovered, true, "the dot hands its hover back up to the indicator");
-        tryCompare(bg, "opacity", indicator.hoverBackgroundOpacity, 2000, "and the background stays lit over the dot");
+        fuzzyCompare(bg.opacity, lit, 0.001, "and the background never dips crossing onto a dot");
+
+        const pill = Elements.centerOf(dotByUuid(indicator, currentUuid), indicator);
+        mouseMove(indicator, pill.x, pill.y);            // dot → adjacent dot: the delegate's index guard
+        compare(indicator.hovered, true, "still hovered handing straight over to the next dot");
+        fuzzyCompare(bg.opacity, lit, 0.001, "and never dips between two dots");
+
+        mouseMove(indicator, 5, indicator.height / 2);   // dot → gap: the wheel layer takes the hover back
+        compare(indicator.hovered, true, "the wheel layer picks the hover back up");
+        fuzzyCompare(bg.opacity, lit, 0.001, "and never dips leaving a dot");
     }
 
     // Switched off, no amount of hovering shows it.

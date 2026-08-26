@@ -136,6 +136,35 @@ IndicatorTestCase {
         fuzzyCompare(bg.height, indicator.crossThickness + 2 * Logic.hoverPadding(indicator.lineThickness, indicator.hoverThicknessFactor), 0.5, "strip + padding");
     }
 
+    // The no-binding-loop invariant, which today only NAMING protects: the hint-side padding reads the NATURAL
+    // sizes, its hoverCrossPaddingEffective twin the rendered ones. Feeding the effective one into
+    // paddedCrossThickness would close the loop implicitHeight → availableCross → dotSize → lineThickness →
+    // implicitHeight. Height is left unset on purpose, so implicitHeight really does drive the cell (that is
+    // the edge the loop travels), and the strip is squeezed until scale-to-fit bites — the ONLY condition
+    // under which the two paddings differ, so a roomy cell would make every check below vacuous.
+    function test_hoverHintsAreGeometryIndependent() {
+        const many = manyIds(12);
+        const indicator = makeIndicator(makeMock(many, many[0]), { width: 600 });
+        compare(indicator.dotSize, indicator.naturalDotSize, "roomy to start: the dots render at natural size");
+        const hint = {
+            implicitWidth: indicator.implicitWidth,
+            implicitHeight: indicator.implicitHeight,
+            maximumWidth: indicator.Layout.maximumWidth,
+            padding: indicator.hoverPadding,
+            crossPadding: indicator.hoverCrossPadding
+        };
+
+        indicator.width = 120;   // squeeze until the dots have to shrink
+        tryVerify(() => indicator.dotSize < indicator.naturalDotSize, 2000, "scale-to-fit is active");
+        verify(indicator.hoverCrossPaddingEffective < hint.crossPadding, "the RENDER-side clearance shrinks with the dots (so the hint checks are not vacuous)");
+
+        compare(indicator.hoverCrossPadding, hint.crossPadding, "but the HINT-side clearance stays on the natural sizes");
+        compare(indicator.hoverPadding, hint.padding, "on the major axis too");
+        compare(indicator.implicitHeight, hint.implicitHeight, "so implicitHeight never follows the RENDERED dot — that would be the binding loop");
+        compare(indicator.implicitWidth, hint.implicitWidth, "and implicitWidth stays put as well");
+        compare(indicator.Layout.maximumWidth, hint.maximumWidth, "as does the advertised maximum");
+    }
+
     // vertical form factor: a side panel becomes a single COLUMN (dots stack along Y, the capsule grows
     // TALL, the pinned/free Layout axes swap). These mirror the horizontal geometry/sizing onto Y/height.
 
