@@ -47,7 +47,12 @@ the same widget, transposed:
   wrap-around and optional inverted direction); hi-res/touchpad sub-notches are accumulated.
 - **Click the current desktop** — optional (default off): clicking the highlighted current
   desktop can trigger **Show Desktop**, **Overview**, or **Grid** (it toggles the matching KWin
-  action); clicking any other desktop still just switches to it.
+  action); clicking any other desktop still just switches to it. By default that action can be
+  triggered from **anywhere on the widget**, not just the small current-desktop pill.
+- **Hover background (GNOME-style)** — a rounded highlight fades in behind the whole pager while
+  the pointer is over it, exactly like GNOME's panel workspace indicator, with its own colour and
+  opacity and a slider for the clearance it leaves around the dots on each axis. Can be turned off, and
+  when it is the widget's footprint is unchanged.
 - **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
   and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
   (sourced from the public `TasksModel`).
@@ -156,6 +161,7 @@ restart; the defaults give the intended GNOME look out of the box.
 | `scrollWrap` | `false` | When scrolling past the first/last desktop, wrap around (else clamp). |
 | `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
 | `pillClickAction` | `Nothing` | Action when clicking the highlighted **current** desktop: Show Desktop, Overview, or Grid (it toggles the matching KWin action). Clicking any other desktop still just switches to it. |
+| `pillClickAnywhere` | `true` | Let that action fire from anywhere on the widget (the hovered background), not just the current desktop's pill. Clicking another desktop still switches to it; inert while `pillClickAction` is Nothing. |
 | `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
 | `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. Disabled (greyed out, entries hidden) while `dynamicWorkspaces` is on, since the two manage desktops in conflicting ways. |
@@ -177,13 +183,18 @@ restart; the defaults give the intended GNOME look out of the box.
 | `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
 | `inactiveOpacity` | `0.45` | Opacity of an inactive (dim) dot. |
 | `hoverOpacity` | `0.8` | Opacity an inactive dot brightens to on hover. |
+| `showHoverBackground` | `true` | GNOME-style: fade a rounded background in behind the whole pager while the pointer is over it. Sized in GNOME's proportions by default and adjustable per axis with the two sliders below; turning it off restores the original footprint exactly. |
+| `hoverBackgroundOpacity` | `0.12` | Opacity of that hover background; only when `showHoverBackground` is on. |
+| `hoverLengthFactor` | `1.0` | Clearance the background leaves at **each end** of the strip, as a multiple of the pill thickness. |
+| `hoverThicknessFactor` | `1.0` | Clearance it leaves on **each side** across the strip, likewise. The defaults give one whole pill thickness all round (a background 3× the pill thick), matching GNOME; lower them for a tighter highlight. Always capped at the panel thickness. |
 | `showOccupancy` | `false` | Mark desktops that hold windows so they stand out from empty ones. |
 | `occupancyStyle` | `Filled` | How an occupied desktop is marked: **Filled** (the whole dot), **Inner dot** (a dot on top), or **Hollow ring** (a ring on top). Only when `showOccupancy` is on. |
 | `occupiedOpacity` | `0.7` | Opacity of the occupied marker (every style uses it); only when `showOccupancy` is on. |
-| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the three colours below. |
+| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the custom colours below. |
 | `activeColor` | `#3daee9` | Custom active-capsule colour (used only when `followThemeColors` is off). |
 | `inactiveColor` | `#eff0f1` | Custom inactive-dot colour (used only when `followThemeColors` is off). |
 | `occupiedColor` | `#3daee9` | Custom occupied-marker colour (used only when `followThemeColors` is off). |
+| `hoverBackgroundColor` | `#eff0f1` | Custom hover-background colour (used only when `followThemeColors` is off; otherwise the theme's text colour). |
 
 The **multi-row grid** and the **per-screen current desktop** are not settings — they
 auto-mirror KWin (System Settings → Virtual Desktops → "Rows", and the per-output desktop

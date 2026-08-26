@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-06-25 23:49+0200\n"
+"POT-Creation-Date: 2026-08-26 18:03+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Chinese (Simplified)\n"
@@ -26,280 +26,320 @@ msgstr "行为"
 msgid "Appearance"
 msgstr "外观"
 
-#: package/contents/ui/config/ConfigAppearance.qml:87
+#: package/contents/ui/config/ConfigAppearance.qml:102
 #, kde-format
 msgid "Pager style:"
 msgstr "分页器样式："
 
-#: package/contents/ui/config/ConfigAppearance.qml:89
+#: package/contents/ui/config/ConfigAppearance.qml:104
 #, kde-format
 msgid "Sliding pill"
 msgstr "滑动胶囊"
 
-#: package/contents/ui/config/ConfigAppearance.qml:89
+#: package/contents/ui/config/ConfigAppearance.qml:104
 #, kde-format
 msgid "Filled & ring"
 msgstr "实心和圆环"
 
-#: package/contents/ui/config/ConfigAppearance.qml:101
+#: package/contents/ui/config/ConfigAppearance.qml:116
 #, kde-format
 msgid "Multiple rows:"
 msgstr "多行："
 
-#: package/contents/ui/config/ConfigAppearance.qml:102
+#: package/contents/ui/config/ConfigAppearance.qml:117
 #, kde-format
 msgid "Show all desktops in a single line"
 msgstr "将所有桌面显示在一行中"
 
-#: package/contents/ui/config/ConfigAppearance.qml:106
+#: package/contents/ui/config/ConfigAppearance.qml:121
 #, kde-format
 msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
 msgstr "忽略系统设置中的网格行，将每个桌面沿面板排列成一条带状（在竖直面板上为单条竖直带）。"
 
-#: package/contents/ui/config/ConfigAppearance.qml:115
+#: package/contents/ui/config/ConfigAppearance.qml:130
 #, kde-format
 msgid "Vertical panels:"
 msgstr "竖直面板："
 
-#: package/contents/ui/config/ConfigAppearance.qml:116
+#: package/contents/ui/config/ConfigAppearance.qml:131
 #, kde-format
 msgid "Match the virtual-desktop grid layout"
 msgstr "匹配虚拟桌面网格布局"
 
-#: package/contents/ui/config/ConfigAppearance.qml:122
+#: package/contents/ui/config/ConfigAppearance.qml:137
 #, kde-format
 msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
 msgstr "将圆点按系统设置中的桌面网格排列（行从上到下），而不是沿面板纵向排列。对水平面板无效。"
 
-#: package/contents/ui/config/ConfigAppearance.qml:132
+#: package/contents/ui/config/ConfigAppearance.qml:147
 #, kde-format
 msgid "Dot size:"
 msgstr "圆点大小："
 
-#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:152 package/contents/ui/config/ConfigGeneral.qml:159
 #, kde-format
 msgid "Default"
 msgstr "默认"
 
-#: package/contents/ui/config/ConfigAppearance.qml:137 package/contents/ui/config/ConfigAppearance.qml:149
+#: package/contents/ui/config/ConfigAppearance.qml:152 package/contents/ui/config/ConfigAppearance.qml:164
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
 msgstr[0] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:143
+#: package/contents/ui/config/ConfigAppearance.qml:158
 #, kde-format
 msgid "Pill thickness:"
 msgstr "胶囊粗细："
 
-#: package/contents/ui/config/ConfigAppearance.qml:149
+#: package/contents/ui/config/ConfigAppearance.qml:164
 #, kde-format
 msgid "Match dots"
 msgstr "与圆点一致"
 
-#: package/contents/ui/config/ConfigAppearance.qml:154
+#: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "Spacing:"
 msgstr "间距："
 
-#: package/contents/ui/config/ConfigAppearance.qml:158
+#: package/contents/ui/config/ConfigAppearance.qml:173
 #, kde-format
 msgid "%1× dot"
 msgstr "%1× 圆点"
 
-#: package/contents/ui/config/ConfigAppearance.qml:163
+#: package/contents/ui/config/ConfigAppearance.qml:178
 #, kde-format
 msgid "Pill length:"
 msgstr "胶囊长度："
 
-#: package/contents/ui/config/ConfigAppearance.qml:169
+#: package/contents/ui/config/ConfigAppearance.qml:184 package/contents/ui/config/ConfigAppearance.qml:228 package/contents/ui/config/ConfigAppearance.qml:238
 #, kde-format
 msgid "%1× pill"
 msgstr "%1× 胶囊"
 
-#: package/contents/ui/config/ConfigAppearance.qml:174
+#: package/contents/ui/config/ConfigAppearance.qml:189
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "非活动不透明度："
 
-#: package/contents/ui/config/ConfigAppearance.qml:183
+#: package/contents/ui/config/ConfigAppearance.qml:198
 #, kde-format
 msgid "Hover opacity:"
 msgstr "悬停不透明度："
 
-#: package/contents/ui/config/ConfigAppearance.qml:192
+#: package/contents/ui/config/ConfigAppearance.qml:207 package/contents/ui/config/ConfigAppearance.qml:313
+#, kde-format
+msgid "Hover background:"
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:208
+#, kde-format
+msgid "Highlight the whole pager on hover"
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:212
+#, fuzzy, kde-format
+msgid "Background opacity:"
+msgstr "已占用不透明度："
+
+#: package/contents/ui/config/ConfigAppearance.qml:222
+#, fuzzy, kde-format
+msgid "Extra length:"
+msgstr "胶囊长度："
+
+#: package/contents/ui/config/ConfigAppearance.qml:232
+#, fuzzy, kde-format
+msgid "Extra thickness:"
+msgstr "胶囊粗细："
+
+#: package/contents/ui/config/ConfigAppearance.qml:242
+#, kde-format
+msgid "Space the background leaves around the dots, at each end and on each side. Raise the thickness on a tall panel; it never grows past the panel."
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:252
 #, kde-format
 msgid "Occupied desktops:"
 msgstr "已占用的桌面："
 
-#: package/contents/ui/config/ConfigAppearance.qml:193
+#: package/contents/ui/config/ConfigAppearance.qml:253
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "高亮显示有打开窗口的桌面"
 
-#: package/contents/ui/config/ConfigAppearance.qml:197
+#: package/contents/ui/config/ConfigAppearance.qml:257
 #, kde-format
 msgid "Indicator style:"
 msgstr "指示器样式："
 
-#: package/contents/ui/config/ConfigAppearance.qml:200
+#: package/contents/ui/config/ConfigAppearance.qml:260
 #, kde-format
 msgid "Filled"
 msgstr "实心"
 
-#: package/contents/ui/config/ConfigAppearance.qml:200
+#: package/contents/ui/config/ConfigAppearance.qml:260
 #, kde-format
 msgid "Inner dot"
 msgstr "内部圆点"
 
-#: package/contents/ui/config/ConfigAppearance.qml:200
+#: package/contents/ui/config/ConfigAppearance.qml:260
 #, kde-format
 msgid "Hollow ring"
 msgstr "空心环"
 
-#: package/contents/ui/config/ConfigAppearance.qml:215
+#: package/contents/ui/config/ConfigAppearance.qml:275
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "已占用不透明度："
 
-#: package/contents/ui/config/ConfigAppearance.qml:229
+#: package/contents/ui/config/ConfigAppearance.qml:289
 #, kde-format
 msgid "Colors:"
 msgstr "颜色："
 
-#: package/contents/ui/config/ConfigAppearance.qml:230
+#: package/contents/ui/config/ConfigAppearance.qml:290
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "跟随配色方案"
 
-#: package/contents/ui/config/ConfigAppearance.qml:234
+#: package/contents/ui/config/ConfigAppearance.qml:294
 #, kde-format
 msgid "Active desktop:"
 msgstr "活动桌面："
 
-#: package/contents/ui/config/ConfigAppearance.qml:240
+#: package/contents/ui/config/ConfigAppearance.qml:300
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "非活动桌面："
 
-#: package/contents/ui/config/ConfigAppearance.qml:246
+#: package/contents/ui/config/ConfigAppearance.qml:306
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "已占用桌面："
 
-#: package/contents/ui/config/ConfigGeneral.qml:61
+#: package/contents/ui/config/ConfigGeneral.qml:64
 #, kde-format
 msgid "Mouse:"
 msgstr "鼠标："
 
-#: package/contents/ui/config/ConfigGeneral.qml:62
+#: package/contents/ui/config/ConfigGeneral.qml:65
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "在分页器上滚动以切换桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:66
+#: package/contents/ui/config/ConfigGeneral.qml:69
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "在第一个和最后一个桌面之间循环"
 
-#: package/contents/ui/config/ConfigGeneral.qml:71
+#: package/contents/ui/config/ConfigGeneral.qml:74
 #, kde-format
 msgid "Invert the scroll direction"
 msgstr "反转滚动方向"
 
-#: package/contents/ui/config/ConfigGeneral.qml:76
+#: package/contents/ui/config/ConfigGeneral.qml:79
 #, kde-format
 msgid "Click current desktop:"
 msgstr "点击当前桌面："
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Nothing"
 msgstr "无"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Show Desktop"
 msgstr "显示桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Overview"
 msgstr "概览"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:81
 #, kde-format
 msgid "Grid"
 msgstr "网格"
 
-#: package/contents/ui/config/ConfigGeneral.qml:83
+#: package/contents/ui/config/ConfigGeneral.qml:86
 #, kde-format
 msgid "Action when clicking the highlighted current desktop. Clicking any other desktop switches to it."
 msgstr "点击高亮显示的当前桌面时执行的操作。点击任何其他桌面将切换到该桌面。"
 
-#: package/contents/ui/config/ConfigGeneral.qml:92
+#: package/contents/ui/config/ConfigGeneral.qml:95
+#, kde-format
+msgid "Trigger it from anywhere on the widget"
+msgstr ""
+
+#: package/contents/ui/config/ConfigGeneral.qml:100
+#, fuzzy, kde-format
+msgid "Click the space around the dots, not just the highlighted desktop. Clicking another desktop still switches to it."
+msgstr "点击高亮显示的当前桌面时执行的操作。点击任何其他桌面将切换到该桌面。"
+
+#: package/contents/ui/config/ConfigGeneral.qml:109
 #, kde-format
 msgid "Tooltips:"
 msgstr "工具提示："
 
-#: package/contents/ui/config/ConfigGeneral.qml:93
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "悬停时显示桌面名称"
 
-#: package/contents/ui/config/ConfigGeneral.qml:97
+#: package/contents/ui/config/ConfigGeneral.qml:114
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "在工具提示中列出打开的窗口"
 
-#: package/contents/ui/config/ConfigGeneral.qml:102
+#: package/contents/ui/config/ConfigGeneral.qml:119
 #, kde-format
 msgid "Menu:"
 msgstr "菜单："
 
-#: package/contents/ui/config/ConfigGeneral.qml:103
+#: package/contents/ui/config/ConfigGeneral.qml:120
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "从右键菜单添加和移除桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:109
+#: package/contents/ui/config/ConfigGeneral.qml:126
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "从右键菜单重命名当前桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:113
+#: package/contents/ui/config/ConfigGeneral.qml:130
 #, kde-format
 msgid "Dynamic desktops:"
 msgstr "动态桌面："
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
+#: package/contents/ui/config/ConfigGeneral.qml:131
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "自动添加和移除桌面（GNOME 风格）"
 
-#: package/contents/ui/config/ConfigGeneral.qml:118
+#: package/contents/ui/config/ConfigGeneral.qml:135
 #, kde-format
 msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
 msgstr "启用后，桌面将被自动管理 — 菜单中的添加/移除选项将被禁用。"
 
-#: package/contents/ui/config/ConfigGeneral.qml:128
+#: package/contents/ui/config/ConfigGeneral.qml:145
 #, kde-format
 msgid "New desktop name:"
 msgstr "新桌面名称："
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131 package/contents/ui/main.qml:220
+#: package/contents/ui/config/ConfigGeneral.qml:148 package/contents/ui/main.qml:235
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:137
+#: package/contents/ui/config/ConfigGeneral.qml:154
 #, kde-format
 msgid "Animation duration:"
 msgstr "动画时长："
 
-#: package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigGeneral.qml:159
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -310,27 +350,27 @@ msgstr[0] "%1 ms"
 msgid "Defaults"
 msgstr "默认值"
 
-#: package/contents/ui/main.qml:200
+#: package/contents/ui/main.qml:215
 #, kde-format
 msgid "New Desktop"
 msgstr "新桌面"
 
-#: package/contents/ui/main.qml:262
+#: package/contents/ui/main.qml:277
 #, kde-format
 msgid "Add Desktop"
 msgstr "添加桌面"
 
-#: package/contents/ui/main.qml:270
+#: package/contents/ui/main.qml:285
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "移除最后一个桌面"
 
-#: package/contents/ui/main.qml:278
+#: package/contents/ui/main.qml:293
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "重命名当前桌面…"
 
-#: package/contents/ui/main.qml:286
+#: package/contents/ui/main.qml:301
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "配置虚拟桌面…"

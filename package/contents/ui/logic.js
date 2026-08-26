@@ -23,6 +23,7 @@ var DEFAULTS = Object.freeze({
     dynamicWorkspaces: false,    // GNOME-style: auto-keep one empty trailing desktop
     dynamicNamePrefix: "",       // base name for auto-created desktops ("" = i18n default "Desktop")
     pillClickAction: 0,          // what clicking the CURRENT desktop's pill does; see PILL_CLICK_ACTION (0 = None)
+    pillClickAnywhere: true,     // fire that action from anywhere on the widget, not just the current pill (inert while None)
     animationDuration: 0,        // ms; 0 = follow the theme
     // Appearance
     dotStyle: 0,                 // overall look; see DOT_STYLE (0 = Sliding pill, mirrors main.xml)
@@ -34,6 +35,10 @@ var DEFAULTS = Object.freeze({
     pillWidthFactor: 3.5,        // pill length / pill thickness (aspect ratio)
     inactiveOpacity: 0.45,
     hoverOpacity: 0.8,
+    showHoverBackground: true,   // GNOME-style: a rounded background behind the whole pager while hovered
+    hoverBackgroundOpacity: 0.12,
+    hoverLengthFactor: 1.0,      // extra background length at EACH end, x the pill thickness (GNOME-matched)
+    hoverThicknessFactor: 1.0,   // extra background thickness on EACH side, x the pill thickness (GNOME-matched)
     showOccupancy: false,        // mark the dots of desktops that hold windows
     occupiedOpacity: 0.7,        // opacity of the occupied marker (all styles); empty < occupied < hover < active
     occupancyStyle: 0,           // HOW an occupied dot is marked; see OCCUPANCY (0 = Filled, mirrors main.xml)
@@ -41,6 +46,7 @@ var DEFAULTS = Object.freeze({
     activeColor: "#3daee9",      // used only when followThemeColors is false
     inactiveColor: "#eff0f1",    // used only when followThemeColors is false
     occupiedColor: "#3daee9",    // occupied-marker colour; used only when followThemeColors is false (else theme accent)
+    hoverBackgroundColor: "#eff0f1",   // hover-background colour; used only when followThemeColors is false (else theme text colour)
     wheelNotchDelta: 120         // angleDelta units per mouse notch (no schema entry)
 });
 
@@ -138,6 +144,27 @@ function dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpac
     if (occupied && style === OCCUPANCY.Filled)
         return occupiedOpacity;
     return inactiveOpacity;
+}
+
+// Opacity of the HOVER BACKGROUND (the GNOME-style pill behind the whole strip): the configured value
+// while hovered, 0 otherwise — so the caller can drop the item entirely (visible: opacity > 0).
+function hoverBackgroundAlpha(enabled, hovered, opacity) {
+    return enabled && hovered ? opacity : 0;
+}
+
+// Hover-background clearance on one side, as a multiple of the LINE thickness (one dot/pill — NOT the whole
+// strip, so a multi-row grid keeps the same visual margin instead of a multiple of it). The two factors are
+// config keys; both default to 1.0 — one whole pill thickness of clearance on every side, which matches
+// GNOME's panel workspace indicator side by side on a real panel (its background ends up 3x the pill thick).
+function hoverPadding(lineThickness, factor) {
+    return lineThickness * factor;
+}
+
+// The background's CROSS extent: the strip GROWN by the padding on each side, then capped at the cell so it
+// can never draw past the panel. Growing-then-capping is load-bearing — deriving it by insetting the cell
+// instead collapses the background back onto the strip the moment the padding exceeds the room available.
+function hoverCrossExtent(cell, crossThickness, padding) {
+    return Math.min(cell, crossThickness + 2 * padding);
 }
 
 // Which colour fills the dot BODY, from three pre-resolved colours (the caller resolves theme-vs-custom):

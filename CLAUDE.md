@@ -440,6 +440,79 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > test_scrollNeverEmitsActiveClicked}` + `tst_indicator_morph.qml::test_clickActiveCapsuleEmitsActiveClicked`
 > (the real-mouseClick e2e variant). The live shortcut invocation has side-effects, so it stays e2e-only.
 
+> **Gotcha — hover background: OR the wheel layer with the DOTS' hover; a `HoverHandler` (or the wheel
+> layer alone) is NOT enough.** The GNOME hover background (`showHoverBackground`, default ON, +
+> `hoverBackgroundOpacity` / `hoverBackgroundColor`) is a stadium `Rectangle` behind the WHOLE widget cell,
+> declared as the indicator's FIRST child so it sits under everything; it carries no `MouseArea` of its own,
+> so it can never disturb the dots' hit-testing. Its alpha is the pure
+> `Logic.hoverBackgroundAlpha(enabled, hovered, opacity)` (0 when off/unhovered) and `visible: opacity > 0`
+> genuinely drops it (qml-performance.md); the fade reuses the dot's `Logic.effectiveDuration`, so
+> reduce-animations kills it too. Colour follows `Kirigami.Theme.textColor` (the neutral wash GNOME uses —
+> NOT `highlightColor`, which would muddy the accent-coloured pill in front of it) unless `followThemeColors`
+> is off. The load-bearing part is `hovered`: each `WorkspaceDot`'s `MouseArea` is `hoverEnabled` and sits ON
+> TOP of `wheelArea`, and **a hover-accepting item ends hover delivery to everything below it** — so
+> `wheelArea.containsMouse` alone blinks off every time the pointer crosses a dot, and a parent `HoverHandler`
+> never fires at all (the child ends the recursion before ancestors' handlers run). Instead the indicator ORs
+> the two sources: `hovered = wheelArea.containsMouse || hoveredDotIndex >= 0`, where the delegate's
+> `onHoveredChanged` hands each dot's ALREADY-EXISTING `hovered` alias (`WorkspaceDot.qml`, previously unread)
+> back up, and `onDesktopIdsChanged` resets the index because a dot destroyed under the pointer never reports
+> its leave. **`WorkspaceDot` is untouched by this feature.**
+>
+> **Gotcha — the background's padding lives in the SIZE HINTS (BOTH axes), not in `IndicatorMetrics`; and the
+> CROSS extent grows FROM the strip, it is never an inset OF the cell.** The cell is otherwise EXACTLY the strip
+> (`Layout.maximumWidth == naturalStripLength`, and the panel does not reliably stretch the cross axis either),
+> so a background filling it would hug the dots with no clearance at all. Clearance is
+> `Logic.hoverPadding(lineThickness, factor)` on each side, with the factor a USER SETTING per axis
+> (`hoverLengthFactor` / `hoverThicknessFactor`), **both defaulting to `1.0`** — one whole pill thickness of
+> clearance on every side, making the background **3 × the pill thickness** tall. That value was settled by
+> comparing against GNOME on a real panel, which beats measuring a cropped screenshot: a tight crop shows the
+> pill-relative ratio (≈1.9) but hides the panel height, and it is the *share of panel height* that the eye
+> actually reads. They stay sliders because that share depends on the user's panel. Both factors are taken
+> against the LINE thickness
+> (`max(dotSize, pillSize)` — one dot/pill), **not** `crossThickness`, so a multi-row grid keeps the same visual
+> margin instead of a multiple of it; and both collapse to `0` when the background is off, restoring the
+> pre-feature geometry byte-for-byte. The hint-side
+> `hoverPadding`/`hoverCrossPadding` read the **natural** sizes (feeding effective ones into the hints would be
+> a binding loop) and become `paddedStripLength`/`paddedCrossThickness` on `implicitWidth`/`Height` +
+> `preferred` + `maximum`.
+>
+> The render-side cross extent is the part that is easy to get wrong: `Logic.hoverCrossExtent(cell,
+> crossThickness, padding) = min(cell, crossThickness + 2 × padding)` — grown from the STRIP and then capped
+> at the cell.
+> An earlier version insetted the CELL instead (`cell − 2 × clamp(padding, …)`), which **collapses the
+> background back onto the strip exactly** whenever the padding exceeds the room available — the
+> "no vertical space" bug (verified against a screenshot: the background measured 8px, identical to the
+> strip). Growing-then-capping also means an oversized panel keeps GNOME's proportion rather than filling the
+> thickness edge-to-edge. It reads the EFFECTIVE sizes so it shrinks in step with scale-to-fit, and feeds only
+> the Rectangle, so there is no loop.
+>
+> Two deliberate asymmetries remain: (1) `Layout.minimum*` stays the BARE floor, so a cramped panel compresses
+> the padding away BEFORE the dots start scaling down; (2) the padding is **not** subtracted from the metrics'
+> `availableMajor`/`availableCross` — with room the panel grants `natural + 2 × padding`, `fitDotSize` lands
+> above natural and `dotSize` clamps to natural, so sizing is unchanged and **`IndicatorMetrics` and the
+> `fitDotSize`/`lineExtent` math stay COMPLETELY untouched**.
+>
+> **Gotcha — `pillClickAnywhere` rides the SAME `wheelArea`, and the dots still win.** Rather than a second
+> overlapping `MouseArea` (which would swallow wheel events over the gaps), `wheelArea` gained
+> `hoverEnabled: true`, `acceptedButtons: pillClickAnywhere ? Qt.LeftButton : Qt.NoButton` and
+> `onClicked: activeClicked()`. Because it sits BEHIND the dots, clicking a dot still reaches the dot (switch
+> or pill action, unchanged) and only the surrounding cell reaches `onClicked`; the right button is never
+> accepted, so the applet context menu always falls through; and with the toggle off it accepts nothing at
+> all — today's exact pass-through. Scroll is untouched (`handleWheel` only ever emits `switchRequested`).
+> Note the click target is the whole CELL while the background is inset on the cross axis, so the top/bottom
+> panel edge is clickable but unpainted — deliberate (Fitts's law at a screen edge). Guarded by
+> `tst_logic.qml::test_hoverBackgroundAlpha` +
+> `tst_logic.qml::{test_hoverPadding,test_hoverDefaultsMatchGnomeProportions,test_hoverCrossExtent}` +
+> `tst_indicator_layout.qml::{test_hoverBackgroundPadsMajorAxis,test_hoverBackgroundMatchesGnomeProportions,
+> test_hoverBackgroundPaddingNotInMinimum,test_hoverBackgroundOffKeepsBareHints,test_hoverBackgroundFillsCellStadium,
+> test_hoverBackgroundStadiumVertical,test_hoverBackgroundNeverOverflowsThinPanel,
+> test_hoverBackgroundDoesNotFillAnOversizedPanel,test_hoverClearanceFactorsDriveGeometry,
+> test_hoverClearanceZeroHugsTheStrip}` +
+> `tst_indicator_content.qml::{test_hoverBackgroundAppearsOnHover,test_hoverBackgroundStaysVisibleOverADot,
+> test_hoverBackgroundDisabledNeverShows,test_hoverBackgroundFollowsThemeColor,test_hoverBackgroundCustomColor}` +
+> `tst_indicator_input.qml::{test_clickBackgroundEmitsActiveClicked,test_clickBackgroundIgnoredWhenDisabled,
+> test_clickAnywhereDoesNotBlockDotClicks,test_scrollStillWorksWithClickAreaEnabled}`. The config pages are e2e-only.
+
 > **Rename — a public `setDesktopName(id, name)` DBus write + a `PlasmaCore.Dialog`, NOT
 > `Kirigami.PromptDialog`.** "Rename Current Desktop…" is a `Plasmoid.contextualAction` (gated by the
 > `enableRename` key) that renames `vdi.currentDesktop` via `root.dispatch(Logic.renameSpec(uuid, name))`
@@ -705,7 +778,9 @@ behaviour — `enableScroll`, `scrollWrap`, `invertScroll` (flip the wheel-direc
 mapping), `pillClickAction` (what clicking the ALREADY-CURRENT desktop's pill does — a
 `ConfigGeneral` combo whose index mirrors `Logic.PILL_CLICK_ACTION`: `0 = None` (default off, a
 no-op), `1 = Show Desktop`, `2 = Overview`, `3 = Grid`; the three actions TOGGLE a KWin global
-shortcut — see the pill-click gotcha below), `showTooltips`, `showWindowList` (the window list in the
+shortcut — see the pill-click gotcha below), `pillClickAnywhere` (Bool, default ON — fire that action from
+ANYWHERE on the widget rather than only the current pill; see the hover-background gotcha below.
+`ConfigGeneral` greys it while `pillClickAction` is None), `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
 `enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `dynamicWorkspaces`
 (GNOME-style auto add/remove of one empty trailing desktop, default off; GLOBAL across panels via
@@ -722,11 +797,16 @@ line horizontal — see the grid-orientation gotcha above; a presentation toggle
 `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
 thickness — "× pill"; both pill keys are ignored/greyed in the Filled & ring style),
-`inactiveOpacity`, `hoverOpacity`, `showOccupancy` (occupied-dot indicator,
+`inactiveOpacity`, `hoverOpacity`, `showHoverBackground` (GNOME-style hover background behind the WHOLE
+widget cell, default ON) + `hoverBackgroundOpacity` (its opacity) + `hoverLengthFactor` / `hoverThicknessFactor`
+(its clearance around the strip — extra length at EACH end / extra thickness on EACH side, both × the pill
+thickness; both default to 1.0, which matches GNOME side by side) — see the hover-background gotcha below,
+`showOccupancy` (occupied-dot indicator,
 default off — mark desktops that hold windows) + `occupiedOpacity` (marker opacity, all styles) +
 `occupancyStyle` (Filled/InnerDot/Ring, a `ConfigAppearance` combo whose index mirrors `Logic.OCCUPANCY`),
 `followThemeColors`, `activeColor`, `inactiveColor`, `occupiedColor` (the occupied-marker colour, used
-when not following the theme). The settings UI is two files that must agree with the schema:
+when not following the theme), `hoverBackgroundColor` (the hover-background colour, likewise; the theme's
+TEXT colour — not the accent — when following). The settings UI is two files that must agree with the schema:
 - `package/contents/config/config.qml` — `ConfigModel` listing the settings categories
   (Behavior, Appearance).
 - `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),

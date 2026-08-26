@@ -103,6 +103,16 @@ Item {
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
 
+    // GNOME-style hover background: a stadium behind the WHOLE widget cell while the pointer is over it.
+    property bool showHoverBackground: Logic.DEFAULTS.showHoverBackground
+    property real hoverBackgroundOpacity: Logic.DEFAULTS.hoverBackgroundOpacity
+    property real hoverLengthFactor: Logic.DEFAULTS.hoverLengthFactor        // extra length at EACH end, x the pill thickness
+    property real hoverThicknessFactor: Logic.DEFAULTS.hoverThicknessFactor  // extra thickness on EACH side, likewise
+    property color hoverBackgroundColor: Kirigami.Theme.textColor   // used only when NOT following the theme
+
+    // Fire the pill-click action from anywhere on that background, not just the current desktop's pill.
+    property bool pillClickAnywhere: Logic.DEFAULTS.pillClickAnywhere
+
     // Occupied-dot indicator: when showOccupancy, an occupied dot (desktopOccupancy[globalIndex]) is marked per occupancyStyle.
     property bool showOccupancy: Logic.DEFAULTS.showOccupancy
     property var desktopOccupancy: []                              // per-desktop bool[], index-aligned with desktopIds (per-screen, from main.qml)
@@ -147,6 +157,33 @@ Item {
     property color occupiedColor: Kirigami.Theme.highlightColor   // occupied-marker colour (custom; theme accent when following the scheme)
     property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme
 
+    // Theme-vs-custom, same idiom as the dot's resolvedActive/resolvedInactive (kept live so a scheme change re-evaluates).
+    readonly property color resolvedHoverBackground: followThemeColors ? Kirigami.Theme.textColor : hoverBackgroundColor
+    // Reuses the dot's duration rule, so reduce-animations kills the hover fade too.
+    readonly property int effectiveDuration: Logic.effectiveDuration(animationDuration, Kirigami.Units.longDuration)
+
+    // One line's thickness (a dot, or the pill where it is thicker) — what the hover padding is measured against.
+    readonly property real naturalLineThickness: Math.max(naturalDotSize, naturalPillSize)
+    readonly property real lineThickness: Math.max(dotSize, pillSize)
+
+    // Room for the background around the strip. Hint-side, so both read the NATURAL sizes (geometry-independent —
+    // feeding the effective ones back into the hints would be a binding loop). 0 when the background is off,
+    // which restores the pre-feature geometry byte-for-byte.
+    readonly property real hoverPadding: showHoverBackground ? Logic.hoverPadding(naturalLineThickness, hoverLengthFactor) : 0
+    readonly property real hoverCrossPadding: showHoverBackground ? Logic.hoverPadding(naturalLineThickness, hoverThicknessFactor) : 0
+
+    // The background's CROSS extent, grown from the strip and capped at the cell (see Logic.hoverCrossExtent).
+    // Reads the EFFECTIVE sizes so it shrinks in step with scale-to-fit; feeds only the Rectangle, so no loop.
+    readonly property real hoverCrossExtent: Logic.hoverCrossExtent(gridVertical ? width : height, crossThickness,
+                                                                    Logic.hoverPadding(lineThickness, hoverThicknessFactor))
+
+    // Strip-wide hover. The dots sit ON TOP of wheelArea and take hover from it, so neither source alone is
+    // enough: OR the gaps (wheelArea) with whichever dot reports itself hovered. A parent HoverHandler would
+    // not do — a child hoverEnabled item ends hover delivery before ancestors' handlers run.
+    property int hoveredDotIndex: -1
+    readonly property bool hovered: wheelArea.containsMouse || hoveredDotIndex >= 0
+    onDesktopIdsChanged: hoveredDotIndex = -1   // a dot destroyed under the pointer never reports its leave
+
     // Raised on a click or scroll; main.qml turns the UUID into a KWin switch.
     signal switchRequested(string uuid)
 
@@ -173,16 +210,22 @@ Item {
         indicator.switchRequested(uuid);
     }
 
-    // Size hints. Major axis: preferred==max==naturalStripLength, min==floorStripLength (panel can compress
-    // → dots scale to fit). Cross axis: preferred==natural, max==-1 (fill thickness), min==floor. Swaps with `gridVertical`.
-    implicitWidth: gridVertical ? naturalCrossThickness : naturalStripLength
-    implicitHeight: gridVertical ? naturalStripLength : naturalCrossThickness
+    // Size hints. Major axis: preferred==max==naturalStripLength + the hover-background padding, min==floorStripLength
+    // (panel can compress → the padding goes first, then the dots scale to fit). Cross axis: preferred==natural +
+    // that padding (so the background gets its vertical room even where the panel does not stretch us),
+    // max==-1 (free to fill the thickness), min==floor. Swaps with `gridVertical`.
+    // The padding is deliberately NOT subtracted from the metrics' availableMajor: with room the panel grants
+    // natural + 2*padding, fitDotSize lands above natural and dotSize clamps to natural — sizing is unchanged.
+    readonly property real paddedStripLength: naturalStripLength + 2 * hoverPadding
+    readonly property real paddedCrossThickness: naturalCrossThickness + 2 * hoverCrossPadding
+    implicitWidth: gridVertical ? paddedCrossThickness : paddedStripLength
+    implicitHeight: gridVertical ? paddedStripLength : paddedCrossThickness
     Layout.minimumWidth: gridVertical ? floorCrossThickness : floorStripLength
     Layout.preferredWidth: implicitWidth
-    Layout.maximumWidth: gridVertical ? -1 : naturalStripLength
+    Layout.maximumWidth: gridVertical ? -1 : paddedStripLength
     Layout.minimumHeight: gridVertical ? floorStripLength : floorCrossThickness
     Layout.preferredHeight: implicitHeight
-    Layout.maximumHeight: gridVertical ? naturalStripLength : -1
+    Layout.maximumHeight: gridVertical ? paddedStripLength : -1
 
     // Gate the morph so the FIRST valid placement is instant (no grow-in on reload), later switches animate.
     // ScreenCurrentDesktop (a child) resolves currentDesktop in its onCompleted first, so activeIndex is valid here.
@@ -198,12 +241,38 @@ Item {
         }
     }
 
-    // Scroll-to-switch. This MouseArea sits BEHIND the dots, accepts no buttons/hover, so clicks/hover pass through while a wheel propagates here.
+    // GNOME-style hover background, behind everything. Purely decorative — no MouseArea of its own, so it can
+    // never interfere with the dots' hit-testing; the clicks it looks clickable for are wheelArea's below.
+    Rectangle {
+        id: hoverBackground
+        anchors.centerIn: parent
+        width: indicator.gridVertical ? indicator.hoverCrossExtent : indicator.width
+        height: indicator.gridVertical ? indicator.height : indicator.hoverCrossExtent
+        radius: Math.min(width, height) / 2   // stadium in either orientation
+        color: indicator.resolvedHoverBackground
+        opacity: Logic.hoverBackgroundAlpha(indicator.showHoverBackground, indicator.hovered, indicator.hoverBackgroundOpacity)
+        visible: opacity > 0                  // drop it entirely when off/unhovered rather than draw a transparent rect
+
+        Behavior on opacity {
+            enabled: indicator.effectiveDuration > 0
+            NumberAnimation {
+                duration: indicator.effectiveDuration
+                easing.type: Easing.OutCubic
+            }
+        }
+    }
+
+    // Scroll-to-switch, strip-wide hover, and (when pillClickAnywhere) the enlarged click target. This MouseArea
+    // sits BEHIND the dots: a wheel over a dot propagates down to it, hover/clicks over a dot are the dot's, and
+    // only the surrounding cell reaches onClicked here. acceptedButtons excludes the right button throughout, so
+    // the applet context menu always falls through; with the toggle off it accepts nothing, exactly as before.
     MouseArea {
         id: wheelArea
         anchors.fill: parent
-        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
+        acceptedButtons: indicator.pillClickAnywhere ? Qt.LeftButton : Qt.NoButton
         onWheel: wheel => indicator.handleWheel(wheel.angleDelta.y)
+        onClicked: indicator.activeClicked()
     }
 
     // Two nested positioners mirror KWin's grid: OUTER stacks lines on the cross axis, INNER the dots on the major axis (one 2-D Grid would fatten a column).
@@ -273,6 +342,14 @@ Item {
 
                         // Clicking the current desktop's pill runs the configured action; any other dot switches.
                         onActivated: workspaceDot.active ? indicator.activeClicked() : indicator.switchRequested(workspaceDot.modelData)
+
+                        // Dots take hover from the wheelArea below, so they hand it back up to keep the background lit.
+                        onHoveredChanged: {
+                            if (workspaceDot.hovered)
+                                indicator.hoveredDotIndex = workspaceDot.globalIndex;
+                            else if (indicator.hoveredDotIndex === workspaceDot.globalIndex)
+                                indicator.hoveredDotIndex = -1;
+                        }
                     }
                 }
             }

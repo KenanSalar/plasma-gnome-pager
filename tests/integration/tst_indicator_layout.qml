@@ -32,6 +32,108 @@ IndicatorTestCase {
         fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorStripLength, 0.5, "minimumWidth is the floor (strip at the minimum legible dot)");
     }
 
+    // hover background: the cell is otherwise EXACTLY the strip, so the background asks for a little room at
+    // each end of the major axis — else the outer dots would sit flush against its stadium caps.
+    function test_hoverBackgroundPadsMajorAxis() {
+        const padded = makeIndicator(makeMock(ids, currentUuid));
+        const bare = makeIndicator(makeMock(ids, currentUuid), { showHoverBackground: false });
+        verify(padded.hoverPadding > 0, "the background reserves padding when it is on");
+        compare(bare.hoverPadding, 0, "and none at all when it is off");
+        fuzzyCompare(padded.implicitWidth, bare.implicitWidth + 2 * padded.hoverPadding, 0.5, "the cell grows by the padding at both ends");
+        fuzzyCompare(padded.Layout.maximumWidth, padded.implicitWidth, 0.5, "the maximum grows with it (the pager still does not stretch)");
+        fuzzyCompare(padded.implicitHeight, bare.implicitHeight + 2 * padded.hoverCrossPadding, 0.5, "and by the (smaller) cross padding above and below");
+    }
+
+    // GNOME's proportions, the point of the whole feature: a whole pill thickness of clearance on every side,
+    // so the background comes out 3x the pill thick. The cell must be tall enough to actually show it.
+    function test_hoverBackgroundMatchesGnomeProportions() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 80 });
+        const bg = hoverBackgroundOf(indicator);
+        fuzzyCompare(bg.height / indicator.lineThickness, 3.0, 0.05, "the background is 3 pill thicknesses tall");
+        verify(bg.height > indicator.crossThickness + 1, "which is strictly taller than the strip it sits behind");
+    }
+
+    // The padding is a nice-to-have, not a floor: minimum stays the bare floor, so a cramped panel compresses
+    // the padding away BEFORE the dots start scaling down.
+    function test_hoverBackgroundPaddingNotInMinimum() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
+        fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorStripLength, 0.5, "minimumWidth is still the bare floor");
+        verify(indicator.Layout.minimumWidth < indicator.implicitWidth - 2 * indicator.hoverPadding + 0.5, "the floor sits below even the unpadded natural length");
+    }
+
+    // Turning the background off restores the pre-feature geometry exactly (hoverPadding collapses to 0).
+    function test_hoverBackgroundOffKeepsBareHints() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { showHoverBackground: false });
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "implicitWidth is the bare strip length");
+        fuzzyCompare(indicator.Layout.maximumWidth, indicator.naturalStripLength, 0.5, "maximumWidth is the bare strip length");
+        fuzzyCompare(indicator.implicitHeight, indicator.naturalCrossThickness, 0.5, "implicitHeight is the bare cross thickness");
+    }
+
+    // The background spans the whole cell along the major axis and insets on the cross axis, with stadium ends.
+    function test_hoverBackgroundFillsCellStadium() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        const bg = hoverBackgroundOf(indicator);
+        verify(bg !== null, "the indicator carries a hover-background rectangle");
+        fuzzyCompare(bg.width, indicator.width, 0.5, "spans the full cell along the major axis");
+        fuzzyCompare(bg.height, indicator.hoverCrossExtent, 0.5, "the cross extent is the strip plus its padding");
+        fuzzyCompare(bg.radius, Math.min(bg.width, bg.height) / 2, 0.5, "stadium ends");
+        const c = Elements.centerOf(bg, indicator);
+        fuzzyCompare(c.x, indicator.width / 2, 0.5, "centred horizontally");
+        fuzzyCompare(c.y, indicator.height / 2, 0.5, "centred vertically");
+    }
+
+    // Vertical panel: the axes swap — the background runs DOWN the cell and insets on the width.
+    function test_hoverBackgroundStadiumVertical() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true, width: 50, height: 200 });
+        const bg = hoverBackgroundOf(indicator);
+        fuzzyCompare(bg.height, indicator.height, 0.5, "spans the full cell along the major (vertical) axis");
+        fuzzyCompare(bg.width, indicator.hoverCrossExtent, 0.5, "the cross (horizontal) extent is the strip plus its padding");
+        fuzzyCompare(bg.radius, Math.min(bg.width, bg.height) / 2, 0.5, "stadium ends");
+    }
+
+    // The two clearance factors are user settings, so the geometry must track them live on both axes.
+    function test_hoverClearanceFactorsDriveGeometry() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 300, height: 160 });
+        const bg = hoverBackgroundOf(indicator);
+        const baseHeight = bg.height;
+        const baseWidth = indicator.implicitWidth;
+
+        indicator.hoverThicknessFactor = indicator.hoverThicknessFactor * 2;
+        tryVerify(() => bg.height > baseHeight + 1, 2000, "raising the thickness factor makes the background taller");
+        fuzzyCompare(bg.height, indicator.crossThickness + 2 * Logic.hoverPadding(indicator.lineThickness, indicator.hoverThicknessFactor), 0.5, "by exactly the requested clearance");
+
+        indicator.hoverLengthFactor = indicator.hoverLengthFactor * 2;
+        tryVerify(() => indicator.implicitWidth > baseWidth + 1, 2000, "raising the length factor widens the advertised cell");
+    }
+
+    // Zeroing both factors collapses the background onto the strip — the tightest look, still valid geometry.
+    function test_hoverClearanceZeroHugsTheStrip() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), {
+            width: 300, height: 160, hoverLengthFactor: 0, hoverThicknessFactor: 0
+        });
+        compare(indicator.hoverPadding, 0, "no length clearance");
+        fuzzyCompare(hoverBackgroundOf(indicator).height, indicator.crossThickness, 0.5, "the background is exactly the strip thickness");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "and the cell is the bare strip length");
+    }
+
+    // A panel too thin for the full padding caps the background at the cell rather than overflowing it
+    // (robustness.md: never draw past the allocation).
+    function test_hoverBackgroundNeverOverflowsThinPanel() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200 });
+        indicator.height = indicator.crossThickness;   // panel exactly as thick as the strip: no room to pad
+        const bg = hoverBackgroundOf(indicator);
+        tryCompare(bg, "height", indicator.height, 2000, "the background caps at the cell");
+        verify(bg.height <= indicator.height + 0.5, "and never draws past it");
+    }
+
+    // A panel with room to spare gets the full GNOME padding, not the whole thickness edge-to-edge.
+    function test_hoverBackgroundDoesNotFillAnOversizedPanel() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 120 });
+        const bg = hoverBackgroundOf(indicator);
+        verify(bg.height < indicator.height - 1, "the background keeps its proportion instead of filling the panel");
+        fuzzyCompare(bg.height, indicator.crossThickness + 2 * Logic.hoverPadding(indicator.lineThickness, indicator.hoverThicknessFactor), 0.5, "strip + padding");
+    }
+
     // vertical form factor: a side panel becomes a single COLUMN (dots stack along Y, the capsule grows
     // TALL, the pinned/free Layout axes swap). These mirror the horizontal geometry/sizing onto Y/height.
 
@@ -92,9 +194,9 @@ IndicatorTestCase {
     // The cross axis is one dot thick.
     function test_verticalImplicitCrossAxis() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
-        fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "vertical strip is one dot wide");
+        fuzzyCompare(indicator.implicitWidth, indicator.dotSize + 2 * indicator.hoverCrossPadding, 0.5, "vertical strip is one dot wide");
         const steady = Logic.lineExtent(ids.length, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
-        fuzzyCompare(indicator.implicitHeight, steady, 0.5, "vertical strip length is the steady-state formula");
+        fuzzyCompare(indicator.implicitHeight, steady + 2 * indicator.hoverPadding, 0.5, "vertical strip length is the steady-state formula");
     }
 
     // Switching morphs the capsule along the height: the new current grows tall, the old shrinks to a dot.
@@ -185,8 +287,8 @@ IndicatorTestCase {
         const major = Logic.lineExtent(indicator.perLine, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
         // Cross thickness has no capsule (every line is one dot thick) → activeExtent == dotSize.
         const cross = Logic.lineExtent(indicator.lineCount, indicator.dotSize, indicator.dotSpacing, indicator.dotSize);
-        fuzzyCompare(indicator.implicitWidth, major, 0.5, "width is one line long");
-        fuzzyCompare(indicator.implicitHeight, cross, 0.5, "height carries both lines");
+        fuzzyCompare(indicator.implicitWidth, major + 2 * indicator.hoverPadding, 0.5, "width is one line long");
+        fuzzyCompare(indicator.implicitHeight, cross + 2 * indicator.hoverCrossPadding, 0.5, "height carries both lines");
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "major (width) axis is pinned");
         // Cross (height) MIN now drops to floorCrossThickness so a thin panel can compress the thickness
         // and the dots cross-fit instead of overflowing it (was pinned to the natural thickness pre-fit).
@@ -396,8 +498,8 @@ IndicatorTestCase {
     function test_pillThicknessAdvertisedOnCrossAxis() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24 });
         fuzzyCompare(indicator.naturalCrossThickness, 24, 0.5, "cross thickness is the thicker pill, not the dot");
-        fuzzyCompare(indicator.implicitHeight, 24, 0.5, "implicitHeight advertises the pill thickness on a horizontal strip");
-        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "major axis still advertises the strip length");
+        fuzzyCompare(indicator.implicitHeight, 24 + 2 * indicator.hoverCrossPadding, 0.5, "implicitHeight advertises the pill thickness on a horizontal strip");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength + 2 * indicator.hoverPadding, 0.5, "major axis still advertises the strip length");
     }
 
     // Independent pill + dot shrink in LOCKSTEP under scale-to-fit: the configured pill:dot ratio holds.
@@ -587,7 +689,7 @@ IndicatorTestCase {
         const line0Width = dots[2].mapToItem(indicator, dots[2].width, 0).x - dots[0].mapToItem(indicator, 0, 0).x;
         const line1Width = dots[4].mapToItem(indicator, dots[4].width, 0).x - dots[3].mapToItem(indicator, 0, 0).x;
         verify(line0Width > line1Width + 0.5, "the capsule-bearing line is wider than the short trailing line");
-        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "the strip width is the wider (full) line");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength + 2 * indicator.hoverPadding, 0.5, "the strip width is the wider (full) line");
     }
 
     // runtime form-factor flip (horizontal <-> vertical on a LIVE indicator): toggling `vertical` on a

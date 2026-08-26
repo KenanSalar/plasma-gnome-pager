@@ -28,6 +28,10 @@ ConfigPageBase {
     property alias cfg_pillWidthFactor: pillWidthFactor.value
     property alias cfg_inactiveOpacity: inactiveOpacity.value
     property alias cfg_hoverOpacity: hoverOpacity.value
+    property alias cfg_showHoverBackground: showHoverBackground.checked
+    property alias cfg_hoverBackgroundOpacity: hoverBackgroundOpacity.value
+    property alias cfg_hoverLengthFactor: hoverLengthFactor.value
+    property alias cfg_hoverThicknessFactor: hoverThicknessFactor.value
     property alias cfg_showOccupancy: showOccupancy.checked
     property alias cfg_occupancyStyle: occupancyStyle.currentIndex
     property alias cfg_occupiedOpacity: occupiedOpacity.value
@@ -35,6 +39,7 @@ ConfigPageBase {
     property alias cfg_activeColor: activeColor.color
     property alias cfg_inactiveColor: inactiveColor.color
     property alias cfg_occupiedColor: occupiedColor.color
+    property alias cfg_hoverBackgroundColor: hoverBackgroundColor.color
 
     // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
     property int cfg_dotStyleDefault
@@ -46,6 +51,10 @@ ConfigPageBase {
     property real cfg_pillWidthFactorDefault
     property real cfg_inactiveOpacityDefault
     property real cfg_hoverOpacityDefault
+    property bool cfg_showHoverBackgroundDefault
+    property real cfg_hoverBackgroundOpacityDefault
+    property real cfg_hoverLengthFactorDefault
+    property real cfg_hoverThicknessFactorDefault
     property bool cfg_showOccupancyDefault
     property int cfg_occupancyStyleDefault
     property real cfg_occupiedOpacityDefault
@@ -53,6 +62,7 @@ ConfigPageBase {
     property color cfg_activeColorDefault
     property color cfg_inactiveColorDefault
     property color cfg_occupiedColorDefault
+    property color cfg_hoverBackgroundColorDefault
 
     // This page's keys + compare kind; ConfigPageBase binds isModified + the Defaults reset off it
     // (reals within epsilon, colours via Qt.colorEqual).
@@ -66,13 +76,18 @@ ConfigPageBase {
         { n: "pillWidthFactor", t: "real" },
         { n: "inactiveOpacity", t: "real" },
         { n: "hoverOpacity", t: "real" },
+        { n: "showHoverBackground", t: "bool" },
+        { n: "hoverBackgroundOpacity", t: "real" },
+        { n: "hoverLengthFactor", t: "real" },
+        { n: "hoverThicknessFactor", t: "real" },
         { n: "showOccupancy", t: "bool" },
         { n: "occupancyStyle", t: "int" },
         { n: "occupiedOpacity", t: "real" },
         { n: "followThemeColors", t: "bool" },
         { n: "activeColor", t: "color" },
         { n: "inactiveColor", t: "color" },
-        { n: "occupiedColor", t: "color" }
+        { n: "occupiedColor", t: "color" },
+        { n: "hoverBackgroundColor", t: "color" }
     ]
 
     // Which pager style is selected, by the dotStyle combo index (order matches Logic.DOT_STYLE / main.xml:
@@ -188,6 +203,51 @@ ConfigPageBase {
         }
 
         QQC2.CheckBox {
+            id: showHoverBackground
+            Kirigami.FormData.label: i18n("Hover background:")
+            text: i18n("Highlight the whole pager on hover")
+        }
+        ConfigSlider {
+            id: hoverBackgroundOpacity
+            label: i18n("Background opacity:")
+            enabled: showHoverBackground.checked
+            from: 0.0
+            to: 1.0
+            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
+            format: v => Math.round(v * 100) + "%"
+        }
+
+        ConfigSlider {
+            id: hoverLengthFactor
+            label: i18n("Extra length:")
+            enabled: showHoverBackground.checked
+            from: 0.0
+            to: 3.0
+            stepSize: 0.05
+            // Clearance added at EACH end of the strip, as a multiple of the pill thickness (like "Pill length:").
+            format: v => i18n("%1× pill", v.toFixed(2))
+        }
+        ConfigSlider {
+            id: hoverThicknessFactor
+            label: i18n("Extra thickness:")
+            enabled: showHoverBackground.checked
+            from: 0.0
+            to: 3.0
+            stepSize: 0.05
+            // Clearance added on EACH side across the strip; capped at the panel thickness at render time.
+            format: v => i18n("%1× pill", v.toFixed(2))
+        }
+        QQC2.Label {
+            // The two sliders are per-SIDE clearance, and the thickness one is what a taller panel needs raising.
+            text: i18n("Space the background leaves around the dots, at each end and on each side. Raise the thickness on a tall panel; it never grows past the panel.")
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
+            Layout.fillWidth: true
+            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
+        }
+
+        QQC2.CheckBox {
             id: showOccupancy
             Kirigami.FormData.label: i18n("Occupied desktops:")
             text: i18n("Highlight desktops with open windows")
@@ -244,7 +304,15 @@ ConfigPageBase {
         KQuickControls.ColorButton {
             id: occupiedColor
             Kirigami.FormData.label: i18n("Occupied desktop:")
-            enabled: !followThemeColors.checked   // the occupied marker; theme accent is used while following the scheme
+            // Greyed with the rest of the occupancy block too — the marker's style and opacity already are.
+            enabled: !followThemeColors.checked && showOccupancy.checked
+            showAlphaChannel: false
+        }
+        KQuickControls.ColorButton {
+            id: hoverBackgroundColor
+            Kirigami.FormData.label: i18n("Hover background:")
+            // Alpha comes from the opacity slider above, not the colour, so the two knobs stay independent.
+            enabled: !followThemeColors.checked && showHoverBackground.checked
             showAlphaChannel: false
         }
     }
