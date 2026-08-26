@@ -97,7 +97,8 @@ ConfigPageBase {
         }
         QQC2.Label {
             // The enlarged target covers the whole widget (the hovered background), not the dots themselves.
-            text: i18n("Click the space around the dots, not just the highlighted desktop. Clicking another desktop still switches to it.")
+            // The hint above already covers what clicking another desktop does — don't repeat it.
+            text: i18n("Click the space around the dots, not just the highlighted desktop.")
             wrapMode: Text.WordWrap
             opacity: 0.7
             font: Kirigami.Theme.smallFont

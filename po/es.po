@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-08-26 18:03+0200\n"
+"POT-Creation-Date: 2026-08-26 18:43+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Spanish\n"
@@ -77,7 +77,7 @@ msgstr ""
 msgid "Dot size:"
 msgstr "Tamaño del punto:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:152 package/contents/ui/config/ConfigGeneral.qml:159
+#: package/contents/ui/config/ConfigAppearance.qml:152 package/contents/ui/config/ConfigGeneral.qml:160
 #, kde-format
 msgid "Default"
 msgstr "Predeterminado"
@@ -129,7 +129,7 @@ msgstr "Opacidad inactiva:"
 msgid "Hover opacity:"
 msgstr "Opacidad al pasar el cursor:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:207 package/contents/ui/config/ConfigAppearance.qml:313
+#: package/contents/ui/config/ConfigAppearance.qml:207
 #, kde-format
 msgid "Hover background:"
 msgstr ""
@@ -219,6 +219,11 @@ msgstr "Escritorio inactivo:"
 msgid "Occupied desktop:"
 msgstr "Escritorio ocupado:"
 
+#: package/contents/ui/config/ConfigAppearance.qml:315
+#, fuzzy, kde-format
+msgid "Hover highlight:"
+msgstr "Opacidad al pasar el cursor:"
+
 #: package/contents/ui/config/ConfigGeneral.qml:64
 #, kde-format
 msgid "Mouse:"
@@ -274,74 +279,74 @@ msgstr "Acción al hacer clic en el escritorio actual resaltado. Al hacer clic e
 msgid "Trigger it from anywhere on the widget"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:100
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, fuzzy, kde-format
-msgid "Click the space around the dots, not just the highlighted desktop. Clicking another desktop still switches to it."
+msgid "Click the space around the dots, not just the highlighted desktop."
 msgstr "Acción al hacer clic en el escritorio actual resaltado. Al hacer clic en cualquier otro escritorio se cambia a él."
 
-#: package/contents/ui/config/ConfigGeneral.qml:109
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, kde-format
 msgid "Tooltips:"
 msgstr "Ayudas emergentes:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
+#: package/contents/ui/config/ConfigGeneral.qml:111
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Mostrar el nombre del escritorio al pasar el cursor"
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
+#: package/contents/ui/config/ConfigGeneral.qml:115
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Listar las ventanas abiertas en la ayuda emergente"
 
-#: package/contents/ui/config/ConfigGeneral.qml:119
+#: package/contents/ui/config/ConfigGeneral.qml:120
 #, kde-format
 msgid "Menu:"
 msgstr "Menú:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:120
+#: package/contents/ui/config/ConfigGeneral.qml:121
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Añadir y eliminar escritorios desde el menú contextual"
 
-#: package/contents/ui/config/ConfigGeneral.qml:126
+#: package/contents/ui/config/ConfigGeneral.qml:127
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Cambiar el nombre del escritorio actual desde el menú contextual"
 
-#: package/contents/ui/config/ConfigGeneral.qml:130
+#: package/contents/ui/config/ConfigGeneral.qml:131
 #, kde-format
 msgid "Dynamic desktops:"
 msgstr "Escritorios dinámicos:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:131
+#: package/contents/ui/config/ConfigGeneral.qml:132
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "Añadir y eliminar escritorios automáticamente (estilo GNOME)"
 
-#: package/contents/ui/config/ConfigGeneral.qml:135
+#: package/contents/ui/config/ConfigGeneral.qml:136
 #, kde-format
 msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
 msgstr "Cuando está activado, los escritorios se gestionan automáticamente — las opciones Añadir/Eliminar del menú están desactivadas."
 
-#: package/contents/ui/config/ConfigGeneral.qml:145
+#: package/contents/ui/config/ConfigGeneral.qml:146
 #, kde-format
 msgid "New desktop name:"
 msgstr "Nombre de los escritorios nuevos:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:148 package/contents/ui/main.qml:235
+#: package/contents/ui/config/ConfigGeneral.qml:149 package/contents/ui/main.qml:237
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "Escritorio"
 
-#: package/contents/ui/config/ConfigGeneral.qml:154
+#: package/contents/ui/config/ConfigGeneral.qml:155
 #, kde-format
 msgid "Animation duration:"
 msgstr "Duración de la animación:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:159
+#: package/contents/ui/config/ConfigGeneral.qml:160
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -353,27 +358,27 @@ msgstr[1] "%1 ms"
 msgid "Defaults"
 msgstr "Predeterminados"
 
-#: package/contents/ui/main.qml:215
+#: package/contents/ui/main.qml:217
 #, kde-format
 msgid "New Desktop"
 msgstr "Nuevo escritorio"
 
-#: package/contents/ui/main.qml:277
+#: package/contents/ui/main.qml:279
 #, kde-format
 msgid "Add Desktop"
 msgstr "Añadir escritorio"
 
-#: package/contents/ui/main.qml:285
+#: package/contents/ui/main.qml:287
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Eliminar el último escritorio"
 
-#: package/contents/ui/main.qml:293
+#: package/contents/ui/main.qml:295
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Cambiar el nombre del escritorio actual…"
 
-#: package/contents/ui/main.qml:301
+#: package/contents/ui/main.qml:303
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "Configurar los escritorios virtuales…"

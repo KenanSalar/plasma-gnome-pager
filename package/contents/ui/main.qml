@@ -110,7 +110,9 @@ PlasmoidItem {
         hoverLengthFactor: root.hoverLengthFactor
         hoverThicknessFactor: root.hoverThicknessFactor
         hoverBackgroundColor: root.hoverBackgroundColor
-        pillClickAnywhere: root.pillClickAnywhere
+        // Live only when there IS an action to fire, so the default (Nothing) never installs a
+        // whole-widget click grabber — mirrors the ConfigGeneral checkbox greying itself out.
+        pillClickAnywhere: Logic.pillClickAnywhereActive(root.pillClickAnywhere, root.pillClickAction)
         showOccupancy: root.showOccupancy
         desktopOccupancy: root.screenOccupancy   // PER-SCREEN: only mark dots for windows on THIS pager's monitor
         occupiedOpacity: root.occupiedOpacity

@@ -1236,4 +1236,24 @@ TestCase {
     function test_pillClickSpec(data) {
         compare(JSON.stringify(Logic.pillClickSpec(data.action)), JSON.stringify(data.exp), data.tag);
     }
+
+    // --- pillClickAnywhereActive: the enlarged click target needs BOTH the toggle and a real action ---
+    // Without the action half, the shipped default (toggle on, action Nothing) would make the whole widget
+    // swallow left clicks to dispatch a null spec.
+    function test_pillClickAnywhereActive_data() {
+        return [
+            { tag: "on-with-action", anywhere: true, action: Logic.PILL_CLICK_ACTION.Overview, exp: true },
+            { tag: "on-but-no-action", anywhere: true, action: Logic.PILL_CLICK_ACTION.None, exp: false },
+            { tag: "off-with-action", anywhere: false, action: Logic.PILL_CLICK_ACTION.ShowDesktop, exp: false },
+            { tag: "off-and-no-action", anywhere: false, action: Logic.PILL_CLICK_ACTION.None, exp: false },
+            // An unknown stored index still dispatches null, but it is not None — the target stays live, and
+            // pillClickSpec's default branch keeps the click a safe no-op.
+            { tag: "unknown-action", anywhere: true, action: 99, exp: true },
+            // A transiently-undefined config read must not read as enabled.
+            { tag: "undefined-toggle", anywhere: undefined, action: Logic.PILL_CLICK_ACTION.Grid, exp: false }
+        ];
+    }
+    function test_pillClickAnywhereActive(data) {
+        compare(Logic.pillClickAnywhereActive(data.anywhere, data.action), data.exp, data.tag);
+    }
 }

@@ -67,6 +67,8 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "implicitWidth is the bare strip length");
         fuzzyCompare(indicator.Layout.maximumWidth, indicator.naturalStripLength, 0.5, "maximumWidth is the bare strip length");
         fuzzyCompare(indicator.implicitHeight, indicator.naturalCrossThickness, 0.5, "implicitHeight is the bare cross thickness");
+        compare(indicator.hoverCrossPaddingEffective, 0, "the render-side clearance collapses too, not just the hint-side one");
+        fuzzyCompare(indicator.hoverCrossExtent, indicator.crossThickness, 0.5, "so the (hidden) background reports the bare strip thickness");
     }
 
     // The background spans the whole cell along the major axis and insets on the cross axis, with stadium ends.

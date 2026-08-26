@@ -310,7 +310,9 @@ ConfigPageBase {
         }
         KQuickControls.ColorButton {
             id: hoverBackgroundColor
-            Kirigami.FormData.label: i18n("Hover background:")
+            // NOT "Hover background:" — that is already the section label for the checkbox row above, and the
+            // same FormData label twice in one dialog reads as a duplicated row.
+            Kirigami.FormData.label: i18n("Hover highlight:")
             // Alpha comes from the opacity slider above, not the colour, so the two knobs stay independent.
             enabled: !followThemeColors.checked && showHoverBackground.checked
             showAlphaChannel: false

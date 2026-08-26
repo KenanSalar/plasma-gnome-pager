@@ -172,17 +172,25 @@ Item {
     readonly property real hoverPadding: showHoverBackground ? Logic.hoverPadding(naturalLineThickness, hoverLengthFactor) : 0
     readonly property real hoverCrossPadding: showHoverBackground ? Logic.hoverPadding(naturalLineThickness, hoverThicknessFactor) : 0
 
+    // The EFFECTIVE (post-scale-to-fit) twin of hoverCrossPadding: same clearance, measured off the rendered
+    // line thickness instead of the natural one, so it shrinks with the dots. Render side only — never a hint.
+    readonly property real hoverCrossPaddingEffective: showHoverBackground ? Logic.hoverPadding(lineThickness, hoverThicknessFactor) : 0
+
     // The background's CROSS extent, grown from the strip and capped at the cell (see Logic.hoverCrossExtent).
-    // Reads the EFFECTIVE sizes so it shrinks in step with scale-to-fit; feeds only the Rectangle, so no loop.
+    // Feeds only the Rectangle, so no loop.
     readonly property real hoverCrossExtent: Logic.hoverCrossExtent(gridVertical ? width : height, crossThickness,
-                                                                    Logic.hoverPadding(lineThickness, hoverThicknessFactor))
+                                                                    hoverCrossPaddingEffective)
 
     // Strip-wide hover. The dots sit ON TOP of wheelArea and take hover from it, so neither source alone is
     // enough: OR the gaps (wheelArea) with whichever dot reports itself hovered. A parent HoverHandler would
     // not do — a child hoverEnabled item ends hover delivery before ancestors' handlers run.
     property int hoveredDotIndex: -1
     readonly property bool hovered: wheelArea.containsMouse || hoveredDotIndex >= 0
-    onDesktopIdsChanged: hoveredDotIndex = -1   // a dot destroyed under the pointer never reports its leave
+    // Belt and braces: a dot DOES report its leave as it is torn down (verified — any desktopIds change
+    // rebuilds every delegate, and the outgoing one clears the index itself), so this only covers a teardown
+    // that somehow does not. It does NOT keep the background lit across the rebuild: the fresh dot under a
+    // stationary pointer reports no hover until the pointer moves.
+    onDesktopIdsChanged: hoveredDotIndex = -1
 
     // Raised on a click or scroll; main.qml turns the UUID into a KWin switch.
     signal switchRequested(string uuid)

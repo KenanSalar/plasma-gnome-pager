@@ -455,8 +455,12 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > never fires at all (the child ends the recursion before ancestors' handlers run). Instead the indicator ORs
 > the two sources: `hovered = wheelArea.containsMouse || hoveredDotIndex >= 0`, where the delegate's
 > `onHoveredChanged` hands each dot's ALREADY-EXISTING `hovered` alias (`WorkspaceDot.qml`, previously unread)
-> back up, and `onDesktopIdsChanged` resets the index because a dot destroyed under the pointer never reports
-> its leave. **`WorkspaceDot` is untouched by this feature.**
+> back up, plus a belt-and-braces `onDesktopIdsChanged` index reset. **`WorkspaceDot` is untouched by this
+> feature.** Known limitation, verified in the harness: **any `desktopIds` change rebuilds every delegate**, the
+> outgoing dot reports its leave, and the fresh dot under a *stationary* pointer reports no hover — so the
+> background goes dark after an add/remove/dynamic-workspace change until the pointer moves. Keying the index by
+> UUID instead does NOT fix it (the delegate is destroyed either way — measured, don't re-try it); only a
+> re-delivered hover event does.
 >
 > **Gotcha — the background's padding lives in the SIZE HINTS (BOTH axes), not in `IndicatorMetrics`; and the
 > CROSS extent grows FROM the strip, it is never an inset OF the cell.** The cell is otherwise EXACTLY the strip
@@ -474,7 +478,9 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > pre-feature geometry byte-for-byte. The hint-side
 > `hoverPadding`/`hoverCrossPadding` read the **natural** sizes (feeding effective ones into the hints would be
 > a binding loop) and become `paddedStripLength`/`paddedCrossThickness` on `implicitWidth`/`Height` +
-> `preferred` + `maximum`.
+> `preferred` + `maximum`; the render side reads their twin `hoverCrossPaddingEffective` (same clearance off the
+> RENDERED line thickness, so it shrinks with the dots). All three carry the same `showHoverBackground ? … : 0`
+> guard — keep it that way, or a property reports clearance for a background that is not drawn.
 >
 > The render-side cross extent is the part that is easy to get wrong: `Logic.hoverCrossExtent(cell,
 > crossThickness, padding) = min(cell, crossThickness + 2 × padding)` — grown from the STRIP and then capped
@@ -495,13 +501,17 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > **Gotcha — `pillClickAnywhere` rides the SAME `wheelArea`, and the dots still win.** Rather than a second
 > overlapping `MouseArea` (which would swallow wheel events over the gaps), `wheelArea` gained
 > `hoverEnabled: true`, `acceptedButtons: pillClickAnywhere ? Qt.LeftButton : Qt.NoButton` and
-> `onClicked: activeClicked()`. Because it sits BEHIND the dots, clicking a dot still reaches the dot (switch
+> `onClicked: activeClicked()`. The flag reaching the indicator is the pure
+> `Logic.pillClickAnywhereActive(anywhere, action)` (`main.qml`), NOT the raw config key: the target is live only
+> when there is an action to fire, so the shipped default (toggle ON + action None) does not make the whole cell
+> swallow left clicks to dispatch a `null` spec. That mirrors the `ConfigGeneral` checkbox greying itself out —
+> the runtime must not disagree with the page. Because it sits BEHIND the dots, clicking a dot still reaches the dot (switch
 > or pill action, unchanged) and only the surrounding cell reaches `onClicked`; the right button is never
 > accepted, so the applet context menu always falls through; and with the toggle off it accepts nothing at
 > all — today's exact pass-through. Scroll is untouched (`handleWheel` only ever emits `switchRequested`).
 > Note the click target is the whole CELL while the background is inset on the cross axis, so the top/bottom
 > panel edge is clickable but unpainted — deliberate (Fitts's law at a screen edge). Guarded by
-> `tst_logic.qml::test_hoverBackgroundAlpha` +
+> `tst_logic.qml::{test_hoverBackgroundAlpha,test_pillClickAnywhereActive}` +
 > `tst_logic.qml::{test_hoverPadding,test_hoverDefaultsMatchGnomeProportions,test_hoverCrossExtent}` +
 > `tst_indicator_layout.qml::{test_hoverBackgroundPadsMajorAxis,test_hoverBackgroundMatchesGnomeProportions,
 > test_hoverBackgroundPaddingNotInMinimum,test_hoverBackgroundOffKeepsBareHints,test_hoverBackgroundFillsCellStadium,
@@ -780,7 +790,8 @@ mapping), `pillClickAction` (what clicking the ALREADY-CURRENT desktop's pill do
 no-op), `1 = Show Desktop`, `2 = Overview`, `3 = Grid`; the three actions TOGGLE a KWin global
 shortcut — see the pill-click gotcha below), `pillClickAnywhere` (Bool, default ON — fire that action from
 ANYWHERE on the widget rather than only the current pill; see the hover-background gotcha below.
-`ConfigGeneral` greys it while `pillClickAction` is None), `showTooltips`, `showWindowList` (the window list in the
+`ConfigGeneral` greys it while `pillClickAction` is None, and `Logic.pillClickAnywhereActive` enforces the same
+gate at runtime), `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
 `enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `dynamicWorkspaces`
 (GNOME-style auto add/remove of one empty trailing desktop, default off; GLOBAL across panels via

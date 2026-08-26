@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
-"POT-Creation-Date: 2026-08-26 18:03+0200\n"
+"POT-Creation-Date: 2026-08-26 18:43+0200\n"
 "PO-Revision-Date: 2026-06-18 17:47+0200\n"
 "Last-Translator: Kenan Salar\n"
 "Language-Team: Chinese (Simplified)\n"
@@ -76,7 +76,7 @@ msgstr "将圆点按系统设置中的桌面网格排列（行从上到下），
 msgid "Dot size:"
 msgstr "圆点大小："
 
-#: package/contents/ui/config/ConfigAppearance.qml:152 package/contents/ui/config/ConfigGeneral.qml:159
+#: package/contents/ui/config/ConfigAppearance.qml:152 package/contents/ui/config/ConfigGeneral.qml:160
 #, kde-format
 msgid "Default"
 msgstr "默认"
@@ -127,7 +127,7 @@ msgstr "非活动不透明度："
 msgid "Hover opacity:"
 msgstr "悬停不透明度："
 
-#: package/contents/ui/config/ConfigAppearance.qml:207 package/contents/ui/config/ConfigAppearance.qml:313
+#: package/contents/ui/config/ConfigAppearance.qml:207
 #, kde-format
 msgid "Hover background:"
 msgstr ""
@@ -217,6 +217,11 @@ msgstr "非活动桌面："
 msgid "Occupied desktop:"
 msgstr "已占用桌面："
 
+#: package/contents/ui/config/ConfigAppearance.qml:315
+#, fuzzy, kde-format
+msgid "Hover highlight:"
+msgstr "悬停不透明度："
+
 #: package/contents/ui/config/ConfigGeneral.qml:64
 #, kde-format
 msgid "Mouse:"
@@ -272,74 +277,74 @@ msgstr "点击高亮显示的当前桌面时执行的操作。点击任何其他
 msgid "Trigger it from anywhere on the widget"
 msgstr ""
 
-#: package/contents/ui/config/ConfigGeneral.qml:100
+#: package/contents/ui/config/ConfigGeneral.qml:101
 #, fuzzy, kde-format
-msgid "Click the space around the dots, not just the highlighted desktop. Clicking another desktop still switches to it."
+msgid "Click the space around the dots, not just the highlighted desktop."
 msgstr "点击高亮显示的当前桌面时执行的操作。点击任何其他桌面将切换到该桌面。"
 
-#: package/contents/ui/config/ConfigGeneral.qml:109
+#: package/contents/ui/config/ConfigGeneral.qml:110
 #, kde-format
 msgid "Tooltips:"
 msgstr "工具提示："
 
-#: package/contents/ui/config/ConfigGeneral.qml:110
+#: package/contents/ui/config/ConfigGeneral.qml:111
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "悬停时显示桌面名称"
 
-#: package/contents/ui/config/ConfigGeneral.qml:114
+#: package/contents/ui/config/ConfigGeneral.qml:115
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "在工具提示中列出打开的窗口"
 
-#: package/contents/ui/config/ConfigGeneral.qml:119
+#: package/contents/ui/config/ConfigGeneral.qml:120
 #, kde-format
 msgid "Menu:"
 msgstr "菜单："
 
-#: package/contents/ui/config/ConfigGeneral.qml:120
+#: package/contents/ui/config/ConfigGeneral.qml:121
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "从右键菜单添加和移除桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:126
+#: package/contents/ui/config/ConfigGeneral.qml:127
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "从右键菜单重命名当前桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:130
+#: package/contents/ui/config/ConfigGeneral.qml:131
 #, kde-format
 msgid "Dynamic desktops:"
 msgstr "动态桌面："
 
-#: package/contents/ui/config/ConfigGeneral.qml:131
+#: package/contents/ui/config/ConfigGeneral.qml:132
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "自动添加和移除桌面（GNOME 风格）"
 
-#: package/contents/ui/config/ConfigGeneral.qml:135
+#: package/contents/ui/config/ConfigGeneral.qml:136
 #, kde-format
 msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
 msgstr "启用后，桌面将被自动管理 — 菜单中的添加/移除选项将被禁用。"
 
-#: package/contents/ui/config/ConfigGeneral.qml:145
+#: package/contents/ui/config/ConfigGeneral.qml:146
 #, kde-format
 msgid "New desktop name:"
 msgstr "新桌面名称："
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:148 package/contents/ui/main.qml:235
+#: package/contents/ui/config/ConfigGeneral.qml:149 package/contents/ui/main.qml:237
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "桌面"
 
-#: package/contents/ui/config/ConfigGeneral.qml:154
+#: package/contents/ui/config/ConfigGeneral.qml:155
 #, kde-format
 msgid "Animation duration:"
 msgstr "动画时长："
 
-#: package/contents/ui/config/ConfigGeneral.qml:159
+#: package/contents/ui/config/ConfigGeneral.qml:160
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -350,27 +355,27 @@ msgstr[0] "%1 ms"
 msgid "Defaults"
 msgstr "默认值"
 
-#: package/contents/ui/main.qml:215
+#: package/contents/ui/main.qml:217
 #, kde-format
 msgid "New Desktop"
 msgstr "新桌面"
 
-#: package/contents/ui/main.qml:277
+#: package/contents/ui/main.qml:279
 #, kde-format
 msgid "Add Desktop"
 msgstr "添加桌面"
 
-#: package/contents/ui/main.qml:285
+#: package/contents/ui/main.qml:287
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "移除最后一个桌面"
 
-#: package/contents/ui/main.qml:293
+#: package/contents/ui/main.qml:295
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "重命名当前桌面…"
 
-#: package/contents/ui/main.qml:301
+#: package/contents/ui/main.qml:303
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "配置虚拟桌面…"

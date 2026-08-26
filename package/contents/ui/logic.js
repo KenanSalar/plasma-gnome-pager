@@ -581,3 +581,10 @@ function pillClickSpec(action) {
         return null;
     }
 }
+
+// Whether the enlarged (whole-widget) click target should be live: the user asked for it AND there is
+// actually an action to fire. Without the second half the widget would swallow left clicks for nothing,
+// which is also what the ConfigGeneral checkbox greys out for.
+function pillClickAnywhereActive(anywhere, action) {
+    return !!anywhere && action !== PILL_CLICK_ACTION.None;
+}
