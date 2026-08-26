@@ -15,9 +15,11 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
 | **integration** | Several first-party components composed + reactive wiring | `WorkspaceIndicator` + its real `WorkspaceDot` delegates + `Repeater` (each dot morphs dot⇄capsule) | the platform — a duck-typed `QtObject` stands in for `TaskManager.VirtualDesktopInfo` | `tests/integration/` |
 | **e2e / system** | The real plasmoid switching real desktops | plasmashell + KWin + session-bus DBus | nothing | *not automated* |
 
-- **unit** (`tests/unit/`) — `tst_workspacedot.qml`, `tst_configslider.qml`, `tst_indicatormetrics.qml`
-  (the dot-strip sizing engine extracted from the indicator), and `tst_screencurrentdesktop.qml` (the
-  per-screen current-desktop resolver, driven by the shared `VdiMock`) — one component each, driven only
+- **unit** (`tests/unit/`) — `tst_workspacedot.qml`, `tst_indicatormetrics.qml` (the dot-strip sizing
+  engine extracted from the indicator), `tst_screencurrentdesktop.qml` (the per-screen current-desktop
+  resolver, driven by the shared `VdiMock`), and the three reusable config-page controls
+  (`tst_configslider.qml`, `tst_confighint.qml`, `tst_configpercentslider.qml` — the config *pages* stay
+  e2e-only, but these controls are Kirigami-only and so do load headless) — one component each, driven only
   by properties — plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier) and `tst_coordinator.qml`
   (the `coordinator.js` shared-state machine), which import the `.js` directly, no Plasma/Kirigami, so
   they run on bare qt6 + qttest.

@@ -116,14 +116,9 @@ ConfigPageBase {
             Kirigami.FormData.label: i18n("Multiple rows:")
             text: i18n("Show all desktops in a single line")
         }
-        QQC2.Label {
+        ConfigHint {
             // Hint: ignore the KWin grid entirely and lay everything out as one strip following the panel.
             text: i18n("Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel).")
-            wrapMode: Text.WordWrap
-            opacity: 0.7
-            font: Kirigami.Theme.smallFont
-            Layout.fillWidth: true
-            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
         }
         QQC2.CheckBox {
             id: matchDesktopGrid
@@ -132,14 +127,9 @@ ConfigPageBase {
             // Orthogonal to "single line": this sets the direction (across vs. down), so it composes — single
             // line + match grid gives a single HORIZONTAL row. Hence no longer greyed while single line is on.
         }
-        QQC2.Label {
+        ConfigHint {
             // Hint: this only matters on a vertical panel (a horizontal panel already mirrors the grid).
             text: i18n("Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels.")
-            wrapMode: Text.WordWrap
-            opacity: 0.7
-            font: Kirigami.Theme.smallFont
-            Layout.fillWidth: true
-            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
         }
 
         ConfigSlider {
@@ -184,22 +174,14 @@ ConfigPageBase {
             format: v => i18n("%1× pill", v.toFixed(1))
         }
 
-        ConfigSlider {
+        ConfigPercentSlider {
             id: inactiveOpacity
             label: i18n("Inactive opacity:")
-            from: 0.0
-            to: 1.0
-            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
-            format: v => Math.round(v * 100) + "%"
         }
 
-        ConfigSlider {
+        ConfigPercentSlider {
             id: hoverOpacity
             label: i18n("Hover opacity:")
-            from: 0.0
-            to: 1.0
-            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
-            format: v => Math.round(v * 100) + "%"
         }
 
         QQC2.CheckBox {
@@ -207,14 +189,10 @@ ConfigPageBase {
             Kirigami.FormData.label: i18n("Hover background:")
             text: i18n("Highlight the whole pager on hover")
         }
-        ConfigSlider {
+        ConfigPercentSlider {
             id: hoverBackgroundOpacity
             label: i18n("Background opacity:")
             enabled: showHoverBackground.checked
-            from: 0.0
-            to: 1.0
-            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
-            format: v => Math.round(v * 100) + "%"
         }
 
         ConfigSlider {
@@ -237,14 +215,9 @@ ConfigPageBase {
             // Clearance added on EACH side across the strip; capped at the panel thickness at render time.
             format: v => i18n("%1× pill", v.toFixed(2))
         }
-        QQC2.Label {
+        ConfigHint {
             // The two sliders are per-SIDE clearance, and the thickness one is what a taller panel needs raising.
             text: i18n("Space the background leaves around the dots, at each end and on each side. Raise the thickness on a tall panel; it never grows past the panel.")
-            wrapMode: Text.WordWrap
-            opacity: 0.7
-            font: Kirigami.Theme.smallFont
-            Layout.fillWidth: true
-            Layout.preferredWidth: root.fieldWidth   // wrap within the field column
         }
 
         QQC2.CheckBox {
@@ -270,14 +243,10 @@ ConfigPageBase {
                 highlighted: occupancyStyle.highlightedIndex === occStyleItem.index
             }
         }
-        ConfigSlider {
+        ConfigPercentSlider {
             id: occupiedOpacity
             label: i18n("Occupied opacity:")
             enabled: showOccupancy.checked   // every indicator style uses the occupied-marker opacity
-            from: 0.0
-            to: 1.0
-            stepSize: 0.01   // 1% increments for fine control (drag or arrow keys)
-            format: v => Math.round(v * 100) + "%"
         }
 
         Item {

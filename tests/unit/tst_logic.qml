@@ -176,6 +176,26 @@ TestCase {
         fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.InnerDot, 0.2, 0.9, 0.6), 0.2, 0.001, "InnerDot body stays dim (the inner dot carries the opacity)");
     }
 
+    // --- nextHoveredIndex: which dot the strip counts as hovered, from one dot's enter/leave ---
+    function test_nextHoveredIndex_data() {
+        return [
+            { tag: "enter-from-nothing", current: -1, index: 2, hovered: true, exp: 2 },
+            { tag: "leave-own-index", current: 2, index: 2, hovered: false, exp: -1 },
+            // The guard the whole design rests on: Qt delivers the NEW dot's enter before the old dot's
+            // leave, so by the time dot 1 reports its leave the index already names dot 2 — clearing it
+            // would blink the background off mid-move between two adjacent dots.
+            { tag: "dot-to-dot-enter", current: 1, index: 2, hovered: true, exp: 2 },
+            { tag: "dot-to-dot-stale-leave", current: 2, index: 1, hovered: false, exp: 2 },
+            // A leave from a dot nobody recorded (a teardown after the index was already cleared) is inert.
+            { tag: "stale-leave-while-clear", current: -1, index: 3, hovered: false, exp: -1 },
+            { tag: "index-zero-enter", current: -1, index: 0, hovered: true, exp: 0 },
+            { tag: "index-zero-leave", current: 0, index: 0, hovered: false, exp: -1 }
+        ];
+    }
+    function test_nextHoveredIndex(data) {
+        compare(Logic.nextHoveredIndex(data.current, data.index, data.hovered), data.exp, data.tag);
+    }
+
     // --- hoverBackgroundAlpha: the hover background is the configured opacity while hovered, 0 otherwise ---
     function test_hoverBackgroundAlpha_data() {
         return [

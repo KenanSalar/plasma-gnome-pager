@@ -95,6 +95,12 @@ Item {
     readonly property real effPillWidthFactor: ringStyle ? 1.0 : pillWidthFactor
     readonly property int effPillSizeRequest: ringStyle ? 0 : pillSizeRequest
 
+    // Hover-background clearance, neutralized the same way when the background is off: zero factors mean
+    // zero padding, which restores the pre-feature geometry byte-for-byte. Gating the two FACTORS is what
+    // keeps the sizing engine free of the feature flag — and stops a future clearance property forgetting it.
+    readonly property real effHoverLengthFactor: showHoverBackground ? hoverLengthFactor : 0
+    readonly property real effHoverThicknessFactor: showHoverBackground ? hoverThicknessFactor : 0
+
     // Config requests fed to the sizing engine; dotSize/pillSize `0 = auto` resolved in IndicatorMetrics.
     property int dotSizeRequest: Logic.DEFAULTS.dotSize    // px override; 0 = auto
     property int pillSizeRequest: Logic.DEFAULTS.pillSize  // px pill thickness; 0 = auto (match dots)
@@ -130,6 +136,8 @@ Item {
         availableCross: indicator.gridVertical ? indicator.width : indicator.height
         perLine: indicator.perLine
         lineCount: indicator.lineCount
+        hoverLengthFactor: indicator.effHoverLengthFactor        // 0 when the background is off (no clearance)
+        hoverThicknessFactor: indicator.effHoverThicknessFactor
     }
 
     // Effective (rendered) sizes — scale-to-fit applied; == natural when there is room.
@@ -137,6 +145,7 @@ Item {
     readonly property real pillSize: metrics.pillSize          // effective pill thickness (tracks the dot)
     readonly property real pillWidth: metrics.pillWidth        // active capsule LENGTH (major axis)
     readonly property real dotSpacing: metrics.dotSpacing      // uniform gap between every element
+    readonly property real lineThickness: metrics.lineThickness   // one line: a dot, or the pill where it is thicker
     // Conserved (capsule-bearing) extents — the strip is pinned to these so a cross-row morph can't drift it.
     readonly property real stripLength: metrics.stripLength
     readonly property real crossThickness: metrics.crossThickness
@@ -149,6 +158,15 @@ Item {
     readonly property real floorStripLength: metrics.floorStripLength
     readonly property real naturalCrossThickness: metrics.naturalCrossThickness
     readonly property real floorCrossThickness: metrics.floorCrossThickness
+    // Hover-background clearance around the strip (all 0 when it is off). The hint-side pair is
+    // geometry-independent and drives the Layout hints below; hoverCrossPaddingEffective and
+    // hoverCrossExtent are rendered sizes and feed only the Rectangle.
+    readonly property real hoverPadding: metrics.hoverPadding
+    readonly property real hoverCrossPadding: metrics.hoverCrossPadding
+    readonly property real hoverCrossPaddingEffective: metrics.hoverCrossPaddingEffective
+    readonly property real paddedStripLength: metrics.paddedStripLength
+    readonly property real paddedCrossThickness: metrics.paddedCrossThickness
+    readonly property real hoverCrossExtent: metrics.hoverCrossExtent
 
     // Colour + animation config, passed straight through to each dot (the indicator draws nothing itself).
     property bool followThemeColors: Logic.DEFAULTS.followThemeColors
@@ -161,25 +179,6 @@ Item {
     readonly property color resolvedHoverBackground: followThemeColors ? Kirigami.Theme.textColor : hoverBackgroundColor
     // Reuses the dot's duration rule, so reduce-animations kills the hover fade too.
     readonly property int effectiveDuration: Logic.effectiveDuration(animationDuration, Kirigami.Units.longDuration)
-
-    // One line's thickness (a dot, or the pill where it is thicker) — what the hover padding is measured against.
-    readonly property real naturalLineThickness: Math.max(naturalDotSize, naturalPillSize)
-    readonly property real lineThickness: Math.max(dotSize, pillSize)
-
-    // Room for the background around the strip. Hint-side, so both read the NATURAL sizes (geometry-independent —
-    // feeding the effective ones back into the hints would be a binding loop). 0 when the background is off,
-    // which restores the pre-feature geometry byte-for-byte.
-    readonly property real hoverPadding: showHoverBackground ? Logic.hoverPadding(naturalLineThickness, hoverLengthFactor) : 0
-    readonly property real hoverCrossPadding: showHoverBackground ? Logic.hoverPadding(naturalLineThickness, hoverThicknessFactor) : 0
-
-    // The EFFECTIVE (post-scale-to-fit) twin of hoverCrossPadding: same clearance, measured off the rendered
-    // line thickness instead of the natural one, so it shrinks with the dots. Render side only — never a hint.
-    readonly property real hoverCrossPaddingEffective: showHoverBackground ? Logic.hoverPadding(lineThickness, hoverThicknessFactor) : 0
-
-    // The background's CROSS extent, grown from the strip and capped at the cell (see Logic.hoverCrossExtent).
-    // Feeds only the Rectangle, so no loop.
-    readonly property real hoverCrossExtent: Logic.hoverCrossExtent(gridVertical ? width : height, crossThickness,
-                                                                    hoverCrossPaddingEffective)
 
     // Strip-wide hover. The dots sit ON TOP of wheelArea and take hover from it, so neither source alone is
     // enough: OR the gaps (wheelArea) with whichever dot reports itself hovered. A parent HoverHandler would
@@ -218,14 +217,12 @@ Item {
         indicator.switchRequested(uuid);
     }
 
-    // Size hints. Major axis: preferred==max==naturalStripLength + the hover-background padding, min==floorStripLength
-    // (panel can compress → the padding goes first, then the dots scale to fit). Cross axis: preferred==natural +
-    // that padding (so the background gets its vertical room even where the panel does not stretch us),
-    // max==-1 (free to fill the thickness), min==floor. Swaps with `gridVertical`.
-    // The padding is deliberately NOT subtracted from the metrics' availableMajor: with room the panel grants
-    // natural + 2*padding, fitDotSize lands above natural and dotSize clamps to natural — sizing is unchanged.
-    readonly property real paddedStripLength: naturalStripLength + 2 * hoverPadding
-    readonly property real paddedCrossThickness: naturalCrossThickness + 2 * hoverCrossPadding
+    // Size hints. Major axis: preferred==max==paddedStripLength (the natural strip plus the hover-background
+    // clearance), min==floorStripLength — the BARE floor, so a cramped panel compresses the clearance away
+    // first and only then scales the dots. Cross axis: preferred==paddedCrossThickness (the background needs
+    // its room even where the panel does not stretch us), max==-1 (free to fill the thickness), min==floor.
+    // Swaps with `gridVertical`. Every value here is geometry-INDEPENDENT — a rendered size would close the
+    // loop implicitHeight → availableCross → dotSize → implicitHeight.
     implicitWidth: gridVertical ? paddedCrossThickness : paddedStripLength
     implicitHeight: gridVertical ? paddedStripLength : paddedCrossThickness
     Layout.minimumWidth: gridVertical ? floorCrossThickness : floorStripLength
@@ -352,12 +349,7 @@ Item {
                         onActivated: workspaceDot.active ? indicator.activeClicked() : indicator.switchRequested(workspaceDot.modelData)
 
                         // Dots take hover from the wheelArea below, so they hand it back up to keep the background lit.
-                        onHoveredChanged: {
-                            if (workspaceDot.hovered)
-                                indicator.hoveredDotIndex = workspaceDot.globalIndex;
-                            else if (indicator.hoveredDotIndex === workspaceDot.globalIndex)
-                                indicator.hoveredDotIndex = -1;
-                        }
+                        onHoveredChanged: indicator.hoveredDotIndex = Logic.nextHoveredIndex(indicator.hoveredDotIndex, workspaceDot.globalIndex, workspaceDot.hovered)
                     }
                 }
             }

@@ -50,6 +50,11 @@ var DEFAULTS = Object.freeze({
     wheelNotchDelta: 120         // angleDelta units per mouse notch (no schema entry)
 });
 
+// Width of a settings page's field column, in Kirigami grid units. ONE home for the metric ConfigPageBase
+// (non-slider fields), ConfigSlider (its fixed track) and ConfigHint (its wrap width) all measure against —
+// they used to carry the literal separately, with comments asking the next reader to keep them equal.
+var CONFIG_FIELD_WIDTH_UNITS = 18;
+
 // Occupied-dot indicator styles (showOccupancy on). The int values MIRROR the main.xml occupancyStyle
 // choices and the ConfigAppearance combo order, so a stored index always maps to the same style. Every
 // style marks the OCCUPIED dot using the occupied colour + occupiedOpacity; they differ only in shape:
@@ -144,6 +149,16 @@ function dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpac
     if (occupied && style === OCCUPANCY.Filled)
         return occupiedOpacity;
     return inactiveOpacity;
+}
+
+// Which dot the strip counts as hovered after ONE dot reports a change: the entering dot's index, or -1
+// only when the dot that LEFT is the one currently recorded. That guard is load-bearing — Qt delivers the
+// incoming dot's enter BEFORE the outgoing one's leave, so an unguarded clear blinks the hover background
+// off between two adjacent dots.
+function nextHoveredIndex(current, index, hovered) {
+    if (hovered)
+        return index;
+    return current === index ? -1 : current;
 }
 
 // Opacity of the HOVER BACKGROUND (the GNOME-style pill behind the whole strip): the configured value

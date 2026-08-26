@@ -313,10 +313,10 @@ how GNOME and the KDE `compact_pager` actually work.
 > mirror for it — so `matchDesktopGrid` (Bool, default OFF, `ConfigAppearance` "Vertical panels:") is an
 > appropriate widget toggle (NOT a duplicate of a System Settings knob). The whole feature is **one derived
 > bool** in `WorkspaceIndicator`: `readonly property bool gridVertical: vertical && !matchDesktopGrid`,
-> substituted for the raw panel `vertical` at the SIX geometry sites — `availableMajor`/`availableCross`,
+> substituted for the raw panel `vertical` at the SEVEN geometry sites — `availableMajor`/`availableCross`,
 > the `Layout.*` size hints, the `strip` size pin (`strip.width`/`height`, see the strip-pin gotcha below),
-> the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment,
-> and `WorkspaceDot.vertical` (the capsule's elongation axis). Truth table: horizontal panel → always
+> the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment, the hover background's
+> `width`/`height` swap, and `WorkspaceDot.vertical` (the capsule's elongation axis). Truth table: horizontal panel → always
 > `false` (toggle inert); vertical + OFF → `true` (transpose preserved, byte-for-byte, every prior test
 > green); vertical + ON → `false` (the grid renders in KWin orientation — rows top-to-bottom, columns
 > left-to-right — exactly like a horizontal panel, matching the stock pager). Applies to **all row counts**
@@ -455,7 +455,8 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > never fires at all (the child ends the recursion before ancestors' handlers run). Instead the indicator ORs
 > the two sources: `hovered = wheelArea.containsMouse || hoveredDotIndex >= 0`, where the delegate's
 > `onHoveredChanged` hands each dot's ALREADY-EXISTING `hovered` alias (`WorkspaceDot.qml`, previously unread)
-> back up, plus a belt-and-braces `onDesktopIdsChanged` index reset. **`WorkspaceDot` is untouched by this
+> back up through the pure `Logic.nextHoveredIndex(current, index, hovered)`, plus a belt-and-braces
+> `onDesktopIdsChanged` index reset. **`WorkspaceDot` is untouched by this
 > feature.** Known limitation, verified in the harness: **any `desktopIds` change rebuilds every delegate**, the
 > outgoing dot reports its leave, and the fresh dot under a *stationary* pointer reports no hover — so the
 > background goes dark after an add/remove/dynamic-workspace change until the pointer moves. Keying the index by
@@ -465,11 +466,12 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > inside a single move, restarting the fade (a blink, plus two animation starts per dot crossed). So
 > `test_hoverBackgroundStaysVisibleOverADot` walks gap→dot→adjacent dot→gap and asserts **synchronously**
 > (`fuzzyCompare` right after each `mouseMove`): a settled `tryCompare` cannot see a dip that has already
-> healed. Mutation-checked — dropping the delegate's `else if (hoveredDotIndex === globalIndex)` guard fails
-> the dot→dot step, and passed the old single-hop test.
+> healed. Mutation-checked — dropping `nextHoveredIndex`'s own-index guard (clear on ANY leave) fails the
+> dot→dot step, and passed the old single-hop test. That guard lives in pure JS precisely so it is pinned
+> permanently by `tst_logic.qml::test_nextHoveredIndex` instead of by a hand-run mutation check.
 >
-> **Gotcha — the background's padding lives in the SIZE HINTS (BOTH axes), not in `IndicatorMetrics`; and the
-> CROSS extent grows FROM the strip, it is never an inset OF the cell.** The cell is otherwise EXACTLY the strip
+> **Gotcha — the background's padding IS size math, so it lives in `IndicatorMetrics` with the rest and feeds
+> the SIZE HINTS (BOTH axes); and the CROSS extent grows FROM the strip, it is never an inset OF the cell.** The cell is otherwise EXACTLY the strip
 > (`Layout.maximumWidth == naturalStripLength`, and the panel does not reliably stretch the cross axis either),
 > so a background filling it would hug the dots with no clearance at all. Clearance is
 > `Logic.hoverPadding(lineThickness, factor)` on each side, with the factor a USER SETTING per axis
@@ -478,15 +480,20 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > comparing against GNOME on a real panel, which beats measuring a cropped screenshot: a tight crop shows the
 > pill-relative ratio (≈1.9) but hides the panel height, and it is the *share of panel height* that the eye
 > actually reads. They stay sliders because that share depends on the user's panel. Both factors are taken
-> against the LINE thickness
-> (`max(dotSize, pillSize)` — one dot/pill), **not** `crossThickness`, so a multi-row grid keeps the same visual
-> margin instead of a multiple of it; and both collapse to `0` when the background is off, restoring the
-> pre-feature geometry byte-for-byte. The hint-side
-> `hoverPadding`/`hoverCrossPadding` read the **natural** sizes (feeding effective ones into the hints would be
-> a binding loop) and become `paddedStripLength`/`paddedCrossThickness` on `implicitWidth`/`Height` +
-> `preferred` + `maximum`; the render side reads their twin `hoverCrossPaddingEffective` (same clearance off the
-> RENDERED line thickness, so it shrinks with the dots). All three carry the same `showHoverBackground ? … : 0`
-> guard — keep it that way, or a property reports clearance for a background that is not drawn.
+> against the named `lineThickness` (`max(dotSize, pillSize)` — one dot/pill, the SAME quantity `crossThickness`
+> stacks, which is why it is a named metrics property instead of an inline `Math.max` in two files), **not**
+> `crossThickness` itself, so a multi-row grid keeps the same visual margin instead of a multiple of it. The
+> hint-side `hoverPadding`/`hoverCrossPadding` read the **natural** sizes (feeding effective ones into the hints
+> would be a binding loop) and become `paddedStripLength`/`paddedCrossThickness`, which the indicator forwards
+> onto `implicitWidth`/`Height` + `preferred` + `maximum`; the render side reads their twin
+> `hoverCrossPaddingEffective` (same clearance off the RENDERED line thickness, so it shrinks with the dots).
+> They live in the metrics' NATURAL and EFFECTIVE blocks respectively — that split is the only thing stopping
+> `paddedCrossThickness` from being "simplified" onto `crossThickness` and closing the loop `implicitHeight →
+> availableCross → dotSize → lineThickness → implicitHeight`. **The `showHoverBackground ? … : 0` guard is
+> applied ONCE, at the INPUT:** the indicator neutralizes the two FACTORS to `0`
+> (`effHoverLengthFactor`/`effHoverThicknessFactor` — the same idiom `effPillWidthFactor` uses for the ring
+> style), so no derived property can forget it, `IndicatorMetrics` stays a feature-flag-free engine taking plain
+> reals, and the pre-feature geometry comes back byte-for-byte when the background is off.
 >
 > The render-side cross extent is the part that is easy to get wrong: `Logic.hoverCrossExtent(cell,
 > crossThickness, padding) = min(cell, crossThickness + 2 × padding)` — grown from the STRIP and then capped
@@ -501,8 +508,15 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > Two deliberate asymmetries remain: (1) `Layout.minimum*` stays the BARE floor, so a cramped panel compresses
 > the padding away BEFORE the dots start scaling down; (2) the padding is **not** subtracted from the metrics'
 > `availableMajor`/`availableCross` — with room the panel grants `natural + 2 × padding`, `fitDotSize` lands
-> above natural and `dotSize` clamps to natural, so sizing is unchanged and **`IndicatorMetrics` and the
-> `fitDotSize`/`lineExtent` math stay COMPLETELY untouched**.
+> above natural and `dotSize` clamps to natural, so sizing is unchanged and **the `fitDotSize`/`lineExtent` math
+> is reused verbatim** — the clearance properties sit ALONGSIDE it, never feed it, and `availableMajor`/
+> `availableCross` still carry the raw allocation. What `IndicatorMetrics` gained: the two clearance factors;
+> `naturalLineThickness`/`lineThickness` (which `naturalCrossThickness`/`crossThickness` now REUSE instead of
+> recomputing the same `Math.max` inline); the three paddings; `paddedStripLength`/`paddedCrossThickness`; and
+> `hoverCrossExtent` — capped at **`availableCross`**, the same live allocation the cross fit already reads,
+> rather than the indicator re-deriving `gridVertical ? width : height` a second time. Guarded at the UNIT tier
+> by `tst_indicatormetrics.qml::{test_hoverClearanceOffCollapsesToBareExtents,test_hoverClearanceGrowsTheHintExtents,
+> test_hoverHintClearanceIsGeometryIndependent,test_hoverCrossExtentGrowsThenCaps}` as well as through the indicator.
 >
 > **Gotcha — `pillClickAnywhere` rides the SAME `wheelArea`, and the dots still win.** Rather than a second
 > overlapping `MouseArea` (which would swallow wheel events over the gaps), `wheelArea` gained
@@ -831,15 +845,18 @@ TEXT colour — not the accent — when following). The settings UI is two files
   entry exactly. Both pages subclass the shared **`ConfigPageBase.qml`** (a `Kirigami.ScrollablePage`
   — on robustness.md's allowlist; the stock `KCM.SimpleKCM` is just a subclass) so the dialog renders
   the standard KDE title header + spacing + scrolling AND each page gets the Defaults header action
-  for free (see below). Every numeric metric (sizes, ratios, opacities, duration — including the
-  integer keys) uses the shared `ConfigSlider.qml`; only the colours use `org.kde.kquickcontrols`
+  for free (see below). Three reusable controls carry the repeated rows: **`ConfigSlider.qml`** (every
+  numeric metric — sizes, ratios, opacities, duration, including the integer keys),
+  **`ConfigPercentSlider.qml`** (a `ConfigSlider` preset for the `0..1` opacity keys: one home for the
+  range, the 1% step and the `NN%` read-out) and **`ConfigHint.qml`** (the dimmed wrapped explanatory line
+  under a row, pinning its wrap width to the field column). Only the colours use `org.kde.kquickcontrols`
   `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
   **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
   always-on widget), so a break there cannot kill the running pager. The config **pages**
   (`ConfigGeneral`/`ConfigAppearance`/`config.qml`) are **e2e-only** (the dialog needs
   `org.kde.plasma.configuration`), so they are not in the headless test harness — `make lint` covers
-  them, but verify behaviour in-shell. The shared `ConfigSlider` control is the exception: being
-  Kirigami-only it **is** headless-unit-tested by `tests/unit/tst_configslider.qml`.
+  them, but verify behaviour in-shell. The three shared controls are the exception: being Kirigami-only they
+  **are** headless-unit-tested, by `tests/unit/tst_{configslider,configpercentslider,confighint}.qml`.
 - **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
   **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
   `root.isModified`, firing `root.defaultsRequested()`) **and** owns the whole contract off a single
@@ -864,9 +881,10 @@ TEXT colour — not the accent — when following). The settings UI is two files
 > here is monotonic in string width with magnitude AND the sentinel sliders put their special text at
 > `from` (`0 → "Default"`), reserving over the two extremes bounds every value between them (no
 > separate `widestText` to keep in sync). **(2) Fix the track width**: the `Slider` is a FIXED
-> `Layout.preferredWidth == Layout.minimumWidth == ConfigSlider.trackWidth` (the named constant
-> `Kirigami.Units.gridUnit * 18`; `ConfigPageBase.fieldWidth` is pinned to the same metric so non-slider
-> fields line up) — it is the value **`Label`** that is
+> `Layout.preferredWidth == Layout.minimumWidth == ConfigSlider.trackWidth`
+> (`Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS` — ONE home for the metric, since
+> `ConfigPageBase.fieldWidth` (non-slider fields) and `ConfigHint`'s wrap width must line up with it and used
+> to repeat the literal) — it is the value **`Label`** that is
 > `Layout.fillWidth` (and right-aligned), NOT the track. A `fillWidth` track stretches to its
 > `FormLayout` field column, which the Behavior page's long checkbox labels widen well beyond the
 > slider-only Appearance page — so the sliders rendered *different lengths* across the two pages.
