@@ -856,9 +856,9 @@ globals don't exist (see "Config flow"/the window-list section). So extraction s
   `.po` (`msgfmt --check`) into the package. Commit only the changed `.po` (the `.pot` is ignored).
   Add a language by running `make messages` (to regenerate the local `.pot`), then `msginit
   --locale=<ll>` from it, translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
-  12 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `ar`, `zh_CN`, `ru`,
-  `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for `zh_CN`/`ja`,
-  3 for `ru`, 6 for `ar`).
+  13 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `pl`, `ar`, `zh_CN`,
+  `ru`, `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for
+  `zh_CN`/`ja`, 3 for `ru`/`pl`, 6 for `ar`).
 - **`metadata.json` Name/Description** are translated by **language-suffixed JSON keys**
   (`Description[de]`), **not** the `.mo` catalog. `Name` stays the product proper-noun.
 - **The qmllint `i18n` "unqualified" warning is NOT a translation concern.** It fired because the

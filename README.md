@@ -258,11 +258,11 @@ verified by the manual `make dev` → `make test` → `make restart` loop.
 
 ## Translations
 
-The widget ships **English** (the source language) plus **12 translation catalogs**: Arabic
+The widget ships **English** (the source language) plus **13 translation catalogs**: Arabic
 (`ar`), Simplified Chinese (`zh_CN`), French (`fr`), German (`de`), Greek (`el`), Italian
-(`it`), Japanese (`ja`), European Portuguese (`pt`), Brazilian Portuguese (`pt_BR`), Russian
-(`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are translated through
-`ki18n`; Plasma auto-binds them to the catalog domain
+(`it`), Japanese (`ja`), Polish (`pl`), European Portuguese (`pt`), Brazilian Portuguese
+(`pt_BR`), Russian (`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are
+translated through `ki18n`; Plasma auto-binds them to the catalog domain
 `plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The committed translation source is the
 per-language `po/*.po`; the `*.pot` template is regenerated from the QML by `make messages` and the
 compiled `*.mo` catalogs are generated into `package/contents/locale/<lang>/LC_MESSAGES/` by
