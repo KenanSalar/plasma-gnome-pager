@@ -166,4 +166,61 @@ TestCase {
         fuzzyCompare(m.crossThickness, m.availableCross, 0.01, "crossThickness tracks the effective size → fills the thin allocation");
         verify(m.crossThickness < m.naturalCrossThickness, "and is below the natural cross thickness");
     }
+
+    // --- hover-background clearance: the room the strip asks for AROUND itself (all 0 when off) ---
+
+    // Zero factors — what the indicator feeds when the background is switched off — collapse every clearance
+    // output to zero and leave the padded extents bare: the byte-for-byte pre-feature geometry.
+    function test_hoverClearanceOffCollapsesToBareExtents() {
+        const m = makeMetrics({ dotSizeRequest: 10, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1, hoverLengthFactor: 0, hoverThicknessFactor: 0 });
+        compare(m.hoverPadding, 0, "no length clearance");
+        compare(m.hoverCrossPadding, 0, "no thickness clearance");
+        compare(m.hoverCrossPaddingEffective, 0, "none on the render side either");
+        fuzzyCompare(m.paddedStripLength, m.naturalStripLength, 0.001, "padded length == the bare strip");
+        fuzzyCompare(m.paddedCrossThickness, m.naturalCrossThickness, 0.001, "padded thickness == the bare strip");
+    }
+
+    // On, each axis grows by its own factor × ONE LINE's thickness (not the whole strip), at BOTH ends.
+    function test_hoverClearanceGrowsTheHintExtents() {
+        const m = makeMetrics({
+            dotSizeRequest: 10, pillSizeRequest: 30, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 2,
+            hoverLengthFactor: 1.0, hoverThicknessFactor: 0.5
+        });
+        fuzzyCompare(m.naturalLineThickness, 30, 0.001, "one line is as thick as the pill where the pill is thicker");
+        fuzzyCompare(m.hoverPadding, Logic.hoverPadding(30, 1.0), 0.001, "length clearance is factor × line thickness");
+        fuzzyCompare(m.hoverCrossPadding, Logic.hoverPadding(30, 0.5), 0.001, "thickness clearance uses its OWN factor");
+        fuzzyCompare(m.paddedStripLength, m.naturalStripLength + 2 * m.hoverPadding, 0.001, "the cell grows at both ends");
+        fuzzyCompare(m.paddedCrossThickness, m.naturalCrossThickness + 2 * m.hoverCrossPadding, 0.001, "and on both sides");
+    }
+
+    // The natural/effective split, the invariant that keeps the Layout hints out of a binding loop: under
+    // scale-to-fit the RENDER-side clearance shrinks with the dots while the HINT-side pair does not move.
+    function test_hoverHintClearanceIsGeometryIndependent() {
+        const m = makeMetrics({ dotSizeRequest: 16, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 6, lineCount: 1 });
+        m.availableCross = m.naturalCrossThickness * 2;
+        const hintPadding = m.hoverPadding;
+        const hintCrossPadding = m.hoverCrossPadding;
+        const paddedLength = m.paddedStripLength;
+
+        m.availableMajor = m.naturalStripLength * 0.5;   // squeeze until the dots have to shrink
+        verify(m.dotSize < m.naturalDotSize, "scale-to-fit is active");
+        verify(m.hoverCrossPaddingEffective < hintCrossPadding, "the RENDER-side clearance shrinks with the dots");
+        compare(m.hoverPadding, hintPadding, "but the HINT-side length clearance stays on the natural sizes");
+        compare(m.hoverCrossPadding, hintCrossPadding, "and so does the thickness clearance");
+        compare(m.paddedStripLength, paddedLength, "so the advertised extent never follows the RENDERED dot");
+    }
+
+    // The background's cross extent GROWS from the strip and is then capped at the cell — deriving it by
+    // insetting the cell instead collapses it onto the strip the moment the padding exceeds the room.
+    function test_hoverCrossExtentGrowsThenCaps() {
+        const m = makeMetrics({ dotSizeRequest: 10, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
+        m.availableMajor = m.naturalStripLength * 2;
+
+        m.availableCross = m.naturalCrossThickness * 10;   // room to spare: strip + clearance, NOT the whole cell
+        fuzzyCompare(m.hoverCrossExtent, m.crossThickness + 2 * m.hoverCrossPaddingEffective, 0.001, "strip plus its clearance");
+        verify(m.hoverCrossExtent < m.availableCross, "and keeps its proportion instead of filling the panel");
+
+        m.availableCross = m.crossThickness;               // a panel exactly as thick as the strip: no room to pad
+        fuzzyCompare(m.hoverCrossExtent, m.availableCross, 0.001, "caps at the cell rather than overflowing it");
+    }
 }

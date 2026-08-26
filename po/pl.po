@@ -6,9 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Plasma Gnome Pager 1.7.0\n"
-"Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues"
-"\n"
-"POT-Creation-Date: 2026-06-26 00:18+0200\n"
+"Report-Msgid-Bugs-To: https://github.com/KenanSalar/plasma-gnome-pager/issues\n"
+"POT-Creation-Date: 2026-08-26 20:18+0200\n"
 "PO-Revision-Date: 2026-08-24 17:44+0200\n"
 "Last-Translator: Karol Gryc\n"
 "Language-Team: Polish\n"
@@ -16,8 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 |"
-"| n%100>=20) ? 1 : 2);\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 "X-Generator: Lokalize 26.08.0\n"
 
 #: package/contents/config/config.qml:14
@@ -30,75 +28,72 @@ msgstr "Zachowanie"
 msgid "Appearance"
 msgstr "Wygląd"
 
-#: package/contents/ui/config/ConfigAppearance.qml:87
+#: package/contents/ui/config/ConfigAppearance.qml:106
 #, kde-format
 msgid "Pager style:"
 msgstr "Styl panelu:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:89
+#: package/contents/ui/config/ConfigAppearance.qml:108
 #, kde-format
 msgid "Sliding pill"
 msgstr "Przesuwana kapsułka"
 
-#: package/contents/ui/config/ConfigAppearance.qml:89
+#: package/contents/ui/config/ConfigAppearance.qml:108
 #, kde-format
 msgid "Filled & ring"
 msgstr "Koło i okręgi"
 
-#: package/contents/ui/config/ConfigAppearance.qml:101
+#: package/contents/ui/config/ConfigAppearance.qml:119
 #, kde-format
-msgid "Multiple rows:"
-msgstr "Wiele rzędów:"
+msgid "Layout"
+msgstr ""
 
-#: package/contents/ui/config/ConfigAppearance.qml:102
+#: package/contents/ui/config/ConfigAppearance.qml:123
 #, kde-format
 msgid "Show all desktops in a single line"
 msgstr "Wyświetl wszystkie pulpity w jednej linii"
 
-#: package/contents/ui/config/ConfigAppearance.qml:106
+#: package/contents/ui/config/ConfigAppearance.qml:127
 #, kde-format
-msgid ""
-"Ignore the grid rows from System Settings and lay every desktop out in one "
-"strip along the panel (a single vertical strip on a vertical panel)."
-msgstr ""
-"Ignoruj rzędy siatki z Ustawień Systemowych i ułóż każdy z pulpitów w jednej "
-"linii "
-"wzdłuż panelu (pojedynczy pionowy pasek na panelu pionowym)."
+msgid "Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel)."
+msgstr "Ignoruj rzędy siatki z Ustawień Systemowych i ułóż każdy z pulpitów w jednej linii wzdłuż panelu (pojedynczy pionowy pasek na panelu pionowym)."
 
-#: package/contents/ui/config/ConfigAppearance.qml:115
-#, kde-format
-msgid "Vertical panels:"
-msgstr "Panele pionowe:"
-
-#: package/contents/ui/config/ConfigAppearance.qml:116
+#: package/contents/ui/config/ConfigAppearance.qml:131
 #, kde-format
 msgid "Match the virtual-desktop grid layout"
 msgstr "Dopasuj do siatki pulpitów wirtualnych"
 
-#: package/contents/ui/config/ConfigAppearance.qml:122
+#: package/contents/ui/config/ConfigAppearance.qml:137
 #, kde-format
-msgid ""
-"Arrange the dots like the desktop grid in System Settings (rows top to "
-"bottom) instead of running them down the panel. No effect on horizontal "
-"panels."
-msgstr ""
-"Ułóż kropki zgodnie z siatką pulpitów w Ustawieniach Systemowych (rzędy od "
-"góry do dołu), zamiast ustawiać je pionowo wzdłuż panelu. Nie wpływa na panele"
-" poziome."
+msgid "Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels."
+msgstr "Ułóż kropki zgodnie z siatką pulpitów w Ustawieniach Systemowych (rzędy od góry do dołu), zamiast ustawiać je pionowo wzdłuż panelu. Nie wpływa na panele poziome."
 
-#: package/contents/ui/config/ConfigAppearance.qml:132
+#: package/contents/ui/config/ConfigAppearance.qml:141
+#, kde-format
+msgid "Spacing:"
+msgstr "Odstęp:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:145
+#, kde-format
+msgid "%1× dot"
+msgstr "%1× kropka"
+
+#: package/contents/ui/config/ConfigAppearance.qml:149
+#, kde-format
+msgid "Dots"
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:153
 #, kde-format
 msgid "Dot size:"
 msgstr "Rozmiar kropki:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:137
-#: package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigAppearance.qml:158 package/contents/ui/config/ConfigGeneral.qml:159
 #, kde-format
 msgid "Default"
 msgstr "Domyślne"
 
-#: package/contents/ui/config/ConfigAppearance.qml:137
-#: package/contents/ui/config/ConfigAppearance.qml:149
+#: package/contents/ui/config/ConfigAppearance.qml:158 package/contents/ui/config/ConfigAppearance.qml:181
 #, kde-format
 msgid "%1 px"
 msgid_plural "%1 px"
@@ -106,228 +101,259 @@ msgstr[0] "%1 px"
 msgstr[1] "%1 px"
 msgstr[2] "%1 px"
 
-#: package/contents/ui/config/ConfigAppearance.qml:143
-#, kde-format
-msgid "Pill thickness:"
-msgstr "Grubość kapsułki:"
-
-#: package/contents/ui/config/ConfigAppearance.qml:149
-#, kde-format
-msgid "Match dots"
-msgstr "Zrównaj z kropkami"
-
-#: package/contents/ui/config/ConfigAppearance.qml:154
-#, kde-format
-msgid "Spacing:"
-msgstr "Odstęp:"
-
-#: package/contents/ui/config/ConfigAppearance.qml:158
-#, kde-format
-msgid "%1× dot"
-msgstr "%1× kropka"
-
-#: package/contents/ui/config/ConfigAppearance.qml:163
-#, kde-format
-msgid "Pill length:"
-msgstr "Długość kapsułki:"
-
-#: package/contents/ui/config/ConfigAppearance.qml:169
-#, kde-format
-msgid "%1× pill"
-msgstr "%1× kapsułki"
-
-#: package/contents/ui/config/ConfigAppearance.qml:174
+#: package/contents/ui/config/ConfigAppearance.qml:162
 #, kde-format
 msgid "Inactive opacity:"
 msgstr "Nieprzezroczystość nieaktywnych:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:183
+#: package/contents/ui/config/ConfigAppearance.qml:166
 #, kde-format
 msgid "Hover opacity:"
 msgstr "Nieprzezroczystość po najechaniu:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:192
+#: package/contents/ui/config/ConfigAppearance.qml:170
+#, fuzzy, kde-format
+msgid "Active pill"
+msgstr "Aktywny pulpit:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:175
 #, kde-format
-msgid "Occupied desktops:"
+msgid "Pill thickness:"
+msgstr "Grubość kapsułki:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:181
+#, kde-format
+msgid "Match dots"
+msgstr "Zrównaj z kropkami"
+
+#: package/contents/ui/config/ConfigAppearance.qml:185
+#, kde-format
+msgid "Pill length:"
+msgstr "Długość kapsułki:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:191 package/contents/ui/config/ConfigAppearance.qml:214 package/contents/ui/config/ConfigAppearance.qml:224
+#, kde-format
+msgid "%1× pill"
+msgstr "%1× kapsułki"
+
+#: package/contents/ui/config/ConfigAppearance.qml:195
+#, kde-format
+msgid "Hover background"
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:199
+#, kde-format
+msgid "Highlight the whole pager on hover"
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:203
+#, fuzzy, kde-format
+msgid "Background opacity:"
+msgstr "Nieprzezroczystość zajętych:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:208
+#, fuzzy, kde-format
+msgid "Extra length:"
+msgstr "Długość kapsułki:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:218
+#, fuzzy, kde-format
+msgid "Extra thickness:"
+msgstr "Grubość kapsułki:"
+
+#: package/contents/ui/config/ConfigAppearance.qml:228
+#, kde-format
+msgid "Space the background leaves around the dots, at each end and on each side. Raise the thickness on a tall panel; it never grows past the panel."
+msgstr ""
+
+#: package/contents/ui/config/ConfigAppearance.qml:232
+#, fuzzy, kde-format
+msgid "Occupied desktops"
 msgstr "Zajęte pulpity:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:193
+#: package/contents/ui/config/ConfigAppearance.qml:236
 #, kde-format
 msgid "Highlight desktops with open windows"
 msgstr "Oznacz pulpity zawierające okna"
 
-#: package/contents/ui/config/ConfigAppearance.qml:197
+#: package/contents/ui/config/ConfigAppearance.qml:240
 #, kde-format
 msgid "Indicator style:"
 msgstr "Styl wskaźnika:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:200
+#: package/contents/ui/config/ConfigAppearance.qml:244
 #, kde-format
 msgid "Filled"
 msgstr "Wypełnienie"
 
-#: package/contents/ui/config/ConfigAppearance.qml:200
+#: package/contents/ui/config/ConfigAppearance.qml:244
 #, kde-format
 msgid "Inner dot"
 msgstr "Kropka"
 
-#: package/contents/ui/config/ConfigAppearance.qml:200
+#: package/contents/ui/config/ConfigAppearance.qml:244
 #, kde-format
 msgid "Hollow ring"
 msgstr "Pierścień"
 
-#: package/contents/ui/config/ConfigAppearance.qml:215
+#: package/contents/ui/config/ConfigAppearance.qml:259
 #, kde-format
 msgid "Occupied opacity:"
 msgstr "Nieprzezroczystość zajętych:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:229
-#, kde-format
-msgid "Colors:"
+#: package/contents/ui/config/ConfigAppearance.qml:264
+#, fuzzy, kde-format
+msgid "Colors"
 msgstr "Kolorystyka:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:230
+#: package/contents/ui/config/ConfigAppearance.qml:268
 #, kde-format
 msgid "Follow the color scheme"
 msgstr "Użyj schematu systemowego"
 
-#: package/contents/ui/config/ConfigAppearance.qml:234
+#: package/contents/ui/config/ConfigAppearance.qml:272
 #, kde-format
 msgid "Active desktop:"
 msgstr "Aktywny pulpit:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:240
+#: package/contents/ui/config/ConfigAppearance.qml:278
 #, kde-format
 msgid "Inactive desktop:"
 msgstr "Nieaktywny pulpit:"
 
-#: package/contents/ui/config/ConfigAppearance.qml:246
+#: package/contents/ui/config/ConfigAppearance.qml:284
 #, kde-format
 msgid "Occupied desktop:"
 msgstr "Zajęty pulpit:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:61
-#, kde-format
-msgid "Mouse:"
+#: package/contents/ui/config/ConfigAppearance.qml:293
+#, fuzzy, kde-format
+msgid "Hover highlight:"
+msgstr "Nieprzezroczystość po najechaniu:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:65
+#, fuzzy, kde-format
+msgid "Mouse"
 msgstr "Mysz:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:62
+#: package/contents/ui/config/ConfigGeneral.qml:69
 #, kde-format
 msgid "Scroll over the pager to switch desktops"
 msgstr "Przewiń nad panelem, aby zmienić pulpit"
 
-#: package/contents/ui/config/ConfigGeneral.qml:66
+#: package/contents/ui/config/ConfigGeneral.qml:73
 #, kde-format
 msgid "Wrap around at the first and last desktop"
 msgstr "Zapętl przewijanie po pierwszym i ostatnim pulpicie"
 
-#: package/contents/ui/config/ConfigGeneral.qml:71
+#: package/contents/ui/config/ConfigGeneral.qml:78
 #, kde-format
 msgid "Invert the scroll direction"
 msgstr "Odwróć kierunek przewijania"
 
-#: package/contents/ui/config/ConfigGeneral.qml:76
+#: package/contents/ui/config/ConfigGeneral.qml:83
 #, kde-format
 msgid "Click current desktop:"
 msgstr "Kliknięcie bieżącego pulpitu:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:85
 #, kde-format
 msgid "Nothing"
 msgstr "Nie rób nic"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:85
 #, kde-format
 msgid "Show Desktop"
 msgstr "Pokaż pulpit"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:85
 #, kde-format
 msgid "Overview"
 msgstr "Przegląd"
 
-#: package/contents/ui/config/ConfigGeneral.qml:78
+#: package/contents/ui/config/ConfigGeneral.qml:85
 #, kde-format
 msgid "Grid"
 msgstr "Siatka"
 
-#: package/contents/ui/config/ConfigGeneral.qml:83
+#: package/contents/ui/config/ConfigGeneral.qml:90
 #, kde-format
-msgid ""
-"Action when clicking the highlighted current desktop. Clicking any other "
-"desktop switches to it."
-msgstr ""
-"Akcja wykonywana w momencie kliknięcia ikony aktywnego pulpitu. "
-"Kliknięcie dowolnego innego pulpitu przełącza na niego."
+msgid "Action when clicking the highlighted current desktop. Clicking any other desktop switches to it."
+msgstr "Akcja wykonywana w momencie kliknięcia ikony aktywnego pulpitu. Kliknięcie dowolnego innego pulpitu przełącza na niego."
 
-#: package/contents/ui/config/ConfigGeneral.qml:92
+#: package/contents/ui/config/ConfigGeneral.qml:94
 #, kde-format
-msgid "Tooltips:"
+msgid "Trigger it from anywhere on the widget"
+msgstr ""
+
+#: package/contents/ui/config/ConfigGeneral.qml:100
+#, fuzzy, kde-format
+msgid "Click the space around the dots, not just the highlighted desktop."
+msgstr "Akcja wykonywana w momencie kliknięcia ikony aktywnego pulpitu. Kliknięcie dowolnego innego pulpitu przełącza na niego."
+
+#: package/contents/ui/config/ConfigGeneral.qml:104
+#, fuzzy, kde-format
+msgid "Tooltips"
 msgstr "Podpowiedzi kontekstowe:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:93
+#: package/contents/ui/config/ConfigGeneral.qml:108
 #, kde-format
 msgid "Show the desktop name on hover"
 msgstr "Pokaż nazwę pulpitu po najechaniu"
 
-#: package/contents/ui/config/ConfigGeneral.qml:97
+#: package/contents/ui/config/ConfigGeneral.qml:112
 #, kde-format
 msgid "List the open windows in the tooltip"
 msgstr "Wyświetl otwarte okna w podpowiedzi"
 
-#: package/contents/ui/config/ConfigGeneral.qml:102
-#, kde-format
-msgid "Menu:"
-msgstr "Menu:"
+#: package/contents/ui/config/ConfigGeneral.qml:119
+#, fuzzy, kde-format
+msgid "Desktop management"
+msgstr "Nazwa nowego pulpitu:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:103
+#: package/contents/ui/config/ConfigGeneral.qml:123
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
 msgstr "Dodawaj i usuwaj pulpity z menu kontekstowego"
 
-#: package/contents/ui/config/ConfigGeneral.qml:109
+#: package/contents/ui/config/ConfigGeneral.qml:129
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
 msgstr "Zmieniaj nazwę bieżącego pulpitu z menu kontekstowego"
 
-#: package/contents/ui/config/ConfigGeneral.qml:113
-#, kde-format
-msgid "Dynamic desktops:"
-msgstr "Dynamiczne pulpity:"
-
-#: package/contents/ui/config/ConfigGeneral.qml:114
+#: package/contents/ui/config/ConfigGeneral.qml:133
 #, kde-format
 msgid "Automatically add and remove desktops (GNOME-style)"
 msgstr "Automatycznie dodawaj i usuwaj pulpity (styl GNOME)"
 
-#: package/contents/ui/config/ConfigGeneral.qml:118
+#: package/contents/ui/config/ConfigGeneral.qml:137
 #, kde-format
-msgid ""
-"While on, desktops are managed automatically — the menu Add/Remove options "
-"are disabled."
-msgstr ""
-"Gdy aktywne, pulpity zarządzane są automatycznie — opcje Dodaj/Usuń w menu są "
-"wyłączone."
+msgid "While on, desktops are managed automatically — the menu Add/Remove options are disabled."
+msgstr "Gdy aktywne, pulpity zarządzane są automatycznie — opcje Dodaj/Usuń w menu są wyłączone."
 
-#: package/contents/ui/config/ConfigGeneral.qml:128
+#: package/contents/ui/config/ConfigGeneral.qml:142
 #, kde-format
 msgid "New desktop name:"
 msgstr "Nazwa nowego pulpitu:"
 
 #. i18n default base name, passed IN so the controller stays i18n-free (never empty — KWin drops createDesktop on an empty name).
-#: package/contents/ui/config/ConfigGeneral.qml:131
-#: package/contents/ui/main.qml:220
+#: package/contents/ui/config/ConfigGeneral.qml:145 package/contents/ui/main.qml:237
 #, kde-format
 msgctxt "@info default base name for auto-created virtual desktops"
 msgid "Desktop"
 msgstr "Pulpit"
 
-#: package/contents/ui/config/ConfigGeneral.qml:137
+#: package/contents/ui/config/ConfigGeneral.qml:150
+#, fuzzy, kde-format
+msgid "Animation"
+msgstr "Długość animacji:"
+
+#: package/contents/ui/config/ConfigGeneral.qml:154
 #, kde-format
 msgid "Animation duration:"
 msgstr "Długość animacji:"
 
-#: package/contents/ui/config/ConfigGeneral.qml:142
+#: package/contents/ui/config/ConfigGeneral.qml:159
 #, kde-format
 msgid "%1 ms"
 msgid_plural "%1 ms"
@@ -335,32 +361,32 @@ msgstr[0] "%1 ms"
 msgstr[1] "%1 ms"
 msgstr[2] "%1 ms"
 
-#: package/contents/ui/config/ConfigPageBase.qml:52
+#: package/contents/ui/config/ConfigPageBase.qml:55
 #, kde-format
 msgid "Defaults"
 msgstr "Przywróć domyślne"
 
-#: package/contents/ui/main.qml:200
+#: package/contents/ui/main.qml:217
 #, kde-format
 msgid "New Desktop"
 msgstr "Nowy pulpit"
 
-#: package/contents/ui/main.qml:262
+#: package/contents/ui/main.qml:279
 #, kde-format
 msgid "Add Desktop"
 msgstr "Dodaj pulpit"
 
-#: package/contents/ui/main.qml:270
+#: package/contents/ui/main.qml:287
 #, kde-format
 msgid "Remove Last Desktop"
 msgstr "Usuń ostatni pulpit"
 
-#: package/contents/ui/main.qml:278
+#: package/contents/ui/main.qml:295
 #, kde-format
 msgid "Rename Current Desktop…"
 msgstr "Zmień nazwę bieżącego pulpitu…"
 
-#: package/contents/ui/main.qml:286
+#: package/contents/ui/main.qml:303
 #, kde-format
 msgid "Configure Virtual Desktops…"
 msgstr "Skonfiguruj pulpity wirtualne…"
@@ -412,3 +438,19 @@ msgid_plural "%1 Minimized Windows:"
 msgstr[0] "%1 zminimalizowane okno:"
 msgstr[1] "%1 zminimalizowane okna:"
 msgstr[2] "%1 zminimalizowanych okien:"
+
+#, kde-format
+#~ msgid "Multiple rows:"
+#~ msgstr "Wiele rzędów:"
+
+#, kde-format
+#~ msgid "Vertical panels:"
+#~ msgstr "Panele pionowe:"
+
+#, kde-format
+#~ msgid "Menu:"
+#~ msgstr "Menu:"
+
+#, kde-format
+#~ msgid "Dynamic desktops:"
+#~ msgstr "Dynamiczne pulpity:"

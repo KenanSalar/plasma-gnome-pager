@@ -13,6 +13,8 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
+import "../logic.js" as Logic
+
 RowLayout {
     id: root
 
@@ -24,8 +26,8 @@ RowLayout {
     property string label: ""              // the row's Kirigami.FormData label
     property var format: (v) => String(v)  // value → read-out string (drives text AND reserved width)
 
-    // Fixed track length, matched to ConfigPageBase.fieldWidth so every row's field column lines up.
-    readonly property int trackWidth: Kirigami.Units.gridUnit * 18
+    // Fixed track length, the shared field-column metric so every row's field column lines up.
+    readonly property int trackWidth: Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS
 
     Kirigami.FormData.label: root.label
 

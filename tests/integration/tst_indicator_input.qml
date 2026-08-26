@@ -190,7 +190,59 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "and emits no switch either");
     }
 
-    // Wheel events must not block clicks: the wheel MouseArea is NoButton, so press/release pass through.
+    // pillClickAnywhere: the hovered background is a click target too, so the action no longer has to be
+    // aimed at the current pill. A REAL click well clear of the centred strip must reach the layer below it.
+    function test_clickBackgroundEmitsActiveClicked() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+        activeSpy.target = indicator;
+        activeSpy.clear();
+
+        mouseClick(indicator, 5, indicator.height / 2);   // dot-free: the strip is centred and far narrower
+        compare(activeSpy.count, 1, "clicking the background raises the pill action");
+        compare(switchSpy.count, 0, "and never switches desktop");
+    }
+
+    // With the toggle off the layer accepts no buttons at all — clicks fall straight through, exactly as before.
+    function test_clickBackgroundIgnoredWhenDisabled() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50, pillClickAnywhere: false });
+        activeSpy.target = indicator;
+        activeSpy.clear();
+
+        mouseClick(indicator, 5, indicator.height / 2);
+        compare(activeSpy.count, 0, "the background is inert when the toggle is off");
+    }
+
+    // The enlarged target sits BEHIND the dots, so it must not steal their clicks.
+    function test_clickAnywhereDoesNotBlockDotClicks() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+        activeSpy.target = indicator;
+        activeSpy.clear();
+
+        const c = Elements.centerOf(dotByUuid(indicator, ids[0]), indicator);
+        mouseClick(indicator, c.x, c.y);
+        compare(switchSpy.count, 1, "an inactive dot still switches");
+        compare(switchSpy.signalArguments[0][0], ids[0], "with its own UUID");
+        compare(activeSpy.count, 0, "the background action does not also fire");
+    }
+
+    // Accepting a button on the wheel layer must not disturb wheel delivery.
+    function test_scrollStillWorksWithClickAreaEnabled() {
+        const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, width: 200, height: 50 });
+        switchSpy.target = indicator;
+        switchSpy.clear();
+        activeSpy.target = indicator;
+        activeSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, -120);
+        compare(switchSpy.count, 1, "the wheel still switches with the click target enabled");
+        compare(activeSpy.count, 0, "and scrolling never fires the pill action");
+    }
+
+    // Wheel events must not block clicks: the wheel MouseArea sits behind the dots, so press/release reach them.
     function test_wheelLayerDoesNotBlockClicks() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;

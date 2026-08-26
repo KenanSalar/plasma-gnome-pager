@@ -100,7 +100,7 @@ IndicatorTestCase {
         const indicator = makeIndicator(null);
         compare(indicator.activeIndex, -1, "no active index without a source");
         compare(collectDots(indicator).length, 0, "no elements");
-        fuzzyCompare(indicator.implicitWidth, indicator.dotSize, 0.5, "cell falls back to one dot wide");
+        fuzzyCompare(indicator.implicitWidth, indicator.dotSize + 2 * indicator.hoverPadding, 0.5, "cell falls back to one dot wide");
     }
 
     // robustness.md: currentDesktop not (yet) in desktopIds → no capsule, and the advertised width stays
@@ -112,7 +112,7 @@ IndicatorTestCase {
         for (let i = 0; i < dots.length; i++)
             fuzzyCompare(dots[i].width, indicator.dotSize, 0.5, "no capsule while stale: " + dots[i].modelData);
         const steady = Logic.lineExtent(ids.length, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
-        fuzzyCompare(indicator.implicitWidth, steady, 0.5, "cell stays at the steady-state width");
+        fuzzyCompare(indicator.implicitWidth, steady + 2 * indicator.hoverPadding, 0.5, "cell stays at the steady-state width");
     }
 
     // Uniform spacing: the gap between EVERY adjacent pair (dot-dot and capsule-dot) equals the Row
@@ -267,7 +267,7 @@ IndicatorTestCase {
         compare(collectDots(indicator).length, 1, "exactly one element");
         compare(indicator.activeIndex, 0, "the only desktop is active");
         fuzzyCompare(dotByUuid(indicator, "uuid-solo").width, indicator.pillWidth, 0.5, "the sole element is the capsule");
-        fuzzyCompare(indicator.implicitWidth, indicator.pillWidth, 0.5, "cell is one capsule wide");
+        fuzzyCompare(indicator.implicitWidth, indicator.pillWidth + 2 * indicator.hoverPadding, 0.5, "cell is one capsule wide");
     }
 
     // Clicking the active capsule raises activeClicked (the pill-click action), NOT a switch — and the
@@ -308,7 +308,7 @@ IndicatorTestCase {
         compare(collectDots(indicator).length, 0, "an empty desktopIds array yields no dots");
         compare(indicator.activeIndex, -1, "no active index for an empty set");
         fuzzyCompare(indicator.naturalStripLength, indicator.naturalDotSize, 0.5, "strip length holds one dot, not 0");
-        fuzzyCompare(indicator.implicitWidth, indicator.naturalDotSize, 0.5, "the cell stays one dot wide");
+        fuzzyCompare(indicator.implicitWidth, indicator.naturalDotSize + 2 * indicator.hoverPadding, 0.5, "the cell stays one dot wide");
         verify(isFinite(indicator.dotSize) && indicator.dotSize > 0, "effective dot size stays finite/positive (no NaN)");
     }
 
