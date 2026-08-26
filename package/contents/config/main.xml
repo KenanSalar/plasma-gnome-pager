@@ -34,6 +34,11 @@
         <entry name="pillClickAction" type="Int">
             <default>0</default>
         </entry>
+        <!-- Fire that action from anywhere on the widget (the hovered background), not just the current
+             desktop's pill. Clicking another dot still switches to it; inert while pillClickAction is None. -->
+        <entry name="pillClickAnywhere" type="Bool">
+            <default>true</default>
+        </entry>
         <!-- Show the desktop name in a tooltip on hover. -->
         <entry name="showTooltips" type="Bool">
             <default>true</default>
@@ -106,6 +111,23 @@
         <entry name="hoverOpacity" type="Double">
             <default>0.8</default>
         </entry>
+        <!-- GNOME-style: draw a rounded background behind the whole pager while the pointer is over it. -->
+        <entry name="showHoverBackground" type="Bool">
+            <default>true</default>
+        </entry>
+        <!-- Opacity of that hover background (only when showHoverBackground is on). -->
+        <entry name="hoverBackgroundOpacity" type="Double">
+            <default>0.12</default>
+        </entry>
+        <!-- Extra background length at EACH end of the strip, as a multiple of the pill thickness. -->
+        <entry name="hoverLengthFactor" type="Double">
+            <default>1.0</default>
+        </entry>
+        <!-- Extra background thickness on EACH side of the strip, likewise a multiple of the pill thickness
+             (1.0 makes the background 3x the pill thick, matching GNOME). Capped at the panel thickness. -->
+        <entry name="hoverThicknessFactor" type="Double">
+            <default>1.0</default>
+        </entry>
         <!-- Brighten the dots of desktops that hold windows (occupied), so they stand out from empty ones. -->
         <entry name="showOccupancy" type="Bool">
             <default>false</default>
@@ -134,6 +156,10 @@
         <!-- Custom occupied-marker colour (used only when followThemeColors is false; else the theme accent). -->
         <entry name="occupiedColor" type="Color">
             <default>#3daee9</default>
+        </entry>
+        <!-- Custom hover-background colour (used only when followThemeColors is false; else the theme text colour). -->
+        <entry name="hoverBackgroundColor" type="Color">
+            <default>#eff0f1</default>
         </entry>
     </group>
 </kcfg>

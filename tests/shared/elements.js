@@ -29,6 +29,16 @@ function circleOf(item) {
     return found.length ? found[0] : null;
 }
 
+// The indicator's hover background — the only circle Rectangle that is a DIRECT child of the indicator
+// (every dot capsule is nested inside its delegate, so a depth-first walk would find those too).
+function hoverBackgroundOf(indicator) {
+    var kids = indicator.children;
+    for (var i = 0; i < kids.length; ++i)
+        if (isCircle(kids[i]))
+            return kids[i];
+    return null;
+}
+
 // The tooltip area inside `item` (or null).
 function tooltipOf(item) {
     var found = TreeWalk.collect(item, isTooltip);

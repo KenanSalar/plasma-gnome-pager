@@ -176,6 +176,84 @@ TestCase {
         fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.InnerDot, 0.2, 0.9, 0.6), 0.2, 0.001, "InnerDot body stays dim (the inner dot carries the opacity)");
     }
 
+    // --- nextHoveredIndex: which dot the strip counts as hovered, from one dot's enter/leave ---
+    function test_nextHoveredIndex_data() {
+        return [
+            { tag: "enter-from-nothing", current: -1, index: 2, hovered: true, exp: 2 },
+            { tag: "leave-own-index", current: 2, index: 2, hovered: false, exp: -1 },
+            // The guard the whole design rests on: Qt delivers the NEW dot's enter before the old dot's
+            // leave, so by the time dot 1 reports its leave the index already names dot 2 — clearing it
+            // would blink the background off mid-move between two adjacent dots.
+            { tag: "dot-to-dot-enter", current: 1, index: 2, hovered: true, exp: 2 },
+            { tag: "dot-to-dot-stale-leave", current: 2, index: 1, hovered: false, exp: 2 },
+            // A leave from a dot nobody recorded (a teardown after the index was already cleared) is inert.
+            { tag: "stale-leave-while-clear", current: -1, index: 3, hovered: false, exp: -1 },
+            { tag: "index-zero-enter", current: -1, index: 0, hovered: true, exp: 0 },
+            { tag: "index-zero-leave", current: 0, index: 0, hovered: false, exp: -1 }
+        ];
+    }
+    function test_nextHoveredIndex(data) {
+        compare(Logic.nextHoveredIndex(data.current, data.index, data.hovered), data.exp, data.tag);
+    }
+
+    // --- hoverBackgroundAlpha: the hover background is the configured opacity while hovered, 0 otherwise ---
+    function test_hoverBackgroundAlpha_data() {
+        return [
+            { tag: "on-hovered", enabled: true, hovered: true, opacity: 0.12, exp: 0.12 },
+            { tag: "on-not-hovered", enabled: true, hovered: false, opacity: 0.12, exp: 0 },
+            { tag: "off-hovered", enabled: false, hovered: true, opacity: 0.12, exp: 0 },
+            { tag: "off-not-hovered", enabled: false, hovered: false, opacity: 0.12, exp: 0 },
+            // The opacity is a PARAMETER, not a constant — a custom value comes straight through.
+            { tag: "custom-opacity", enabled: true, hovered: true, opacity: 0.6, exp: 0.6 },
+            // A user who drags the slider to zero gets nothing drawn, same as switching it off.
+            { tag: "zero-opacity", enabled: true, hovered: true, opacity: 0, exp: 0 }
+        ];
+    }
+    function test_hoverBackgroundAlpha(data) {
+        fuzzyCompare(Logic.hoverBackgroundAlpha(data.enabled, data.hovered, data.opacity), data.exp, 0.001, data.tag);
+    }
+
+    // --- hoverPadding: per-side clearance, scaled off the line thickness by a user-set factor ---
+    function test_hoverPadding_data() {
+        return [
+            { tag: "gnome-length", line: 10, factor: Logic.DEFAULTS.hoverLengthFactor, exp: 10.0 },
+            { tag: "gnome-thickness", line: 10, factor: Logic.DEFAULTS.hoverThicknessFactor, exp: 10.0 },
+            { tag: "scales-with-the-dot", line: 20, factor: Logic.DEFAULTS.hoverThicknessFactor, exp: 20.0 },
+            { tag: "zero-factor-hugs-the-strip", line: 10, factor: 0, exp: 0 },
+            { tag: "large-factor", line: 10, factor: 3.0, exp: 30.0 }
+        ];
+    }
+    function test_hoverPadding(data) {
+        fuzzyCompare(Logic.hoverPadding(data.line, data.factor), data.exp, 0.001, data.tag);
+    }
+
+    // The DEFAULT factors match GNOME on a real panel: one whole pill thickness of clearance on EVERY side,
+    // so the background comes out 3x the pill thick and the same clearance appears at the ends.
+    function test_hoverDefaultsMatchGnomeProportions() {
+        var line = 8;
+        var height = line + 2 * Logic.hoverPadding(line, Logic.DEFAULTS.hoverThicknessFactor);
+        fuzzyCompare(height / line, 3.0, 0.05, "background height is 3 pill thicknesses");
+        fuzzyCompare(Logic.hoverPadding(line, Logic.DEFAULTS.hoverLengthFactor), line, 0.001, "the end clearance is one pill thickness");
+        compare(Logic.DEFAULTS.hoverThicknessFactor, Logic.DEFAULTS.hoverLengthFactor, "the default clearance is uniform on both axes");
+    }
+
+    // --- hoverCrossExtent: grow from the strip, then cap at the cell (never inset the cell — see CLAUDE.md) ---
+    function test_hoverCrossExtent_data() {
+        return [
+            // Room to spare: the strip plus the clearance, NOT the whole cell.
+            { tag: "ample-cell", cell: 100, cross: 10, pad: 4.5, exp: 19 },
+            // Cell exactly the strip: caps rather than overflowing.
+            { tag: "cell-equals-strip", cell: 10, cross: 10, pad: 4.5, exp: 10 },
+            // Thin panel: capped at the cell.
+            { tag: "thin-cell", cell: 14, cross: 10, pad: 4.5, exp: 14 },
+            // No clearance requested: exactly the strip.
+            { tag: "zero-padding", cell: 100, cross: 10, pad: 0, exp: 10 }
+        ];
+    }
+    function test_hoverCrossExtent(data) {
+        fuzzyCompare(Logic.hoverCrossExtent(data.cell, data.cross, data.pad), data.exp, 0.001, data.tag);
+    }
+
     // --- dotColor: resolves the dot BODY colour from three pre-resolved colours (active / inactive / occupied) ---
     // Distinct string sentinels stand in for the colours so each branch is identifiable.
     function test_dotColor_data() {
@@ -935,6 +1013,7 @@ TestCase {
             { tag: "scrollWrap", key: "scrollWrap", exp: false },
             { tag: "invertScroll", key: "invertScroll", exp: false },
             { tag: "pillClickAction", key: "pillClickAction", exp: 0 },
+            { tag: "pillClickAnywhere", key: "pillClickAnywhere", exp: true },
             { tag: "showTooltips", key: "showTooltips", exp: true },
             { tag: "showWindowList", key: "showWindowList", exp: true },
             { tag: "enableAddRemove", key: "enableAddRemove", exp: true },
@@ -951,6 +1030,10 @@ TestCase {
             { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
             { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
+            { tag: "showHoverBackground", key: "showHoverBackground", exp: true },
+            { tag: "hoverBackgroundOpacity", key: "hoverBackgroundOpacity", exp: 0.12 },
+            { tag: "hoverLengthFactor", key: "hoverLengthFactor", exp: 1.0 },
+            { tag: "hoverThicknessFactor", key: "hoverThicknessFactor", exp: 1.0 },
             { tag: "showOccupancy", key: "showOccupancy", exp: false },
             { tag: "occupiedOpacity", key: "occupiedOpacity", exp: 0.7 },
             { tag: "occupancyStyle", key: "occupancyStyle", exp: 0 },
@@ -958,6 +1041,7 @@ TestCase {
             { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
             { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
             { tag: "occupiedColor", key: "occupiedColor", exp: "#3daee9" },
+            { tag: "hoverBackgroundColor", key: "hoverBackgroundColor", exp: "#eff0f1" },
             { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
         ];
     }
@@ -978,11 +1062,13 @@ TestCase {
         var keys = Object.keys(Logic.DEFAULTS).sort();
         var expected = ["activeColor", "animationDuration", "dotSize", "dotStyle", "dynamicNamePrefix",
                         "dynamicWorkspaces", "enableAddRemove", "enableRename",
-                        "enableScroll", "followThemeColors", "hoverOpacity", "inactiveColor",
+                        "enableScroll", "followThemeColors", "hoverBackgroundColor", "hoverBackgroundOpacity",
+                        "hoverLengthFactor", "hoverOpacity", "hoverThicknessFactor", "inactiveColor",
                         "inactiveOpacity", "invertScroll", "matchDesktopGrid", "occupancyStyle", "occupiedColor", "occupiedOpacity",
-                        "pillClickAction", "pillSize", "pillWidthFactor", "scrollWrap", "showOccupancy", "showTooltips",
+                        "pillClickAction", "pillClickAnywhere", "pillSize", "pillWidthFactor", "scrollWrap",
+                        "showHoverBackground", "showOccupancy", "showTooltips",
                         "showWindowList", "singleLine", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 28, "DEFAULTS has exactly 28 keys");
+        compare(keys.length, 34, "DEFAULTS has exactly 34 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
@@ -1169,5 +1255,25 @@ TestCase {
     }
     function test_pillClickSpec(data) {
         compare(JSON.stringify(Logic.pillClickSpec(data.action)), JSON.stringify(data.exp), data.tag);
+    }
+
+    // --- pillClickAnywhereActive: the enlarged click target needs BOTH the toggle and a real action ---
+    // Without the action half, the shipped default (toggle on, action Nothing) would make the whole widget
+    // swallow left clicks to dispatch a null spec.
+    function test_pillClickAnywhereActive_data() {
+        return [
+            { tag: "on-with-action", anywhere: true, action: Logic.PILL_CLICK_ACTION.Overview, exp: true },
+            { tag: "on-but-no-action", anywhere: true, action: Logic.PILL_CLICK_ACTION.None, exp: false },
+            { tag: "off-with-action", anywhere: false, action: Logic.PILL_CLICK_ACTION.ShowDesktop, exp: false },
+            { tag: "off-and-no-action", anywhere: false, action: Logic.PILL_CLICK_ACTION.None, exp: false },
+            // An unknown stored index still dispatches null, but it is not None — the target stays live, and
+            // pillClickSpec's default branch keeps the click a safe no-op.
+            { tag: "unknown-action", anywhere: true, action: 99, exp: true },
+            // A transiently-undefined config read must not read as enabled.
+            { tag: "undefined-toggle", anywhere: undefined, action: Logic.PILL_CLICK_ACTION.Grid, exp: false }
+        ];
+    }
+    function test_pillClickAnywhereActive(data) {
+        compare(Logic.pillClickAnywhereActive(data.anywhere, data.action), data.exp, data.tag);
     }
 }

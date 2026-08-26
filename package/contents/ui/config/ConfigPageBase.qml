@@ -11,6 +11,8 @@
 import QtQuick
 import org.kde.kirigami as Kirigami
 
+import "../logic.js" as Logic
+
 Kirigami.ScrollablePage {
     id: root
 
@@ -21,8 +23,9 @@ Kirigami.ScrollablePage {
     // so a derived page need only declare the list; empty configKeys ⇒ false (unmodified).
     property bool isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
 
-    // Field-column width for non-slider fields; kept equal to ConfigSlider.trackWidth so every row lines up.
-    readonly property int fieldWidth: Kirigami.Units.gridUnit * 18
+    // Field-column width for non-slider fields; the shared metric, so every row lines up (ConfigSlider's
+    // track and ConfigHint's wrap width measure against the same one).
+    readonly property int fieldWidth: Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS
 
     // Tolerance for real-valued "differs from default": SnapAlways can land a value a ULP off the default.
     readonly property real epsilon: 1e-9

@@ -143,6 +143,11 @@ TestCase {
         return Elements.circleOf(dot);
     }
 
+    // The indicator's hover-background Rectangle (shared locator).
+    function hoverBackgroundOf(indicator) {
+        return Elements.hoverBackgroundOf(indicator);
+    }
+
     // The trailing edge of the last dot must land within the allocation on the named axis — the
     // scale-to-fit invariant (never overflow). `axis` is explicit ("x"/"y"), since the cross-fit tests
     // constrain the axis OPPOSITE the strip orientation.

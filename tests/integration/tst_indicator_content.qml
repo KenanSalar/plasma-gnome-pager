@@ -244,8 +244,8 @@ IndicatorTestCase {
 
     // Scroll edge: no active element, and remainder sign across events
 
-    // Hover passes through the wheel layer: the behind-dots wheelArea (NoButton, no hover) must not swallow
-    // hover — hovering an inactive dot in the REAL composition brightens it (analogue of the click test).
+    // Hover reaches the dots through the wheel layer: it sits BEHIND them, so hovering an inactive dot in the
+    // REAL composition still brightens it (analogue of the click test).
     function test_hoverBrightensDotInComposedStrip() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const dot = dotByUuid(indicator, ids[0]);   // inactive (current is uuid-b)
@@ -258,6 +258,77 @@ IndicatorTestCase {
 
         mouseMove(indicator, -5, -5);   // pointer leaves the strip
         tryCompare(circle, "opacity", indicator.inactiveOpacity, 2000, "returns to dim when not hovered");
+    }
+
+    // The GNOME hover background: nothing at rest, the configured opacity while the pointer is anywhere over
+    // the widget. `visible` is bound to opacity, so an unhovered background is genuinely dropped.
+    function test_hoverBackgroundAppearsOnHover() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        const bg = hoverBackgroundOf(indicator);
+        compare(bg.visible, false, "no background at rest");
+
+        mouseMove(indicator, 5, indicator.height / 2);   // a dot-free spot inside the cell
+        tryCompare(bg, "opacity", indicator.hoverBackgroundOpacity, 2000, "fades in to the configured opacity");
+        compare(bg.visible, true, "and is rendered");
+
+        mouseMove(indicator, -5, -5);                    // pointer leaves the widget
+        tryCompare(bg, "opacity", 0, 2000, "fades back out");
+        tryCompare(bg, "visible", false, 2000, "and is dropped again");
+    }
+
+    // The regression this design exists for: the dots sit ON TOP of the wheel layer and take hover from it,
+    // so a background driven by wheelArea alone would blink off every time the pointer crossed a dot.
+    // Every assertion after the first fade-in is SYNCHRONOUS on purpose: `hovered` ORs two sources that flip
+    // in separate notifications, so a change in Qt's hover delivery order would dip it inside a single
+    // mouseMove — restarting the fade — and a settled tryCompare would still pass while the user saw the blink.
+    function test_hoverBackgroundStaysVisibleOverADot() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        const bg = hoverBackgroundOf(indicator);
+        const lit = indicator.hoverBackgroundOpacity;
+
+        mouseMove(indicator, 5, indicator.height / 2);   // over the gap first — only this one has to settle
+        tryCompare(bg, "opacity", lit, 2000, "lit over a dot-free spot");
+
+        const inactive = Elements.centerOf(dotByUuid(indicator, ids[0]), indicator);
+        mouseMove(indicator, inactive.x, inactive.y);    // gap → dot
+        compare(indicator.hovered, true, "the dot hands its hover back up to the indicator");
+        fuzzyCompare(bg.opacity, lit, 0.001, "and the background never dips crossing onto a dot");
+
+        const pill = Elements.centerOf(dotByUuid(indicator, currentUuid), indicator);
+        mouseMove(indicator, pill.x, pill.y);            // dot → adjacent dot: the delegate's index guard
+        compare(indicator.hovered, true, "still hovered handing straight over to the next dot");
+        fuzzyCompare(bg.opacity, lit, 0.001, "and never dips between two dots");
+
+        mouseMove(indicator, 5, indicator.height / 2);   // dot → gap: the wheel layer takes the hover back
+        compare(indicator.hovered, true, "the wheel layer picks the hover back up");
+        fuzzyCompare(bg.opacity, lit, 0.001, "and never dips leaving a dot");
+    }
+
+    // Switched off, no amount of hovering shows it.
+    function test_hoverBackgroundDisabledNeverShows() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50, showHoverBackground: false });
+        const bg = hoverBackgroundOf(indicator);
+        mouseMove(indicator, 5, indicator.height / 2);
+        tryCompare(indicator, "hovered", true, 2000, "the indicator still tracks hover");
+        wait(Math.max(50, Kirigami.Units.longDuration * 2));
+        compare(bg.opacity, 0, "but the background stays fully transparent");
+        compare(bg.visible, false, "and unrendered");
+    }
+
+    // Colour follows the scheme by default and the custom key otherwise — same rule as the dots.
+    function test_hoverBackgroundFollowsThemeColor() {
+        const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
+        compare(hoverBackgroundOf(indicator).color, Kirigami.Theme.textColor, "follows the theme text colour");
+    }
+    function test_hoverBackgroundCustomColor() {
+        const custom = "#ff00ff";
+        const indicator = makeIndicator(makeMock(ids, currentUuid), {
+            width: 200, height: 50, followThemeColors: false, hoverBackgroundColor: custom
+        });
+        compare(hoverBackgroundOf(indicator).color, custom, "uses the custom colour when not following the theme");
+
+        indicator.followThemeColors = true;
+        tryCompare(hoverBackgroundOf(indicator), "color", Kirigami.Theme.textColor, 2000, "and flips back live");
     }
 
     // The placement check runs AFTER the per-screen current resolves in onCompleted: created on this

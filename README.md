@@ -47,7 +47,12 @@ the same widget, transposed:
   wrap-around and optional inverted direction); hi-res/touchpad sub-notches are accumulated.
 - **Click the current desktop** — optional (default off): clicking the highlighted current
   desktop can trigger **Show Desktop**, **Overview**, or **Grid** (it toggles the matching KWin
-  action); clicking any other desktop still just switches to it.
+  action); clicking any other desktop still just switches to it. By default that action can be
+  triggered from **anywhere on the widget**, not just the small current-desktop pill.
+- **Hover background (GNOME-style)** — a rounded highlight fades in behind the whole pager while
+  the pointer is over it, exactly like GNOME's panel workspace indicator, with its own colour and
+  opacity and a slider for the clearance it leaves around the dots on each axis. Can be turned off, and
+  when it is the widget's footprint is unchanged.
 - **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
   and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
   (sourced from the public `TasksModel`).
@@ -146,22 +151,29 @@ Widgets**, then search for "Plasma Gnome Pager".
 ## Configuration
 
 Right-click the widget → **Configure…**. Every setting applies live and persists across a shell
-restart; the defaults give the intended GNOME look out of the box.
+restart; the defaults give the intended GNOME look out of the box. Each page groups its rows under
+headings, and the tables below follow the same grouping and order, so they can be read side by side
+with the dialog.
 
 ### Behavior
 
 | Setting | Default | Description |
 |---|---|---|
+| **Mouse** | | |
 | `enableScroll` | `true` | Scroll over the strip to switch desktops. |
 | `scrollWrap` | `false` | When scrolling past the first/last desktop, wrap around (else clamp). |
 | `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
 | `pillClickAction` | `Nothing` | Action when clicking the highlighted **current** desktop: Show Desktop, Overview, or Grid (it toggles the matching KWin action). Clicking any other desktop still just switches to it. |
+| `pillClickAnywhere` | `true` | Let that action fire from anywhere on the widget (the hovered background), not just the current desktop's pill. Clicking another desktop still switches to it; inert while `pillClickAction` is Nothing. |
+| **Tooltips** | | |
 | `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
 | `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
+| **Desktop management** | | |
 | `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. Disabled (greyed out, entries hidden) while `dynamicWorkspaces` is on, since the two manage desktops in conflicting ways. |
 | `enableRename` | `true` | Offer a "Rename Current Desktop…" entry in the right-click menu. |
 | `dynamicWorkspaces` | `false` | GNOME-style dynamic workspaces: automatically keep exactly one empty desktop at the end (add when the last fills, trim surplus trailing empties). A single **global** setting — synced across all panels/monitors. |
 | `dynamicNamePrefix` | _(empty)_ | Base name for desktops created by dynamic workspaces; the desktop's number is appended (e.g. "Desktop 2"). Empty = the localized default "Desktop". Also synced across panels. |
+| **Animation** | | |
 | `animationDuration` | `0` | Morph animation length in ms; **0 = follow the theme** (`Kirigami.Units.longDuration`, which also inherits "reduce animations"). |
 
 ### Appearance
@@ -169,21 +181,32 @@ restart; the defaults give the intended GNOME look out of the box.
 | Setting | Default | Description |
 |---|---|---|
 | `dotStyle` | `Sliding pill` | Overall look: **Sliding pill** (the reflow pill) or **Filled & ring** (no pill; current = filled circle, others = hollow rings). The pill-size settings apply only to Sliding pill. |
+| **Layout** | | |
 | `singleLine` | `false` | Ignore the virtual-desktop grid **rows** and lay every desktop out in a single line, regardless of KWin's "Rows" setting. Combine with `matchDesktopGrid` to choose the direction (one vertical strip on its own, or one horizontal row with `matchDesktopGrid` on). |
 | `matchDesktopGrid` | `false` | **Vertical panels only:** run the layout **across** the panel instead of down it — for a multi-row grid this mirrors KWin's orientation (rows top-to-bottom, like the stock pager); combined with `singleLine` it gives a single horizontal row. No effect on a horizontal panel. |
-| `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
-| `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
 | `spacingFactor` | `0.5` | Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). |
-| `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
+| **Dots** | | |
+| `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
 | `inactiveOpacity` | `0.45` | Opacity of an inactive (dim) dot. |
 | `hoverOpacity` | `0.8` | Opacity an inactive dot brightens to on hover. |
+| **Active pill** | | |
+| `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
+| `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
+| **Hover background** | | |
+| `showHoverBackground` | `true` | GNOME-style: fade a rounded background in behind the whole pager while the pointer is over it. Sized in GNOME's proportions by default and adjustable per axis with the two sliders below; turning it off restores the original footprint exactly. |
+| `hoverBackgroundOpacity` | `0.12` | Opacity of that hover background; only when `showHoverBackground` is on. |
+| `hoverLengthFactor` | `1.0` | Clearance the background leaves at **each end** of the strip, as a multiple of the pill thickness. |
+| `hoverThicknessFactor` | `1.0` | Clearance it leaves on **each side** across the strip, likewise. The defaults give one whole pill thickness all round (a background 3× the pill thick), matching GNOME; lower them for a tighter highlight. Always capped at the panel thickness. |
+| **Occupied desktops** | | |
 | `showOccupancy` | `false` | Mark desktops that hold windows so they stand out from empty ones. |
 | `occupancyStyle` | `Filled` | How an occupied desktop is marked: **Filled** (the whole dot), **Inner dot** (a dot on top), or **Hollow ring** (a ring on top). Only when `showOccupancy` is on. |
 | `occupiedOpacity` | `0.7` | Opacity of the occupied marker (every style uses it); only when `showOccupancy` is on. |
-| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the three colours below. |
+| **Colors** | | |
+| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the custom colours below. |
 | `activeColor` | `#3daee9` | Custom active-capsule colour (used only when `followThemeColors` is off). |
 | `inactiveColor` | `#eff0f1` | Custom inactive-dot colour (used only when `followThemeColors` is off). |
 | `occupiedColor` | `#3daee9` | Custom occupied-marker colour (used only when `followThemeColors` is off). |
+| `hoverBackgroundColor` | `#eff0f1` | Custom hover-background colour (used only when `followThemeColors` is off; otherwise the theme's text colour). |
 
 The **multi-row grid** and the **per-screen current desktop** are not settings — they
 auto-mirror KWin (System Settings → Virtual Desktops → "Rows", and the per-output desktop
@@ -230,6 +253,9 @@ plasma-gnome-pager/
 
 ## Development
 
+Planning to send a patch? [CONTRIBUTING.md](CONTRIBUTING.md) covers the branch rule, the CI gates,
+and what gets checked on review.
+
 ```bash
 make dev                # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
 make test               # run the widget standalone in a window (shows QML errors in the terminal)
@@ -258,11 +284,11 @@ verified by the manual `make dev` → `make test` → `make restart` loop.
 
 ## Translations
 
-The widget ships **English** (the source language) plus **12 translation catalogs**: Arabic
+The widget ships **English** (the source language) plus **13 translation catalogs**: Arabic
 (`ar`), Simplified Chinese (`zh_CN`), French (`fr`), German (`de`), Greek (`el`), Italian
-(`it`), Japanese (`ja`), European Portuguese (`pt`), Brazilian Portuguese (`pt_BR`), Russian
-(`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are translated through
-`ki18n`; Plasma auto-binds them to the catalog domain
+(`it`), Japanese (`ja`), Polish (`pl`), European Portuguese (`pt`), Brazilian Portuguese
+(`pt_BR`), Russian (`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are
+translated through `ki18n`; Plasma auto-binds them to the catalog domain
 `plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The committed translation source is the
 per-language `po/*.po`; the `*.pot` template is regenerated from the QML by `make messages` and the
 compiled `*.mo` catalogs are generated into `package/contents/locale/<lang>/LC_MESSAGES/` by
@@ -277,9 +303,11 @@ $EDITOR po/ko.po                           # translate each msgstr (Lokalize / P
 make i18n                                  # compile, then `make restart` to see it in the panel
 ```
 
-Open a pull request with the new `po/ko.po` (and, optionally, a `Description[ko]` key in
-`package/metadata.json` so the description in **Add Widgets** is localized too). After changing
-any in-code string, re-run `make messages` and commit the updated `.po` (the `.pot` is gitignored).
+Open a pull request **against `dev`** with the new `po/ko.po` (and, optionally, a
+`Description[ko]` key in `package/metadata.json` so the description in **Add Widgets** is localized
+too). After changing any in-code string, re-run `make messages` and commit the updated `.po` (the
+`.pot` is gitignored). [CONTRIBUTING.md](CONTRIBUTING.md#translations) lists what gets checked on
+review.
 
 ## License
 

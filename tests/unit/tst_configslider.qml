@@ -15,6 +15,7 @@ import QtTest
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui/config" as Config
+import "../../package/contents/ui/logic.js" as Logic
 
 TestCase {
     id: testCase
@@ -131,13 +132,14 @@ TestCase {
             "reserved read-out width is unchanged as the value sweeps from..to (no mid-drag jitter)");
     }
 
-    // The fixed track length (NOT fillWidth) so sliders match across both pages: it renders at trackWidth
-    // (the shared gridUnit*18 metric).
+    // The fixed track length (NOT fillWidth) so sliders match across both pages: it renders at trackWidth,
+    // the SHARED field-column metric ConfigPageBase and ConfigHint measure against too.
     function test_trackWidthIsFixedGridMetric() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 1 });
         const slider = partsOf(cs).slider;
         verify(slider, "found the inner slider");
-        compare(cs.trackWidth, Kirigami.Units.gridUnit * 18, "trackWidth is the shared gridUnit*18 metric");
+        compare(cs.trackWidth, Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS,
+                "trackWidth is the SHARED field-column metric (same one ConfigHint's wrap width uses)");
         tryVerify(() => Math.abs(slider.width - cs.trackWidth) <= 0.5, 1000,
             "slider renders at the fixed track width (not fill-width)");
     }

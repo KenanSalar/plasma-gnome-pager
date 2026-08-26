@@ -313,10 +313,10 @@ how GNOME and the KDE `compact_pager` actually work.
 > mirror for it — so `matchDesktopGrid` (Bool, default OFF, `ConfigAppearance` "Vertical panels:") is an
 > appropriate widget toggle (NOT a duplicate of a System Settings knob). The whole feature is **one derived
 > bool** in `WorkspaceIndicator`: `readonly property bool gridVertical: vertical && !matchDesktopGrid`,
-> substituted for the raw panel `vertical` at the SIX geometry sites — `availableMajor`/`availableCross`,
+> substituted for the raw panel `vertical` at the SEVEN geometry sites — `availableMajor`/`availableCross`,
 > the `Layout.*` size hints, the `strip` size pin (`strip.width`/`height`, see the strip-pin gotcha below),
-> the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment,
-> and `WorkspaceDot.vertical` (the capsule's elongation axis). Truth table: horizontal panel → always
+> the outer `strip` Grid flow, the inner `lineStrip` Grid flow + item alignment, the hover background's
+> `width`/`height` swap, and `WorkspaceDot.vertical` (the capsule's elongation axis). Truth table: horizontal panel → always
 > `false` (toggle inert); vertical + OFF → `true` (transpose preserved, byte-for-byte, every prior test
 > green); vertical + ON → `false` (the grid renders in KWin orientation — rows top-to-bottom, columns
 > left-to-right — exactly like a horizontal panel, matching the stock pager). Applies to **all row counts**
@@ -439,6 +439,109 @@ DBus `createDesktop`/`removeDesktop`/`setDesktopName` + `Plasmoid.contextualActi
 > `tst_indicator_input.qml::{test_clickActiveDotEmitsActiveClicked,test_clickInactiveDotEmitsSwitchRequested,
 > test_scrollNeverEmitsActiveClicked}` + `tst_indicator_morph.qml::test_clickActiveCapsuleEmitsActiveClicked`
 > (the real-mouseClick e2e variant). The live shortcut invocation has side-effects, so it stays e2e-only.
+
+> **Gotcha — hover background: OR the wheel layer with the DOTS' hover; a `HoverHandler` (or the wheel
+> layer alone) is NOT enough.** The GNOME hover background (`showHoverBackground`, default ON, +
+> `hoverBackgroundOpacity` / `hoverBackgroundColor`) is a stadium `Rectangle` behind the WHOLE widget cell,
+> declared as the indicator's FIRST child so it sits under everything; it carries no `MouseArea` of its own,
+> so it can never disturb the dots' hit-testing. Its alpha is the pure
+> `Logic.hoverBackgroundAlpha(enabled, hovered, opacity)` (0 when off/unhovered) and `visible: opacity > 0`
+> genuinely drops it (qml-performance.md); the fade reuses the dot's `Logic.effectiveDuration`, so
+> reduce-animations kills it too. Colour follows `Kirigami.Theme.textColor` (the neutral wash GNOME uses —
+> NOT `highlightColor`, which would muddy the accent-coloured pill in front of it) unless `followThemeColors`
+> is off. The load-bearing part is `hovered`: each `WorkspaceDot`'s `MouseArea` is `hoverEnabled` and sits ON
+> TOP of `wheelArea`, and **a hover-accepting item ends hover delivery to everything below it** — so
+> `wheelArea.containsMouse` alone blinks off every time the pointer crosses a dot, and a parent `HoverHandler`
+> never fires at all (the child ends the recursion before ancestors' handlers run). Instead the indicator ORs
+> the two sources: `hovered = wheelArea.containsMouse || hoveredDotIndex >= 0`, where the delegate's
+> `onHoveredChanged` hands each dot's ALREADY-EXISTING `hovered` alias (`WorkspaceDot.qml`, previously unread)
+> back up through the pure `Logic.nextHoveredIndex(current, index, hovered)`, plus a belt-and-braces
+> `onDesktopIdsChanged` index reset. **`WorkspaceDot` is untouched by this
+> feature.** Known limitation, verified in the harness: **any `desktopIds` change rebuilds every delegate**, the
+> outgoing dot reports its leave, and the fresh dot under a *stationary* pointer reports no hover — so the
+> background goes dark after an add/remove/dynamic-workspace change until the pointer moves. Keying the index by
+> UUID instead does NOT fix it (the delegate is destroyed either way — measured, don't re-try it); only a
+> re-delivered hover event does. Because the OR's two sources flip in SEPARATE notifications, correctness rests
+> on Qt delivering HoverEnter to the new item BEFORE pruning the stale one — reverse that and `hovered` dips
+> inside a single move, restarting the fade (a blink, plus two animation starts per dot crossed). So
+> `test_hoverBackgroundStaysVisibleOverADot` walks gap→dot→adjacent dot→gap and asserts **synchronously**
+> (`fuzzyCompare` right after each `mouseMove`): a settled `tryCompare` cannot see a dip that has already
+> healed. Mutation-checked — dropping `nextHoveredIndex`'s own-index guard (clear on ANY leave) fails the
+> dot→dot step, and passed the old single-hop test. That guard lives in pure JS precisely so it is pinned
+> permanently by `tst_logic.qml::test_nextHoveredIndex` instead of by a hand-run mutation check.
+>
+> **Gotcha — the background's padding IS size math, so it lives in `IndicatorMetrics` with the rest and feeds
+> the SIZE HINTS (BOTH axes); and the CROSS extent grows FROM the strip, it is never an inset OF the cell.** The cell is otherwise EXACTLY the strip
+> (`Layout.maximumWidth == naturalStripLength`, and the panel does not reliably stretch the cross axis either),
+> so a background filling it would hug the dots with no clearance at all. Clearance is
+> `Logic.hoverPadding(lineThickness, factor)` on each side, with the factor a USER SETTING per axis
+> (`hoverLengthFactor` / `hoverThicknessFactor`), **both defaulting to `1.0`** — one whole pill thickness of
+> clearance on every side, making the background **3 × the pill thickness** tall. That value was settled by
+> comparing against GNOME on a real panel, which beats measuring a cropped screenshot: a tight crop shows the
+> pill-relative ratio (≈1.9) but hides the panel height, and it is the *share of panel height* that the eye
+> actually reads. They stay sliders because that share depends on the user's panel. Both factors are taken
+> against the named `lineThickness` (`max(dotSize, pillSize)` — one dot/pill, the SAME quantity `crossThickness`
+> stacks, which is why it is a named metrics property instead of an inline `Math.max` in two files), **not**
+> `crossThickness` itself, so a multi-row grid keeps the same visual margin instead of a multiple of it. The
+> hint-side `hoverPadding`/`hoverCrossPadding` read the **natural** sizes (feeding effective ones into the hints
+> would be a binding loop) and become `paddedStripLength`/`paddedCrossThickness`, which the indicator forwards
+> onto `implicitWidth`/`Height` + `preferred` + `maximum`; the render side reads their twin
+> `hoverCrossPaddingEffective` (same clearance off the RENDERED line thickness, so it shrinks with the dots).
+> They live in the metrics' NATURAL and EFFECTIVE blocks respectively — that split is the only thing stopping
+> `paddedCrossThickness` from being "simplified" onto `crossThickness` and closing the loop `implicitHeight →
+> availableCross → dotSize → lineThickness → implicitHeight`. **The `showHoverBackground ? … : 0` guard is
+> applied ONCE, at the INPUT:** the indicator neutralizes the two FACTORS to `0`
+> (`effHoverLengthFactor`/`effHoverThicknessFactor` — the same idiom `effPillWidthFactor` uses for the ring
+> style), so no derived property can forget it, `IndicatorMetrics` stays a feature-flag-free engine taking plain
+> reals, and the pre-feature geometry comes back byte-for-byte when the background is off.
+>
+> The render-side cross extent is the part that is easy to get wrong: `Logic.hoverCrossExtent(cell,
+> crossThickness, padding) = min(cell, crossThickness + 2 × padding)` — grown from the STRIP and then capped
+> at the cell.
+> An earlier version insetted the CELL instead (`cell − 2 × clamp(padding, …)`), which **collapses the
+> background back onto the strip exactly** whenever the padding exceeds the room available — the
+> "no vertical space" bug (verified against a screenshot: the background measured 8px, identical to the
+> strip). Growing-then-capping also means an oversized panel keeps GNOME's proportion rather than filling the
+> thickness edge-to-edge. It reads the EFFECTIVE sizes so it shrinks in step with scale-to-fit, and feeds only
+> the Rectangle, so there is no loop.
+>
+> Two deliberate asymmetries remain: (1) `Layout.minimum*` stays the BARE floor, so a cramped panel compresses
+> the padding away BEFORE the dots start scaling down; (2) the padding is **not** subtracted from the metrics'
+> `availableMajor`/`availableCross` — with room the panel grants `natural + 2 × padding`, `fitDotSize` lands
+> above natural and `dotSize` clamps to natural, so sizing is unchanged and **the `fitDotSize`/`lineExtent` math
+> is reused verbatim** — the clearance properties sit ALONGSIDE it, never feed it, and `availableMajor`/
+> `availableCross` still carry the raw allocation. What `IndicatorMetrics` gained: the two clearance factors;
+> `naturalLineThickness`/`lineThickness` (which `naturalCrossThickness`/`crossThickness` now REUSE instead of
+> recomputing the same `Math.max` inline); the three paddings; `paddedStripLength`/`paddedCrossThickness`; and
+> `hoverCrossExtent` — capped at **`availableCross`**, the same live allocation the cross fit already reads,
+> rather than the indicator re-deriving `gridVertical ? width : height` a second time. Guarded at the UNIT tier
+> by `tst_indicatormetrics.qml::{test_hoverClearanceOffCollapsesToBareExtents,test_hoverClearanceGrowsTheHintExtents,
+> test_hoverHintClearanceIsGeometryIndependent,test_hoverCrossExtentGrowsThenCaps}` as well as through the indicator.
+>
+> **Gotcha — `pillClickAnywhere` rides the SAME `wheelArea`, and the dots still win.** Rather than a second
+> overlapping `MouseArea` (which would swallow wheel events over the gaps), `wheelArea` gained
+> `hoverEnabled: true`, `acceptedButtons: pillClickAnywhere ? Qt.LeftButton : Qt.NoButton` and
+> `onClicked: activeClicked()`. The flag reaching the indicator is the pure
+> `Logic.pillClickAnywhereActive(anywhere, action)` (`main.qml`), NOT the raw config key: the target is live only
+> when there is an action to fire, so the shipped default (toggle ON + action None) does not make the whole cell
+> swallow left clicks to dispatch a `null` spec. That mirrors the `ConfigGeneral` checkbox greying itself out —
+> the runtime must not disagree with the page. Because it sits BEHIND the dots, clicking a dot still reaches the dot (switch
+> or pill action, unchanged) and only the surrounding cell reaches `onClicked`; the right button is never
+> accepted, so the applet context menu always falls through; and with the toggle off it accepts nothing at
+> all — today's exact pass-through. Scroll is untouched (`handleWheel` only ever emits `switchRequested`).
+> Note the click target is the whole CELL while the background is inset on the cross axis, so the top/bottom
+> panel edge is clickable but unpainted — deliberate (Fitts's law at a screen edge). Guarded by
+> `tst_logic.qml::{test_hoverBackgroundAlpha,test_pillClickAnywhereActive}` +
+> `tst_logic.qml::{test_hoverPadding,test_hoverDefaultsMatchGnomeProportions,test_hoverCrossExtent}` +
+> `tst_indicator_layout.qml::{test_hoverBackgroundPadsMajorAxis,test_hoverBackgroundMatchesGnomeProportions,
+> test_hoverBackgroundPaddingNotInMinimum,test_hoverBackgroundOffKeepsBareHints,test_hoverBackgroundFillsCellStadium,
+> test_hoverBackgroundStadiumVertical,test_hoverBackgroundNeverOverflowsThinPanel,
+> test_hoverBackgroundDoesNotFillAnOversizedPanel,test_hoverClearanceFactorsDriveGeometry,
+> test_hoverClearanceZeroHugsTheStrip,test_hoverHintsAreGeometryIndependent}` +
+> `tst_indicator_content.qml::{test_hoverBackgroundAppearsOnHover,test_hoverBackgroundStaysVisibleOverADot,
+> test_hoverBackgroundDisabledNeverShows,test_hoverBackgroundFollowsThemeColor,test_hoverBackgroundCustomColor}` +
+> `tst_indicator_input.qml::{test_clickBackgroundEmitsActiveClicked,test_clickBackgroundIgnoredWhenDisabled,
+> test_clickAnywhereDoesNotBlockDotClicks,test_scrollStillWorksWithClickAreaEnabled}`. The config pages are e2e-only.
 
 > **Rename — a public `setDesktopName(id, name)` DBus write + a `PlasmaCore.Dialog`, NOT
 > `Kirigami.PromptDialog`.** "Rename Current Desktop…" is a `Plasmoid.contextualAction` (gated by the
@@ -705,7 +808,10 @@ behaviour — `enableScroll`, `scrollWrap`, `invertScroll` (flip the wheel-direc
 mapping), `pillClickAction` (what clicking the ALREADY-CURRENT desktop's pill does — a
 `ConfigGeneral` combo whose index mirrors `Logic.PILL_CLICK_ACTION`: `0 = None` (default off, a
 no-op), `1 = Show Desktop`, `2 = Overview`, `3 = Grid`; the three actions TOGGLE a KWin global
-shortcut — see the pill-click gotcha below), `showTooltips`, `showWindowList` (the window list in the
+shortcut — see the pill-click gotcha below), `pillClickAnywhere` (Bool, default ON — fire that action from
+ANYWHERE on the widget rather than only the current pill; see the hover-background gotcha below.
+`ConfigGeneral` greys it while `pillClickAction` is None, and `Logic.pillClickAnywhereActive` enforces the same
+gate at runtime), `showTooltips`, `showWindowList` (the window list in the
 tooltip; only applies when `showTooltips` is on — the `ConfigGeneral` checkbox is `enabled:` off it),
 `enableAddRemove`, `enableRename` (the "Rename Current Desktop…" menu entry), `dynamicWorkspaces`
 (GNOME-style auto add/remove of one empty trailing desktop, default off; GLOBAL across panels via
@@ -722,11 +828,16 @@ line horizontal — see the grid-orientation gotcha above; a presentation toggle
 `dotSize`, `pillSize` (active-pill thickness, sized independently of the dots; `0 =
 auto = match the dots`), `spacingFactor`, `pillWidthFactor` (pill length as a multiple of the PILL
 thickness — "× pill"; both pill keys are ignored/greyed in the Filled & ring style),
-`inactiveOpacity`, `hoverOpacity`, `showOccupancy` (occupied-dot indicator,
+`inactiveOpacity`, `hoverOpacity`, `showHoverBackground` (GNOME-style hover background behind the WHOLE
+widget cell, default ON) + `hoverBackgroundOpacity` (its opacity) + `hoverLengthFactor` / `hoverThicknessFactor`
+(its clearance around the strip — extra length at EACH end / extra thickness on EACH side, both × the pill
+thickness; both default to 1.0, which matches GNOME side by side) — see the hover-background gotcha below,
+`showOccupancy` (occupied-dot indicator,
 default off — mark desktops that hold windows) + `occupiedOpacity` (marker opacity, all styles) +
 `occupancyStyle` (Filled/InnerDot/Ring, a `ConfigAppearance` combo whose index mirrors `Logic.OCCUPANCY`),
 `followThemeColors`, `activeColor`, `inactiveColor`, `occupiedColor` (the occupied-marker colour, used
-when not following the theme). The settings UI is two files that must agree with the schema:
+when not following the theme), `hoverBackgroundColor` (the hover-background colour, likewise; the theme's
+TEXT colour — not the accent — when following). The settings UI is two files that must agree with the schema:
 - `package/contents/config/config.qml` — `ConfigModel` listing the settings categories
   (Behavior, Appearance).
 - `package/contents/ui/config/*.qml` — the settings pages (`ConfigGeneral`, `ConfigAppearance`),
@@ -734,15 +845,20 @@ when not following the theme). The settings UI is two files that must agree with
   entry exactly. Both pages subclass the shared **`ConfigPageBase.qml`** (a `Kirigami.ScrollablePage`
   — on robustness.md's allowlist; the stock `KCM.SimpleKCM` is just a subclass) so the dialog renders
   the standard KDE title header + spacing + scrolling AND each page gets the Defaults header action
-  for free (see below). Every numeric metric (sizes, ratios, opacities, duration — including the
-  integer keys) uses the shared `ConfigSlider.qml`; only the colours use `org.kde.kquickcontrols`
+  for free (see below). Four reusable controls carry the repeated rows: **`ConfigSlider.qml`** (every
+  numeric metric — sizes, ratios, opacities, duration, including the integer keys),
+  **`ConfigPercentSlider.qml`** (a `ConfigSlider` preset for the `0..1` opacity keys: one home for the
+  range, the 1% step and the `NN%` read-out), **`ConfigHint.qml`** (the dimmed wrapped explanatory line
+  under a row, pinning its wrap width to the field column) and **`ConfigSection.qml`** (the heading that
+  groups a run of rows — see the section gotcha below). Only the colours use `org.kde.kquickcontrols`
   `ColorButton` — a public module that is NOT on robustness.md's allowlist but is acceptable here
   **only because a config page is lazy-loaded** (instantiated by the settings dialog, never by the
   always-on widget), so a break there cannot kill the running pager. The config **pages**
   (`ConfigGeneral`/`ConfigAppearance`/`config.qml`) are **e2e-only** (the dialog needs
   `org.kde.plasma.configuration`), so they are not in the headless test harness — `make lint` covers
-  them, but verify behaviour in-shell. The shared `ConfigSlider` control is the exception: being
-  Kirigami-only it **is** headless-unit-tested by `tests/unit/tst_configslider.qml`.
+  them, but verify behaviour in-shell. The four shared controls are the exception: being Kirigami-only they
+  **are** headless-unit-tested, by
+  `tests/unit/tst_{configslider,configpercentslider,confighint,configsection}.qml`.
 - **Defaults button:** the Plasma applet config dialog footer is only Apply/Discard/Cancel — it has
   **no** Defaults button. `ConfigPageBase` adds one **once** as a header `Kirigami.Action` (gated by
   `root.isModified`, firing `root.defaultsRequested()`) **and** owns the whole contract off a single
@@ -757,6 +873,25 @@ when not following the theme). The settings UI is two files that must agree with
   config *pages* live in `contents/ui/config/` while the schema/categories live in
   `contents/config/`. Mixing this up yields an empty settings dialog.
 
+> **Gotcha — group rows with `ConfigSection`, and DON'T also label the group's first control.** Both
+> pages are long (Behavior 12 keys, Appearance 21), so rows are grouped under headings rather than run
+> flat. A heading is `ConfigSection { title: i18n("…") }` — a bare `Item` carrying
+> `Kirigami.FormData.isSection: true` + `Kirigami.FormData.label`, which `Kirigami.FormLayout` promotes
+> to a `Heading` (`type: Primary`, `level: 3`) spanning both columns with `largeSpacing * 2` above it.
+> Three things are easy to get wrong: (1) **the carrier must be an `Item`** — upstream documents
+> `isSection` as unreliable on arbitrary controls, and a `Kirigami.Separator` would draw a rule under
+> every title (Kirigami's own source comment prefers the whitespace); (2) **a title-less
+> `ConfigSection {}` is just a gap** — with an empty label FormLayout falls through to `smallSpacing`,
+> which is exactly what the old anonymous spacer before the colours did; (3) **headings are CENTRED**
+> over the two columns (`effectiveLayout()` returns `Qt.AlignHCenter` for a section, unconditionally),
+> not left-aligned to the label column — that is Kirigami's design, not a bug to "fix" locally. Grouping
+> used to be faked by putting a label like `"Mouse:"`/`"Colors:"` on the group's FIRST control; with a
+> real heading that label is a duplicated word, so the group's opening control now carries **no**
+> `Kirigami.FormData.label` and the heading names the group. A control that needs its own label keeps it
+> (`"Click current desktop:"`, `"Pill length:"`). Appearance leads with the ungrouped `dotStyle` row on
+> purpose — it selects which groups below even apply. Guarded by `tests/unit/tst_configsection.qml`
+> (the attached flag + the `title` → label alias); the rendered heading is e2e-only.
+
 > **Gotcha — reserve the value-label width AND fix the track width; the slider is NOT `fillWidth`.**
 > `ConfigSlider.qml` makes two coupled layout decisions. **(1) Reserve the read-out width** or the
 > slider jitters: the value `Label`'s implicit width changes with the value (`"45%" → "100%"`, and
@@ -767,9 +902,10 @@ when not following the theme). The settings UI is two files that must agree with
 > here is monotonic in string width with magnitude AND the sentinel sliders put their special text at
 > `from` (`0 → "Default"`), reserving over the two extremes bounds every value between them (no
 > separate `widestText` to keep in sync). **(2) Fix the track width**: the `Slider` is a FIXED
-> `Layout.preferredWidth == Layout.minimumWidth == ConfigSlider.trackWidth` (the named constant
-> `Kirigami.Units.gridUnit * 18`; `ConfigPageBase.fieldWidth` is pinned to the same metric so non-slider
-> fields line up) — it is the value **`Label`** that is
+> `Layout.preferredWidth == Layout.minimumWidth == ConfigSlider.trackWidth`
+> (`Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS` — ONE home for the metric, since
+> `ConfigPageBase.fieldWidth` (non-slider fields) and `ConfigHint`'s wrap width must line up with it and used
+> to repeat the literal) — it is the value **`Label`** that is
 > `Layout.fillWidth` (and right-aligned), NOT the track. A `fillWidth` track stretches to its
 > `FormLayout` field column, which the Behavior page's long checkbox labels widen well beyond the
 > slider-only Appearance page — so the sliders rendered *different lengths* across the two pages.
@@ -856,9 +992,9 @@ globals don't exist (see "Config flow"/the window-list section). So extraction s
   `.po` (`msgfmt --check`) into the package. Commit only the changed `.po` (the `.pot` is ignored).
   Add a language by running `make messages` (to regenerate the local `.pot`), then `msginit
   --locale=<ll>` from it, translating, and `make i18n` (README "Translations" has the recipe). Shipped: English (source) +
-  12 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `ar`, `zh_CN`, `ru`,
-  `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for `zh_CN`/`ja`,
-  3 for `ru`, 6 for `ar`).
+  13 translation catalogs (`de`, `fr`, `es`, `el`, `it`, `tr`, `pt`, `pt_BR`, `pl`, `ar`, `zh_CN`,
+  `ru`, `ja`) — note `pt`/`pt_BR` are separate catalogs, and plural-form counts vary (1 for
+  `zh_CN`/`ja`, 3 for `ru`/`pl`, 6 for `ar`).
 - **`metadata.json` Name/Description** are translated by **language-suffixed JSON keys**
   (`Description[de]`), **not** the `.mo` catalog. `Name` stays the product proper-noun.
 - **The qmllint `i18n` "unqualified" warning is NOT a translation concern.** It fired because the

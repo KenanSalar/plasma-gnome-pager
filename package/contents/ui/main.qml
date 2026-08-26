@@ -39,6 +39,8 @@ PlasmoidItem {
     readonly property bool invertScroll: Plasmoid.configuration.invertScroll ?? Logic.DEFAULTS.invertScroll
     // Action when the current desktop's pill is clicked (default None); see Logic.PILL_CLICK_ACTION.
     readonly property int pillClickAction: Plasmoid.configuration.pillClickAction ?? Logic.DEFAULTS.pillClickAction
+    // Fire that action from anywhere on the widget rather than only the current desktop's pill.
+    readonly property bool pillClickAnywhere: Plasmoid.configuration.pillClickAnywhere ?? Logic.DEFAULTS.pillClickAnywhere
     readonly property bool showTooltips: Plasmoid.configuration.showTooltips ?? Logic.DEFAULTS.showTooltips
     readonly property bool showWindowList: Plasmoid.configuration.showWindowList ?? Logic.DEFAULTS.showWindowList
     readonly property bool enableAddRemove: Plasmoid.configuration.enableAddRemove ?? Logic.DEFAULTS.enableAddRemove
@@ -64,6 +66,12 @@ PlasmoidItem {
     readonly property real pillWidthFactor: Plasmoid.configuration.pillWidthFactor ?? Logic.DEFAULTS.pillWidthFactor
     readonly property real inactiveOpacity: Plasmoid.configuration.inactiveOpacity ?? Logic.DEFAULTS.inactiveOpacity
     readonly property real hoverOpacity: Plasmoid.configuration.hoverOpacity ?? Logic.DEFAULTS.hoverOpacity
+    // GNOME-style rounded background behind the whole pager while hovered.
+    readonly property bool showHoverBackground: Plasmoid.configuration.showHoverBackground ?? Logic.DEFAULTS.showHoverBackground
+    readonly property real hoverBackgroundOpacity: Plasmoid.configuration.hoverBackgroundOpacity ?? Logic.DEFAULTS.hoverBackgroundOpacity
+    // How much clearance it leaves around the strip, each as a multiple of the pill thickness.
+    readonly property real hoverLengthFactor: Plasmoid.configuration.hoverLengthFactor ?? Logic.DEFAULTS.hoverLengthFactor
+    readonly property real hoverThicknessFactor: Plasmoid.configuration.hoverThicknessFactor ?? Logic.DEFAULTS.hoverThicknessFactor
     // Occupied-dot indicator (default OFF): mark desktops that hold windows (reuses the occupancy snapshot below).
     // occupancyStyle picks HOW (Filled/InnerDot/Ring — see Logic.OCCUPANCY); occupiedOpacity applies to every style.
     readonly property bool showOccupancy: Plasmoid.configuration.showOccupancy ?? Logic.DEFAULTS.showOccupancy
@@ -73,6 +81,7 @@ PlasmoidItem {
     readonly property color activeColor: Plasmoid.configuration.activeColor ?? Logic.DEFAULTS.activeColor
     readonly property color inactiveColor: Plasmoid.configuration.inactiveColor ?? Logic.DEFAULTS.inactiveColor
     readonly property color occupiedColor: Plasmoid.configuration.occupiedColor ?? Logic.DEFAULTS.occupiedColor
+    readonly property color hoverBackgroundColor: Plasmoid.configuration.hoverBackgroundColor ?? Logic.DEFAULTS.hoverBackgroundColor
 
     // A pager renders inline. Plasma instantiates NO representation unless a fullRepresentation exists, so
     // the dot strip IS the full representation, forced inline via preferredRepresentation.
@@ -96,6 +105,14 @@ PlasmoidItem {
         pillWidthFactor: root.pillWidthFactor
         inactiveOpacity: root.inactiveOpacity
         hoverOpacity: root.hoverOpacity
+        showHoverBackground: root.showHoverBackground
+        hoverBackgroundOpacity: root.hoverBackgroundOpacity
+        hoverLengthFactor: root.hoverLengthFactor
+        hoverThicknessFactor: root.hoverThicknessFactor
+        hoverBackgroundColor: root.hoverBackgroundColor
+        // Live only when there IS an action to fire, so the default (Nothing) never installs a
+        // whole-widget click grabber — mirrors the ConfigGeneral checkbox greying itself out.
+        pillClickAnywhere: Logic.pillClickAnywhereActive(root.pillClickAnywhere, root.pillClickAction)
         showOccupancy: root.showOccupancy
         desktopOccupancy: root.screenOccupancy   // PER-SCREEN: only mark dots for windows on THIS pager's monitor
         occupiedOpacity: root.occupiedOpacity
