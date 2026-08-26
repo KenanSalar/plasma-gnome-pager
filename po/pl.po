@@ -63,7 +63,7 @@ msgid ""
 msgstr ""
 "Ignoruj rzędy siatki z Ustawień Systemowych i ułóż każdy z pulpitów w jednej "
 "linii "
-"wzdłuż panelu (pojedynczy pionowy pasek w panelu pionowym)."
+"wzdłuż panelu (pojedynczy pionowy pasek na panelu pionowym)."
 
 #: package/contents/ui/config/ConfigAppearance.qml:115
 #, kde-format
@@ -129,12 +129,12 @@ msgstr "%1× kropka"
 #: package/contents/ui/config/ConfigAppearance.qml:163
 #, kde-format
 msgid "Pill length:"
-msgstr "Szerokość kapsułki:"
+msgstr "Długość kapsułki:"
 
 #: package/contents/ui/config/ConfigAppearance.qml:169
 #, kde-format
 msgid "%1× pill"
-msgstr "%1× pigułka"
+msgstr "%1× kapsułki"
 
 #: package/contents/ui/config/ConfigAppearance.qml:174
 #, kde-format
@@ -283,12 +283,12 @@ msgstr "Menu:"
 #: package/contents/ui/config/ConfigGeneral.qml:103
 #, kde-format
 msgid "Add and remove desktops from the right-click menu"
-msgstr "Dodaj i usuń pulpity za pomocą menu kontekstowego"
+msgstr "Dodawaj i usuwaj pulpity z menu kontekstowego"
 
 #: package/contents/ui/config/ConfigGeneral.qml:109
 #, kde-format
 msgid "Rename the current desktop from the right-click menu"
-msgstr "Zmień nazwę bieżącego pulpitu z menu kontekstowego"
+msgstr "Zmieniaj nazwę bieżącego pulpitu z menu kontekstowego"
 
 #: package/contents/ui/config/ConfigGeneral.qml:113
 #, kde-format
@@ -306,7 +306,7 @@ msgid ""
 "While on, desktops are managed automatically — the menu Add/Remove options "
 "are disabled."
 msgstr ""
-"Gdy aktywne, pulpity zarządzane są automatycznie — opcje Dodań/Usuń w menu są "
+"Gdy aktywne, pulpity zarządzane są automatycznie — opcje Dodaj/Usuń w menu są "
 "wyłączone."
 
 #: package/contents/ui/config/ConfigGeneral.qml:128
@@ -338,27 +338,27 @@ msgstr[2] "%1 ms"
 #: package/contents/ui/config/ConfigPageBase.qml:52
 #, kde-format
 msgid "Defaults"
-msgstr "Domyślne"
+msgstr "Przywróć domyślne"
 
 #: package/contents/ui/main.qml:200
 #, kde-format
 msgid "New Desktop"
-msgstr "Nowy Pulpit"
+msgstr "Nowy pulpit"
 
 #: package/contents/ui/main.qml:262
 #, kde-format
 msgid "Add Desktop"
-msgstr "Dodaj Pulpit"
+msgstr "Dodaj pulpit"
 
 #: package/contents/ui/main.qml:270
 #, kde-format
 msgid "Remove Last Desktop"
-msgstr "Usuń Ostatni Pulpit"
+msgstr "Usuń ostatni pulpit"
 
 #: package/contents/ui/main.qml:278
 #, kde-format
 msgid "Rename Current Desktop…"
-msgstr "Zmień Nazwę Bieżącego Pulpitu…"
+msgstr "Zmień nazwę bieżącego pulpitu…"
 
 #: package/contents/ui/main.qml:286
 #, kde-format
@@ -400,15 +400,15 @@ msgstr[2] "…i jeszcze %1 innych okien"
 msgctxt "@info:tooltip start of list"
 msgid "%1 Window:"
 msgid_plural "%1 Windows:"
-msgstr[0] "%1 Okno:"
-msgstr[1] "%1 Okna:"
-msgstr[2] "%1 Okien:"
+msgstr[0] "%1 okno:"
+msgstr[1] "%1 okna:"
+msgstr[2] "%1 okien:"
 
 #: package/contents/ui/WindowAggregator.qml:194
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "%1 Minimized Window:"
 msgid_plural "%1 Minimized Windows:"
-msgstr[0] "%1 Zminimalizowane Okno:"
-msgstr[1] "%1 Zminimalizowane Okna:"
-msgstr[2] "%1 Zminimalizowanych Okien:"
+msgstr[0] "%1 zminimalizowane okno:"
+msgstr[1] "%1 zminimalizowane okna:"
+msgstr[2] "%1 zminimalizowanych okien:"
