@@ -624,19 +624,22 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   no-op regroup (an empty/absent roles list is Qt's "all changed" → still rebuilds) — plus the
 >   Instantiator's `onObjectAdded`/`onObjectRemoved` + `virtualDesktopInfo.desktopIdsChanged`) snapshots
 >   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
->   `subText`. **`relevantRoles` is conditional on an injected `windowListActive` bool (`=
->   showTooltips && showWindowList`):** the aggregator can be live purely for dynamic-workspace
->   occupancy, and occupancy reads none of the title/minimised state, so when the window list is off
->   the set drops `Qt.DisplayRole` + `IsMinimized` (leaving the occupancy roles `VirtualDesktops`/
->   `IsOnAllVirtualDesktops`/`IsWindow`/`SkipPager`/`ScreenGeometry` — the last in BOTH branches, for
->   per-screen occupancy) — title-rename and minimise-toggle churn then no
+>   `subText`. **Each of the three features is injected as a plain bool — `windowListActive` (`= showTooltips
+>   && showWindowList`), `occupancyActive` (`= showOccupancy`), `dynamicActive` (`= dynamicWorkspaces`) — and
+>   BOTH `relevantRoles` AND `rebuild()`'s reductions are built per ACTIVE feature**, so an off feature costs
+>   neither a rebuild trigger nor an O(windows x desktops) pass nothing reads (its array stays `[]`). The role
+>   set: `VirtualDesktops`/`IsOnAllVirtualDesktops`/`IsWindow` gate desktop membership for every consumer;
+>   `Qt.DisplayRole` + `IsMinimized` are tooltip-only; `SkipPager` is occupancy-only (either consumer); and
+>   `ScreenGeometry` is per-screen-occupancy-only, so window/panel monitor-moves wake nothing when the
+>   occupied-dot indicator is off. Concretely: the aggregator can be live purely for occupancy, which reads
+>   none of the title/minimised state, so with the window list off title-rename and minimise-toggle churn no
 >   longer wakes a rebuild whose tooltip output `main.qml` would discard, and `rebuild()` skips building
 >   the HTML `<ul>`s entirely (leaves `desktopTooltips` `[]`). Toggling the list at runtime flips
 >   `windowListActive`, and `onWindowListActiveChanged` forces the one rebuild that repopulates/clears
->   the tooltips. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` (GLOBAL,
+>   the tooltips; `onOccupancyActiveChanged`/`onDynamicActiveChanged` do the same for their arrays. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` (GLOBAL,
 >   all monitors) for the dynamic-workspaces controller AND `Logic.computeDesktopOccupancyForScreen` →
 >   `screenOccupancy` (PER-SCREEN, this monitor — for the occupied-dot indicator; see the per-screen
->   occupancy gotcha below) — one model, THREE outputs. All three
+>   occupancy gotcha below) — one model, THREE outputs, each computed only when its feature is on. All three
 >   outputs are reassigned **compare-before-assign** (`Logic.arraysShallowEqual`): a QML `var`/object
 >   property notifies on every reassignment to a fresh reference (which each freshly-built array is —
 >   no contents compare), so keeping the old reference when contents match is what stops an identical
@@ -671,6 +674,12 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
 > before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings),
 > and snapshot `ScreenGeometry` (a `QRect` role) into a plain `{x,y,width,height}` so `logic.js` stays Plasma-free.
+> **`windowScreen` must be `var`, NOT `rect`:** rows with no output yet read `ScreenGeometry` back **undefined**,
+> which a `rect` property refuses — it logs `Unable to assign [undefined] to QRectF` on every such row (in the
+> DEFAULT config, since the window list loads the aggregator) and keeps its PREVIOUS value, i.e. a stale monitor.
+> `var` lets it be undefined, so `rebuild()` emits `screen: null` and the fold degrades to global. Note the 0x0
+> rect a failed `rect` binding leaves behind is NOT what breaks: `Logic.isValidScreenRect` rejects it exactly like
+> `null` (`tst_logic.qml` pins both) — the damage is the log noise plus the stale-rect retention.
 > Guarded by `tst_logic.qml::{test_windowListMaximum,test_sanitizeHtml,test_groupWindowsByDesktop,test_dataChangeAffectsRoles,test_arraysShallowEqual}` +
 > `tst_indicator_content.qml::test_dotsReceiveTooltipText` (and short-array/multi-row variants) +
 > `tst_workspacedot.qml::{test_tooltipShowsSubText,test_tooltipTextFormatIsRichText}`. The aggregator

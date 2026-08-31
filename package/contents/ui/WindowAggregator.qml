@@ -52,7 +52,11 @@ Item {
         readonly property bool minimized: model.IsMinimized
         readonly property bool isWindow: model.IsWindow   // false for launchers / startup tasks
         readonly property bool skipPager: model.SkipPager // hidden from pagers — never occupies a desktop
-        readonly property rect windowScreen: model.ScreenGeometry  // rect of the OUTPUT this window is on (per-screen occupancy)
+        // `var`, not `rect`: some rows have no output yet and read the role back undefined, which a `rect`
+        // refuses — it logs "Unable to assign [undefined] to QRectF" per row and keeps its PREVIOUS value
+        // (a stale monitor). `var` takes the undefined, so rebuild() passes screen: null and the occupancy
+        // fold degrades to global (the "never drop a window" contract).
+        readonly property var windowScreen: model.ScreenGeometry   // rect of the OUTPUT this window is on (per-screen occupancy)
     }
 
     TaskManager.ActivityInfo {
