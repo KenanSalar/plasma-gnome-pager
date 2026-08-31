@@ -2,7 +2,7 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [dev]
+    branches: [main]
   workflow_dispatch:
 
 # One in-flight run per PR branch; a new push supersedes the old run.
