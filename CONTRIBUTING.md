@@ -18,11 +18,10 @@ translations, and small bug fixes don't need this — just send them.
 What I'm likely to decline is anything that widens the widget past being a pager: it shows virtual
 desktops and switches between them, and window management or system monitoring belongs elsewhere.
 
-## Where pull requests go
+## Pull requests
 
-**Open your PR against `main`.** It's the default branch and where everything is integrated, so
-GitHub's default base is the right one and there's nothing to change. Landing on `main` ships
-nothing on its own — a release is a pushed `v*.*.*` tag, which is a separate, deliberate act.
+Open yours against `main` — it's the only long-lived branch, and merging ships nothing on its own:
+a release is a pushed `v*.*.*` tag.
 
 Branch names follow the type of the work — `feat/`, `fix/`, `refactor/`, `perf/`, `docs/` — with
 the issue number in front of the slug where there is one, like
