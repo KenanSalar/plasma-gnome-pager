@@ -1,22 +1,28 @@
 name: Publish
 
-# Cut a draft GitHub Release whenever a version bump lands on main. The dev -> main merge is the
-# push that fires this (PRs into main are gated by enforce-pr-source.yml). package/metadata.json's
-# .KPlugin.Version is the single source of truth -> tag v<Version>. The release is created as a
-# DRAFT carrying the built .plasmoid + GitHub's auto-generated notes; you edit the description and
-# publish manually, which is what actually creates the tag. The KDE Store upload is a separate
-# manual step (the store has no stable upload API).
+# Cut a draft GitHub Release from a pushed `v*.*.*` tag. package/metadata.json's .KPlugin.Version
+# is the single source of truth and the tag has to agree -- the gate below fails the run on a
+# mismatch, so the bump and the tag are one act rather than two that can drift. The release is
+# created as a DRAFT carrying the built .plasmoid + GitHub's auto-generated notes; you edit the
+# description and publish manually, which is the QA step. The KDE Store upload is separate and
+# manual (the store has no stable upload API).
+#
+# Releasing: bump .KPlugin.Version on main, push v<Version>, wait for the draft, publish it.
+# Landing a PR on main ships nothing on its own.
 on:
   push:
-    branches: [main]
+    tags: ['v*.*.*']
   workflow_dispatch:
 
-# One publish run per ref; never cancel a release mid-upload.
+# One group for every release run, keyed on nothing: the shared resource is the draft, not the ref
+# that reached it, so a tag push racing a dispatch of the same version would otherwise be two
+# groups clobbering one draft. Never cancel a run mid-upload.
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish
   cancel-in-progress: false
 
-# Write is needed to create the release and (on publish) the tag. Nothing else.
+# Write is needed to create the release, and to create the tag at publish time on the dispatch
+# path (where the tag doesn't exist yet). Nothing else.
 permissions:
   contents: write
 
@@ -39,10 +45,21 @@ jobs:
       #   existing release published  -> skip    (bump the version to start a new cycle)
       - name: Resolve version and release state
         id: gate
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           VERSION=$(jq -r '.KPlugin.Version' package/metadata.json)
           ID=$(jq -r '.KPlugin.Id' package/metadata.json)
           TAG="v${VERSION}"
+          # The tag fires the run, but metadata.json is what the .plasmoid's filename and the
+          # installed package's version carry, so a mismatch would ship a package naming a
+          # different release. Caught here rather than drafted and published.
+          if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "$TAG" ]; then
+            echo "::error::Tag ${REF_NAME} does not match package/metadata.json's ${TAG}."
+            echo "::error::Fix .KPlugin.Version on main, then re-point the tag."
+            exit 1
+          fi
           {
             echo "version=${VERSION}"
             echo "id=${ID}"
@@ -73,8 +90,9 @@ jobs:
         if: steps.gate.outputs.mode != 'skip'
         run: make package VERSION="${{ steps.gate.outputs.version }}"
 
-      # New version: open the draft at this commit with auto-generated notes + the .plasmoid. The tag
-      # is only created when you publish the draft (as an admin -> the main ruleset's bypass applies).
+      # New version: open the draft at the tagged commit with auto-generated notes + the .plasmoid.
+      # --target is ignored once the tag exists (the push path); it's what keeps a dispatch-created
+      # draft pointed at the commit it was built from rather than main's HEAD at publish time.
       - name: Create draft release
         if: steps.gate.outputs.mode == 'create'
         run: |
@@ -85,7 +103,7 @@ jobs:
             --generate-notes \
             "${{ steps.gate.outputs.plasmoid }}"
 
-      # Draft already exists (e.g. a follow-up push before you publish): swap in the rebuilt
+      # Draft already exists (e.g. the tag was re-pointed before you published): swap in the rebuilt
       # .plasmoid but DO NOT touch the description -- it may already be hand-edited.
       - name: Refresh draft asset
         if: steps.gate.outputs.mode == 'update'

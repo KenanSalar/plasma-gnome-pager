@@ -6,7 +6,7 @@ loop](README.md#development) and the [translation recipe](README.md#translations
 
 If you'd like to help but don't write QML: translate the widget into a language it doesn't ship
 yet, send a screenshot for the README, or reproduce someone else's bug report. Multi-monitor,
-vertical panels, and fractional scaling are where this widget breaks — someone running `dev` on
+vertical panels, and fractional scaling are where this widget breaks — someone running `main` on
 hardware I can't test is worth more to me than most patches.
 
 ## Before you build something
@@ -18,12 +18,10 @@ translations, and small bug fixes don't need this — just send them.
 What I'm likely to decline is anything that widens the widget past being a pager: it shows virtual
 desktops and switches between them, and window management or system monitoring belongs elsewhere.
 
-## Where pull requests go
+## Pull requests
 
-**Open your PR against `dev`, not `main`.** `main` is the release branch — a push to it cuts a
-draft release — so CI fails any PR into it that doesn't come from `dev` or a `hotfix/*` branch.
-GitHub defaults a fork's PR to `main`, so this is easy to get wrong; if it happens, click **Edit**
-next to the PR title and change the base. Nothing is lost.
+Open yours against `main` — it's the only long-lived branch, and merging ships nothing on its own:
+a release is a pushed `v*.*.*` tag.
 
 Branch names follow the type of the work — `feat/`, `fix/`, `refactor/`, `perf/`, `docs/` — with
 the issue number in front of the slug where there is one, like

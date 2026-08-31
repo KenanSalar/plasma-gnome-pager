@@ -253,7 +253,7 @@ plasma-gnome-pager/
 
 ## Development
 
-Planning to send a patch? [CONTRIBUTING.md](CONTRIBUTING.md) covers the branch rule, the CI gates,
+Planning to send a patch? [CONTRIBUTING.md](CONTRIBUTING.md) covers the branch naming, the CI gates,
 and what gets checked on review.
 
 ```bash
@@ -303,7 +303,7 @@ $EDITOR po/ko.po                           # translate each msgstr (Lokalize / P
 make i18n                                  # compile, then `make restart` to see it in the panel
 ```
 
-Open a pull request **against `dev`** with the new `po/ko.po` (and, optionally, a
+Open a pull request **against `main`** with the new `po/ko.po` (and, optionally, a
 `Description[ko]` key in `package/metadata.json` so the description in **Add Widgets** is localized
 too). After changing any in-code string, re-run `make messages` and commit the updated `.po` (the
 `.pot` is gitignored). [CONTRIBUTING.md](CONTRIBUTING.md#translations) lists what gets checked on

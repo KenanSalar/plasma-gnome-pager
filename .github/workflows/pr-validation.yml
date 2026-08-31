@@ -2,10 +2,12 @@ name: PR Validation
 
 on:
   pull_request:
-    branches: [dev]
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
-# One in-flight run per PR branch; a new push supersedes the old run.
+# One in-flight run per PR branch, and one per push to main; a new push supersedes the old run.
 concurrency:
   group: pr-validation-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
