@@ -70,7 +70,9 @@ the same widget, transposed:
   the windows and the surplus empties are removed. Auto-created desktops are named from a
   configurable prefix (`"Desktop 2"`, `"Desktop 3"`, …). It's a single **global** behaviour: the
   toggle and the prefix sync across every panel/monitor, and only one pager actually manages the
-  desktops (no double-create), all through KWin's public DBus — no KWin script required.
+  desktops (no double-create), all through KWin's public DBus — no KWin script required. Activity-aware:
+  a desktop that holds windows in *any* activity is kept, since KWin shares one desktop set across all
+  activities.
 - **Accessible** — each dot is exposed as a named, pressable button (`Accessible.role` / `name` /
   press action), so screen readers (Orca) announce each desktop and can activate it.
 - **Works everywhere a pager goes** — **a vertical side panel behaves identically to a

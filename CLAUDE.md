@@ -616,30 +616,35 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   `(showTooltips && showWindowList) || dynamicWorkspaces` (so the always-on model cost is **zero**
 >   when neither the window list nor dynamic workspaces needs it — qml-performance.md) and loads the
 >   `WindowAggregator` Item (shared by both features) holding ONE unfiltered
->   `TasksModel { groupMode: GroupDisabled; filterByActivity: true }` (one row per window; current
->   activity only). An `Instantiator` materialises the rows so role values can be read **by name**
+>   `TasksModel { groupMode: GroupDisabled; filterByActivity: false }` (one row per window, across EVERY
+>   activity — the current-activity filter is pure JS, see the activities gotcha under Dynamic workspaces).
+>   An `Instantiator` materialises the rows so role values can be read **by name**
 >   (a C++ `QAbstractItemModel` has no `model.get(i)`); a debounced `Qt.callLater(rebuild)` (driven by
 >   the model's `dataChanged` — **role-filtered** via `Logic.dataChangeAffectsRoles(roles, relevantRoles)`
 >   so the high-frequency `IsActive` focus churn KWin emits on every window-focus change never triggers a
 >   no-op regroup (an empty/absent roles list is Qt's "all changed" → still rebuilds) — plus the
->   Instantiator's `onObjectAdded`/`onObjectRemoved` + `virtualDesktopInfo.desktopIdsChanged`) snapshots
+>   Instantiator's `onObjectAdded`/`onObjectRemoved` + `virtualDesktopInfo.desktopIdsChanged` +
+>   `ActivityInfo.currentActivityChanged`, the last only while a current-activity consumer is on) snapshots
 >   the rows, calls the pure grouping, then wraps each result with `i18ncp`/`i18nc` into the HTML
 >   `subText`. **Each of the three features is injected as a plain bool — `windowListActive` (`= showTooltips
 >   && showWindowList`), `occupancyActive` (`= showOccupancy`), `dynamicActive` (`= dynamicWorkspaces`) — and
 >   BOTH `relevantRoles` AND `rebuild()`'s reductions are built per ACTIVE feature**, so an off feature costs
 >   neither a rebuild trigger nor an O(windows x desktops) pass nothing reads (its array stays `[]`). The role
 >   set: `VirtualDesktops`/`IsOnAllVirtualDesktops`/`IsWindow` gate desktop membership for every consumer;
->   `Qt.DisplayRole` + `IsMinimized` are tooltip-only; `SkipPager` is occupancy-only (either consumer); and
+>   `Qt.DisplayRole` + `IsMinimized` are tooltip-only; `SkipPager` is occupancy-only (either consumer);
 >   `ScreenGeometry` is per-screen-occupancy-only, so window/panel monitor-moves wake nothing when the
->   occupied-dot indicator is off. Concretely: the aggregator can be live purely for occupancy, which reads
+>   occupied-dot indicator is off; and `Activities` only feeds the current-activity consumers (tooltip +
+>   indicator — global occupancy ignores activities). Concretely: the aggregator can be live purely for occupancy, which reads
 >   none of the title/minimised state, so with the window list off title-rename and minimise-toggle churn no
 >   longer wakes a rebuild whose tooltip output `main.qml` would discard, and `rebuild()` skips building
 >   the HTML `<ul>`s entirely (leaves `desktopTooltips` `[]`). Toggling the list at runtime flips
 >   `windowListActive`, and `onWindowListActiveChanged` forces the one rebuild that repopulates/clears
->   the tooltips; `onOccupancyActiveChanged`/`onDynamicActiveChanged` do the same for their arrays. The SAME snapshot also feeds `Logic.computeDesktopOccupancy` → `desktopOccupancy` (GLOBAL,
->   all monitors) for the dynamic-workspaces controller AND `Logic.computeDesktopOccupancyForScreen` →
->   `screenOccupancy` (PER-SCREEN, this monitor — for the occupied-dot indicator; see the per-screen
->   occupancy gotcha below) — one model, THREE outputs, each computed only when its feature is on. All three
+>   the tooltips; `onOccupancyActiveChanged`/`onDynamicActiveChanged` do the same for their arrays. The SAME
+>   snapshot goes through ONE pure `Logic.reduceWindowSnapshot(windows, ids, opts)`, which returns the tooltip
+>   groups (current activity), `desktopOccupancy` (GLOBAL — all monitors AND activities) for the
+>   dynamic-workspaces controller, and `screenOccupancy` (PER-SCREEN, this monitor, current activity — for the
+>   occupied-dot indicator; see the per-screen occupancy gotcha below) — one model, THREE outputs, each computed
+>   only when its feature is on. All three
 >   outputs are reassigned **compare-before-assign** (`Logic.arraysShallowEqual`): a QML `var`/object
 >   property notifies on every reassignment to a fresh reference (which each freshly-built array is —
 >   no contents compare), so keeping the old reference when contents match is what stops an identical
@@ -658,7 +663,9 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 >   changed OR `changedRoles` is empty/absent = Qt's "all changed", false for pure focus/stacking churn);
 >   `arraysShallowEqual(a, b)` (flat-primitive element-wise compare, identity/null/length guarded — the
 >   compare-before-assign guard the aggregator uses so an unchanged occupancy/tooltip array skips its
->   `var` reassignment and the downstream notification it would otherwise always fire).
+>   `var` reassignment and the downstream notification it would otherwise always fire);
+>   `windowIsOnActivity`/`windowsOnActivity` (the current-activity filter) and `reduceWindowSnapshot` (which
+>   reduction sees which windows — the decision #35 got wrong, so it lives here, tested, not in `rebuild()`).
 >   i18n formatting stays in `main.qml` because `i18n*` is a plasmoid global, absent under `qmltestrunner`.
 >
 > **Gotcha — `as`-cast dynamic `Loader.item`/`Instantiator.objectAt()` to a NAMED inline component, or
@@ -669,10 +676,10 @@ instead. The split, following the project's data-source-vs-pure-logic rule:
 > `Item`), so `main.qml` casts `(tooltipLoader.item as WindowAggregator).desktopTooltips`; the row is a
 > named inline `component WindowRow: QtObject {…}` declared **inside `WindowAggregator.qml`**, cast there
 > as `winInstantiator.objectAt(i) as WindowRow`. Capitalised `TasksModel` roles (`VirtualDesktops`,
-> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`, `SkipPager`, `ScreenGeometry`) aren't valid lowercase identifiers, so they can't
+> `IsOnAllVirtualDesktops`, `IsMinimized`, `IsWindow`, `SkipPager`, `ScreenGeometry`, `Activities`) aren't valid lowercase identifiers, so they can't
 > be `required property`s — read them off the var `model` inside `WindowRow`; only the lowercase
-> `display` (the title) is a required property. Normalise `VirtualDesktops` with `.map(x => String(x))`
-> before comparing to `desktopIds` (the role elements may be UUID-variant wrappers, not plain strings),
+> `display` (the title) is a required property. Normalise `VirtualDesktops` and `Activities` with `.map(x => String(x))`
+> before comparing to `desktopIds`/the current activity (the role elements may be UUID-variant wrappers, not plain strings),
 > and snapshot `ScreenGeometry` (a `QRect` role) into a plain `{x,y,width,height}` so `logic.js` stays Plasma-free.
 > **`windowScreen` must be `var`, NOT `rect`:** rows with no output yet read `ScreenGeometry` back **undefined**,
 > which a `rect` property refuses — it logs `Unable to assign [undefined] to QRectF` on every such row (in the
@@ -770,6 +777,22 @@ pure decision in `logic.js`, e2e wiring in `main.qml`:
 > is STILL needed because all panels are then enabled). If the shared-engine assumption ever failed,
 > each instance would seed/own its global and elect itself — the per-instance behaviour — degraded,
 > never crashing.
+>
+> **Gotcha — the desktop set is global across ACTIVITIES too, so occupancy must count every activity
+> (issue #35).** KWin has one desktop set shared by all activities; a window belongs to a desktop AND an
+> activity. The aggregator's model used to be `filterByActivity: true`, so in an activity with fewer
+> windows the desktops another activity was using looked empty and got trimmed — and KWin's `removeDesktop`
+> moved that activity's windows one desktop left (the reported "shuffle"). The model is now unfiltered and the
+> activity filter is pure JS: `Logic.windowIsOnActivity` mirrors TasksModel's own rule (an empty/missing
+> `Activities` list or `Logic.ALL_ACTIVITIES`, the null UUID, means every activity; an unknown current activity
+> filters nothing), and `Logic.reduceWindowSnapshot` applies it ONLY to the tooltip groups and the occupied-dot
+> indicator (what you'd see on switching) — never to `desktopOccupancy`. Same split as per-screen occupancy, on
+> the activity axis. Consequence: every activity shows the union of desktops in use plus one trailing empty
+> (KWin has no per-activity desktop count). An activity switch no longer changes model rows, so the aggregator
+> rebuilds on `ActivityInfo.currentActivityChanged` (only while a current-activity consumer is on). Don't
+> "optimise" by reusing `desktopOccupancy` as `screenOccupancy` on a single monitor — they differ by activity.
+> Guarded by `tst_logic.qml::{test_windowIsOnActivity,test_windowsOnActivity,test_reduceWindowSnapshot,
+> test_dynamicPlanKeepsOtherActivitiesDesktops}`; the live `Activities` role read is e2e-only.
 >
 > **Gotcha — KWin silently DROPS `createDesktop` when the name is empty.** An empty-name auto-create
 > no-ops with no error (the "feature does nothing" symptom we hit). `Logic.formatDynamicDesktopName`

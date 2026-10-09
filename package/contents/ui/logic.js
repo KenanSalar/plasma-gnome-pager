@@ -446,6 +446,41 @@ function computeDesktopOccupancyForScreen(windows, desktopIds, screenRect) {
     });
 }
 
+// KActivities' "on every activity" marker in a window's Activities role (libtaskmanager's NULL_UUID).
+var ALL_ACTIVITIES = "00000000-0000-0000-0000-000000000000";
+
+// Is `window` shown in `activity`? The same rule as TasksModel's filterByActivity: an unknown current
+// activity filters nothing, and an empty/missing list or the null UUID means "on every activity".
+function windowIsOnActivity(window, activity) {
+    if (!activity)
+        return true;
+    var activities = window ? window.activities : null;
+    if (!activities || activities.length === 0)
+        return true;
+    return activities.indexOf(activity) !== -1 || activities.indexOf(ALL_ACTIVITIES) !== -1;
+}
+
+// The windows of a snapshot that are shown in `activity`, in model order. Null windows → [].
+function windowsOnActivity(windows, activity) {
+    return (windows || []).filter(function (w) {
+        return windowIsOnActivity(w, activity);
+    });
+}
+
+// The aggregator's three per-desktop reductions of ONE window snapshot, each [] unless its consumer is on
+// (opts: windowList, occupancy, dynamic, screenRect, activity). The desktop SET is global across activities
+// (as across screens), so dynamic-workspace occupancy reads EVERY activity — reading only the current one
+// trims desktops another activity still uses (#35). The tooltip groups and the occupied-dot indicator show
+// what you'd see on switching, so they read only the CURRENT activity.
+function reduceWindowSnapshot(windows, desktopIds, opts) {
+    var current = windowsOnActivity(windows, opts.activity);
+    return {
+        groups: opts.windowList ? groupWindowsByDesktop(current, desktopIds) : [],
+        occupancy: opts.dynamic ? computeDesktopOccupancy(windows, desktopIds) : [],
+        screenOccupancy: opts.occupancy ? computeDesktopOccupancyForScreen(current, desktopIds, opts.screenRect) : []
+    };
+}
+
 // The SINGLE dynamic-workspace action, or null (one per call → re-triggering converges to one trailing
 // empty): 0 trailing empties → add; >=2 → remove the LAST; else null. Only the trailing run is managed.
 // Transient frames no-op (null/empty arrays, or occupancy.length !== desktopIds.length).

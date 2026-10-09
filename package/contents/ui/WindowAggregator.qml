@@ -4,10 +4,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The window aggregator — a non-visual Item. ONE unfiltered public TasksModel feeds the tooltip window
- * list, GLOBAL dynamic-workspace occupancy, and the PER-SCREEN occupied-dot indicator from a single
- * snapshot via pure JS. The desktop set is INJECTED as `virtualDesktopInfo` and this pager's output rect
- * as `screenRect`; i18n + HTML formatting stays here (logic.js is i18n-free), so e2e-only.
+ * The window aggregator — a non-visual Item. ONE unfiltered public TasksModel (every desktop, screen AND
+ * activity) feeds the tooltip window list, GLOBAL dynamic-workspace occupancy, and the PER-SCREEN occupied-dot
+ * indicator from a single snapshot via pure JS (Logic.reduceWindowSnapshot, which also does the activity
+ * filtering). The desktop set is INJECTED as `virtualDesktopInfo` and this pager's output rect as
+ * `screenRect`; i18n + HTML formatting stays here (logic.js is i18n-free), so e2e-only.
  */
 pragma ComponentBehavior: Bound
 
@@ -40,8 +41,8 @@ Item {
     property rect screenRect: Qt.rect(0, 0, 0, 0)
 
     property var desktopTooltips: []
-    property var desktopOccupancy: []   // GLOBAL (all monitors) — consumed by the dynamic-workspaces controller
-    property var screenOccupancy: []    // PER-SCREEN (this monitor only) — consumed by the occupied-dot indicator
+    property var desktopOccupancy: []   // GLOBAL (all monitors + activities) — consumed by the dynamic-workspaces controller
+    property var screenOccupancy: []    // PER-SCREEN (this monitor, current activity) — consumed by the occupied-dot indicator
 
     // One materialised TasksModel row, a NAMED inline component so objectAt(i) can be `as`-cast for typed role access (capitalised roles read off `model`).
     component WindowRow: QtObject {
@@ -57,24 +58,30 @@ Item {
         // (a stale monitor). `var` takes the undefined, so rebuild() passes screen: null and the occupancy
         // fold degrades to global (the "never drop a window" contract).
         readonly property var windowScreen: model.ScreenGeometry   // rect of the OUTPUT this window is on (per-screen occupancy)
+        readonly property var windowActivities: model.Activities   // activity UUIDs; empty or the null UUID = every activity
     }
+
+    // Is a current-activity consumer on? The tooltip list and the occupied-dot indicator show only the CURRENT activity.
+    readonly property bool activityFiltered: aggregator.windowListActive || aggregator.occupancyActive
 
     TaskManager.ActivityInfo {
         id: activityInfo
     }
+    // Deliberately NOT filtered by activity: the desktop set is global across activities, so dynamic workspaces
+    // must see every activity's windows or it trims desktops another activity still uses (#35).
     TaskManager.TasksModel {
         id: tasksModel
         groupMode: TaskManager.TasksModel.GroupDisabled
         filterByVirtualDesktop: false
-        filterByActivity: true
-        activity: activityInfo.currentActivity
+        filterByActivity: false
     }
 
     // The role ints rebuild() reads (PUBLIC enum); other roles are skipped (notably the IsActive focus churn, so
     // window-focus changes never wake a rebuild). Built per ACTIVE feature, so an off feature's role can't trigger
     // work nothing consumes: VirtualDesktops/IsOnAllVirtualDesktops/IsWindow gate desktop membership (every
-    // consumer); title + IsMinimized are tooltip-only; SkipPager is occupancy-only (excluded windows); and
-    // ScreenGeometry is PER-SCREEN-occupancy-only (so monitor-moves don't rebuild when that indicator is off).
+    // consumer); title + IsMinimized are tooltip-only; SkipPager is occupancy-only (excluded windows);
+    // ScreenGeometry is PER-SCREEN-occupancy-only (so monitor-moves don't rebuild when that indicator is off); and
+    // Activities only matters to the current-activity consumers (global occupancy ignores activities).
     readonly property var relevantRoles: {
         var roles = [
             TaskManager.AbstractTasksModel.VirtualDesktops,
@@ -87,6 +94,8 @@ Item {
             roles.push(TaskManager.AbstractTasksModel.SkipPager);          // occupancy excludes skip-pager windows
         if (aggregator.occupancyActive)
             roles.push(TaskManager.AbstractTasksModel.ScreenGeometry);     // per-screen occupancy needs the window's output
+        if (aggregator.activityFiltered)
+            roles.push(TaskManager.AbstractTasksModel.Activities);         // a window moved to/from the current activity
         return roles;
     }
 
@@ -117,14 +126,23 @@ Item {
             aggregator.scheduleRebuild();
         }
     }
+    // The model isn't activity-filtered, so an activity switch changes no rows — refresh the current-activity
+    // views explicitly. Global occupancy can't change on a switch, so dynamic workspaces alone needs nothing.
+    Connections {
+        target: activityInfo
+        function onCurrentActivityChanged() {
+            if (aggregator.activityFiltered)
+                aggregator.scheduleRebuild();
+        }
+    }
 
     // Coalesce a burst of change signals into ONE rebuild per frame. No loop: rows read the model, rebuild() writes, the dots only read.
     function scheduleRebuild() {
         Qt.callLater(aggregator.rebuild);
     }
 
-    // Snapshot the materialised rows into a plain JS array, group per desktop (pure logic.js), then format each
-    // summary. `as WindowRow` gives typed access; normalise VirtualDesktops to plain strings (variant wrappers).
+    // Snapshot the materialised rows into a plain JS array, reduce it per desktop (pure logic.js), then format each
+    // tooltip summary. `as WindowRow` gives typed access; normalise the UUID lists to plain strings (variant wrappers).
     function rebuild() {
         let windows = [];
         for (let i = 0; i < winInstantiator.count; ++i) {
@@ -138,35 +156,30 @@ Item {
                 isWindow: o.isWindow,
                 skipPager: o.skipPager,
                 desktops: (o.windowDesktops || []).map(x => String(x)),
+                activities: (o.windowActivities || []).map(x => String(x)),
                 // Plain {x,y,width,height} (a QRect role isn't a plain JS value); null when absent → counts on every screen.
                 screen: o.windowScreen ? { x: o.windowScreen.x, y: o.windowScreen.y, width: o.windowScreen.width, height: o.windowScreen.height } : null
             });
         }
         const ids = aggregator.virtualDesktopInfo?.desktopIds ?? [];
-        // Three reductions of the SAME snapshot. Compare-before-assign on EACH (arraysShallowEqual) avoids waking downstream on an unchanged array.
-        const tooltips = aggregator.windowListActive
-            ? Logic.groupWindowsByDesktop(windows, ids).map(aggregator.formatSubText)
-            : [];
+        // Only the reductions an active consumer reads are computed (an off one comes back []); the GLOBAL occupancy
+        // spans every monitor AND activity, the tooltip + per-screen indicator only the current activity.
+        const reduced = Logic.reduceWindowSnapshot(windows, ids, {
+            windowList: aggregator.windowListActive,
+            occupancy: aggregator.occupancyActive,
+            dynamic: aggregator.dynamicActive,
+            screenRect: aggregator.screenRect,
+            activity: activityInfo.currentActivity
+        });
+
+        // Compare-before-assign on EACH (arraysShallowEqual) avoids waking downstream on an unchanged array.
+        const tooltips = reduced.groups.map(aggregator.formatSubText);
         if (!Logic.arraysShallowEqual(tooltips, aggregator.desktopTooltips))
             aggregator.desktopTooltips = tooltips;
-
-        // GLOBAL occupancy (all monitors) for the dynamic-workspaces controller — the desktop SET is global.
-        // Skipped (→ []) unless dynamic workspaces is on (its sole consumer); compare-before-assign as below.
-        const occupancy = aggregator.dynamicActive ? Logic.computeDesktopOccupancy(windows, ids) : [];
-        if (!Logic.arraysShallowEqual(occupancy, aggregator.desktopOccupancy))
-            aggregator.desktopOccupancy = occupancy;
-
-        // PER-SCREEN occupancy (this monitor only) for the occupied-dot indicator. Skipped (→ []) unless that
-        // indicator is on. A zero screenRect degrades to global, so on a single monitor it equals the global array
-        // — reuse that array directly when dynamic already computed it, instead of recomputing the same thing.
-        let screenOcc = [];
-        if (aggregator.occupancyActive) {
-            screenOcc = (aggregator.dynamicActive && !Logic.isValidScreenRect(aggregator.screenRect))
-                ? occupancy
-                : Logic.computeDesktopOccupancyForScreen(windows, ids, aggregator.screenRect);
-        }
-        if (!Logic.arraysShallowEqual(screenOcc, aggregator.screenOccupancy))
-            aggregator.screenOccupancy = screenOcc;
+        if (!Logic.arraysShallowEqual(reduced.occupancy, aggregator.desktopOccupancy))
+            aggregator.desktopOccupancy = reduced.occupancy;
+        if (!Logic.arraysShallowEqual(reduced.screenOccupancy, aggregator.screenOccupancy))
+            aggregator.screenOccupancy = reduced.screenOccupancy;
     }
 
     // One window title as escaped rich text, falling back to a localized "Untitled Window" (shared fallback).

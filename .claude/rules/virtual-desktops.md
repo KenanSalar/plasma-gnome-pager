@@ -72,6 +72,12 @@ TaskManager.TasksModel {
 
 - Only needed if you indicate occupied desktops or show name/count tooltips. For a pure
   dots+pill look it can be omitted entirely.
+- **The desktop set is global across activities, not just screens.** Anything that decides a
+  desktop is *empty* (dynamic workspaces) must count every activity's windows. Leave
+  `filterByActivity` off and filter in JS only for current-activity views (the tooltip window
+  list, the occupied-dot markers) — filtering the model made other activities' desktops look empty
+  and get removed (issue #35). In the `Activities` role, an empty list or the null UUID
+  `00000000-0000-0000-0000-000000000000` means "on every activity".
 
 ## Changing state — KWin DBus
 
