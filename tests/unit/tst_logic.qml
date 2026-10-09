@@ -904,6 +904,111 @@ TestCase {
         compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(windows, ids, { x: 0, y: 0, width: 0, height: 0 })), global, "zero screenRect == global");
     }
 
+    // --- windowIsOnActivity: current-activity membership (TasksModel's filterByActivity rule) -------
+    // Shown when the window's Activities list names the activity, holds the null UUID, or is empty/missing
+    // (on every activity). An unknown current activity filters nothing; a null window passes through (the
+    // desktop predicates downstream reject it).
+    function test_windowIsOnActivity_data() {
+        const act = function (activities) {
+            return { isWindow: true, activities: activities };
+        };
+        return [
+            { tag: "names-activity", window: act(["A"]), activity: "A", exp: true },
+            { tag: "other-activity", window: act(["B"]), activity: "A", exp: false },
+            { tag: "one-of-several", window: act(["B", "A"]), activity: "A", exp: true },
+            { tag: "empty-list-everywhere", window: act([]), activity: "A", exp: true },
+            { tag: "missing-list-everywhere", window: { isWindow: true }, activity: "A", exp: true },
+            { tag: "null-uuid-everywhere", window: act([Logic.ALL_ACTIVITIES]), activity: "A", exp: true },
+            { tag: "unknown-current-empty", window: act(["B"]), activity: "", exp: true },
+            { tag: "unknown-current-undefined", window: act(["B"]), activity: undefined, exp: true },
+            { tag: "null-window-passes", window: null, activity: "A", exp: true }
+        ];
+    }
+    function test_windowIsOnActivity(data) {
+        compare(Logic.windowIsOnActivity(data.window, data.activity), data.exp, data.tag);
+    }
+
+    // windowsOnActivity keeps model order and drops only the other-activity windows; null → [].
+    function test_windowsOnActivity() {
+        const windows = [
+            { title: "a1", activities: ["A"] },
+            { title: "b1", activities: ["B"] },
+            { title: "everywhere", activities: [] },
+            { title: "a2", activities: ["A"] }
+        ];
+        compare(Logic.windowsOnActivity(windows, "A").map(w => w.title).join(","), "a1,everywhere,a2", "filtered, in order");
+        compare(Logic.windowsOnActivity(windows, "").length, windows.length, "unknown current activity keeps all");
+        compare(JSON.stringify(Logic.windowsOnActivity(null, "A")), "[]", "null windows");
+    }
+
+    // --- reduceWindowSnapshot: which reduction sees which windows (#35) ------------------------------
+    // The desktop set is global across activities, so the dynamic-workspace occupancy reads EVERY activity
+    // (and screen); the tooltip groups and the occupied-dot indicator read only the CURRENT activity. An off
+    // consumer's output is [].
+    function test_reduceWindowSnapshot_data() {
+        const A = { x: 0, y: 0, width: 1920, height: 1080 };
+        const B = { x: 1920, y: 0, width: 1920, height: 1080 };
+        const win = function (title, desktops, activities, screen) {
+            return { title: title, minimized: false, onAll: false, isWindow: true, skipPager: false, desktops: desktops, activities: activities, screen: screen || null };
+        };
+        const listed = function (titles) {
+            return { visible: titles, minimized: [] };
+        };
+        const allOn = function (activity, screenRect) {
+            return { windowList: true, occupancy: true, dynamic: true, screenRect: screenRect || null, activity: activity };
+        };
+        // The reporter's layout: activity A uses desktops 1-3, the current activity B only desktop 1.
+        const reporter = [win("a1", ["d1"], ["A"]), win("a2", ["d2"], ["A"]), win("a3", ["d3"], ["A"]), win("b1", ["d1"], ["B"])];
+        const ids = ["d1", "d2", "d3", "d4"];
+        return [
+            { tag: "features-off-all-empty", windows: reporter, ids: ids,
+                opts: { windowList: false, occupancy: false, dynamic: false, screenRect: null, activity: "B" },
+                groups: [], occupancy: [], screenOccupancy: [] },
+            { tag: "dynamic-spans-all-activities", windows: reporter, ids: ids, opts: allOn("B"),
+                groups: [listed(["b1"]), listed([]), listed([]), listed([])],
+                occupancy: [true, true, true, false],
+                screenOccupancy: [true, false, false, false] },
+            // null UUID and an empty list both mean "every activity", so they count in the current views too.
+            { tag: "all-activities-window-counts-everywhere",
+                windows: [win("pinned", ["d2"], [Logic.ALL_ACTIVITIES]), win("unassigned", ["d3"], [])], ids: ids, opts: allOn("B"),
+                groups: [listed([]), listed(["pinned"]), listed(["unassigned"]), listed([])],
+                occupancy: [false, true, true, false],
+                screenOccupancy: [false, true, true, false] },
+            // the screen filter still narrows the indicator; the tooltip and global occupancy ignore screens.
+            { tag: "screen-and-activity-compose",
+                windows: [win("b-here", ["d1"], ["B"], A), win("b-there", ["d2"], ["B"], B), win("a-here", ["d3"], ["A"], A)],
+                ids: ["d1", "d2", "d3"], opts: allOn("B", A),
+                groups: [listed(["b-here"]), listed(["b-there"]), listed([])],
+                occupancy: [true, true, true],
+                screenOccupancy: [true, false, false] },
+            // ActivityInfo not ready yet: nothing is filtered, like the model itself.
+            { tag: "unknown-current-activity-filters-nothing", windows: reporter, ids: ids, opts: allOn(""),
+                groups: [listed(["a1", "b1"]), listed(["a2"]), listed(["a3"]), listed([])],
+                occupancy: [true, true, true, false],
+                screenOccupancy: [true, true, true, false] }
+        ];
+    }
+    function test_reduceWindowSnapshot(data) {
+        const r = Logic.reduceWindowSnapshot(data.windows, data.ids, data.opts);
+        compare(JSON.stringify(r.groups), JSON.stringify(data.groups), data.tag + " groups");
+        compare(JSON.stringify(r.occupancy), JSON.stringify(data.occupancy), data.tag + " occupancy");
+        compare(JSON.stringify(r.screenOccupancy), JSON.stringify(data.screenOccupancy), data.tag + " screenOccupancy");
+    }
+
+    // #35 through the plan: in activity B the desktops activity A uses must survive. The current-activity view
+    // (what the controller used to get) would trim d4, then d3 — moving A's window onto d2.
+    function test_dynamicPlanKeepsOtherActivitiesDesktops() {
+        const win = function (desktops, activities) {
+            return { isWindow: true, onAll: false, skipPager: false, minimized: false, desktops: desktops, activities: activities, screen: null };
+        };
+        const windows = [win(["d1"], ["A"]), win(["d2"], ["A"]), win(["d3"], ["A"]), win(["d1"], ["B"])];
+        const ids = ["d1", "d2", "d3", "d4"];
+        const r = Logic.reduceWindowSnapshot(windows, ids, { windowList: false, occupancy: true, dynamic: true, screenRect: null, activity: "B" });
+        compare(Logic.dynamicWorkspacePlan(r.occupancy, ids), null, "no trim while activity A still uses d1-d3");
+        compare(JSON.stringify(Logic.dynamicWorkspacePlan(r.screenOccupancy, ids)), JSON.stringify({ kind: "remove", uuid: "d4" }),
+            "the current-activity view alone would trim (the #35 bug)");
+    }
+
     // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
     // One action per call; reactive re-triggering converges to exactly one trailing empty. Only the
     // TRAILING run is managed (empty middles are left alone); transient/length-mismatch frames are no-ops.
