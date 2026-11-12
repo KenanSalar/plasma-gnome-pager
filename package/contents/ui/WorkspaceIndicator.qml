@@ -23,8 +23,26 @@ Item {
     property var virtualDesktopInfo: null
 
     // Null-safe live views. The desktop SET is global; only "which is current" is per-screen (below).
-    readonly property var desktopIds: virtualDesktopInfo?.desktopIds ?? []
-    readonly property var desktopNames: virtualDesktopInfo?.desktopNames ?? []
+    // A reorder re-sorts both in place and signals only desktopPositionsChanged, hence the revision read and the
+    // fresh copy. Keep them on the indicator: forwarding from a child breaks globalIndex (see CLAUDE.md).
+    property int positionsRevision: 0
+    readonly property var desktopIds: {
+        indicator.positionsRevision;
+        return Array.from(indicator.virtualDesktopInfo?.desktopIds ?? []);
+    }
+    readonly property var desktopNames: {
+        indicator.positionsRevision;
+        return Array.from(indicator.virtualDesktopInfo?.desktopNames ?? []);
+    }
+
+    // desktopPositionsChanged is Plasma 6.5+; ignoreUnknownSignals keeps older shells quiet.
+    Connections {
+        target: indicator.virtualDesktopInfo
+        ignoreUnknownSignals: true
+        function onDesktopPositionsChanged() {
+            ++indicator.positionsRevision;
+        }
+    }
 
     // Per-desktop tooltip subText (window list), index-aligned with desktopIds. Default [] → name-only tooltip.
     property var desktopTooltips: []

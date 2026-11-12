@@ -126,6 +126,15 @@ Item {
             aggregator.scheduleRebuild();
         }
     }
+    // A reorder re-sorts desktopIds in place and signals only this (Plasma 6.5+; older shells lack it). Rebuild
+    // now, not deferred: the indicator re-reads the order in this same emission, so a deferred rebuild leaves a stale frame.
+    Connections {
+        target: aggregator.virtualDesktopInfo
+        ignoreUnknownSignals: true
+        function onDesktopPositionsChanged() {
+            aggregator.rebuild();
+        }
+    }
     // The model isn't activity-filtered, so an activity switch changes no rows — refresh the current-activity
     // views explicitly. Global occupancy can't change on a switch, so dynamic workspaces alone needs nothing.
     Connections {

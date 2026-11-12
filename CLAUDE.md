@@ -44,11 +44,32 @@ general habits. They are detailed and specific; do not re-derive or contradict t
 **Read/write split for virtual desktops** — this is the central design decision:
 - **Read** live, reactive state with `TaskManager.VirtualDesktopInfo` (`desktopIds` (UUIDs),
   `currentDesktop`, `numberOfDesktops`, `desktopNames`). Bind to it; never cache — it updates
-  when desktops change by *any* means (keyboard, another pager, settings).
+  when desktops change by *any* means (keyboard, another pager, settings), with one exception: a
+  reorder (see the gotcha below).
 - **Write** (switch/add/remove) via KWin DBus (`org.kde.plasma.workspace.dbus`), which is
   **async fire-and-forget**. You do not get a return value; you issue the call and let
   `VirtualDesktopInfo` report the new state. Desktops are keyed by **UUID strings**, not
   indices — map UI dot → desktop via `vdi.desktopIds[i]`.
+
+> **Gotcha — a desktop REORDER does not re-notify `desktopIds`/`desktopNames`.** Moving a desktop (the
+> Overview Grid's desktop drag, the Virtual Desktops KCM) makes libtaskmanager re-sort both lists in
+> place and emit only `desktopPositionsChanged` (Plasma 6.5+). A plain `vdi.desktopIds` binding keeps
+> the old order, so the pill lands on the wrong dot, scroll steps to the wrong neighbours, and
+> occupancy/tooltips misalign until an add/remove forces a re-read. So `WorkspaceIndicator`'s
+> `desktopIds`/`desktopNames` bindings also read a `positionsRevision` int that the signal bumps, and
+> return an `Array.from` copy (a `var` notifies only on a new reference), while `WindowAggregator`
+> rebuilds on it **synchronously** (`rebuild()`, not the deferred `scheduleRebuild()`): the indicator
+> re-reads the order in that same emission, so a deferred rebuild would leave the old occupancy/tooltip
+> arrays on the new order for a frame (seen in-shell as one event-loop turn of `[true,false]` on the
+> reordered `[B,A]`). Each listens in its own `ignoreUnknownSignals` `Connections`, so pre-6.5 shells
+> stay quiet. Function-time reads (`main.qml`'s remove-last/rename, the dynamic controller's
+> `evaluateDynamic`) call the getter fresh and need nothing. The stock pager's `PagerModel` listens for
+> the same signal. **Keep those bindings on the indicator itself — don't extract them into a child
+> resolver** like `ScreenCurrentDesktop`: the indicator would first read the child's still-empty
+> default, which changes the order the dot delegates subscribe to `perLine`, so on every later
+> re-layout (add/remove, KWin "Rows") a dying dot evaluates `globalIndex` after its line delegate is
+> gone (`TypeError: Cannot read property 'index' of null`; measured on the headless suite). e2e-only:
+> verify in-shell with a Grid desktop drag.
 
 **Per-screen current desktop (Plasma 6.7 "switch desktops independently for each screen").** The
 desktop *set* (`desktopIds`/`desktopNames`/`numberOfDesktops`/`desktopLayoutRows`) is **global**;
@@ -64,8 +85,10 @@ perScreen-vs-global decision is the pure `Logic.resolveCurrentDesktop(perScreen,
 behaviour when the feature is off, the screen is unknown, or the API is absent (older Plasma; guarded
 with `typeof … === "function"`). No config key: it auto-mirrors KWin (see "Mirror System Settings").
 There is **no public per-output _write_** — `switchTo` still sets the one global `current`, which KWin
-routes to the active output; interacting with a pager makes its output active, so click/scroll target
-that monitor. (Read API verified live: `currentDesktopByScreenName("DP-6")` ≠ `("DP-5")` when the two
+routes to its **active output**: the one the pointer last moved on, or the last-activated window's.
+Moving onto a pager normally makes its output active, so click/scroll usually target that monitor. The
+stock pager targets its own output explicitly via `requestActivateOnScreen`, which is C++-only (not
+`Q_INVOKABLE`), so a QML pager can't. (Read API verified live: `currentDesktopByScreenName("DP-6")` ≠ `("DP-5")` when the two
 monitors are on different desktops.)
 
 > **Gotcha — `currentDesktopByScreenName` is a METHOD with a SIGNAL, not a notifying property —

@@ -28,6 +28,11 @@ Exposes (all reactive — bind to them, never cache):
   `vdi.desktopIds[i]`; find the active index with `vdi.desktopIds.indexOf(vdi.currentDesktop)`.
 - It updates automatically when desktops change by **any** means (keyboard shortcut, another
   pager, KWin settings) — so a UI bound to it always reflects reality.
+- **Except a reorder.** Moving a desktop (Overview Grid desktop drag, the KCM) re-sorts
+  `desktopIds`/`desktopNames` in place and emits only `desktopPositionsChanged` (Plasma 6.5+), so a
+  plain binding keeps the old order. Re-read on that signal too, in a separate `Connections` with
+  `ignoreUnknownSignals: true` for older shells (`WorkspaceIndicator.qml`, `WindowAggregator.qml`); a
+  function-time read of the getter is already fresh. See the reorder gotcha in CLAUDE.md.
 - It is part of `org.kde.taskmanager` (a public, compiled QML plugin shipped with
   plasma-workspace) — stable, this is what the stock pager reads too.
 
@@ -57,8 +62,10 @@ is still global — only *which is current* can differ per screen. `VirtualDeskt
   setting. The pure decision is `logic.js::resolveCurrentDesktop(perScreen, global)`.
 - **Writing is global-only.** There is **no** public DBus member that takes an output/screen argument
   (introspect `org.kde.KWin /VirtualDesktopManager` — `current` is one global string). The switch
-  below sets that global `current`; with per-output on, KWin routes it to the **active** output, and
-  interacting with a pager makes its output active, so click/scroll switch the monitor you used.
+  below sets that global `current`; with per-output on, KWin routes it to the **active** output (the
+  one the pointer last moved on, or the last-activated window's). Moving onto a pager normally makes its
+  output active, so click/scroll usually switch the monitor you used. The stock pager targets its own
+  output via `requestActivateOnScreen`, which is C++-only (not `Q_INVOKABLE`), so a QML pager can't.
 
 ## Window occupancy (optional) — TasksModel
 
