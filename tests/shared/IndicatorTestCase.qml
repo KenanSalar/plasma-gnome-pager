@@ -94,17 +94,25 @@ TestCase {
     // A duck-typed VirtualDesktopInfo mock. A currentDesktop outside desktopIds (the staleUuid) exercises
     // the transient add/remove state; desktopNames is optional (needed only by the tooltip tests).
     function makeMock(desktopIds, currentDesktop, desktopNames, desktopLayoutRows) {
+        // Copies, so VdiMock.reorder's in-place re-sort can't leak into the shared fixtures.
         return createTemporaryObject(vdiMockComponent, root, {
-            desktopIds: desktopIds,
+            desktopIds: desktopIds.slice(),
             currentDesktop: currentDesktop,
-            desktopNames: desktopNames || [],
+            desktopNames: (desktopNames || []).slice(),
             desktopLayoutRows: desktopLayoutRows || 1
         });
     }
 
     // A pre-6.7 VirtualDesktopInfo double (no per-screen method) for the graceful-degradation test.
+    // It has no desktopPositionsChanged either, so it is also the pre-6.5 shape.
     function makeLegacyVdi(props) {
         return createTemporaryObject(legacyVdiComponent, root, props || {});
+    }
+
+    // Any warning inside a test fails it. A binding error during a re-layout, or a Connections
+    // handler an older source has no signal for, otherwise only shows up in the log.
+    function init() {
+        failOnWarning(/.?/);
     }
 
     // The single point that instantiates the component under test (auto-cleaned). Extra props can be

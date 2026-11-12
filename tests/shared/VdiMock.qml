@@ -6,9 +6,10 @@
  *
  * Shared test double for TaskManager.VirtualDesktopInfo. Duck-typed: exposes exactly the members
  * WorkspaceIndicator reads (.desktopIds/.currentDesktop/.desktopNames/.desktopLayoutRows + the Plasma 6.7
- * per-screen API). Defaults model one desktop set with the per-screen feature OFF (every screen == the
- * global currentDesktop), so screen-agnostic tests stay valid; per-screen tests set `perScreenCurrent` and
- * emit `currentDesktopForScreenChanged`. In tests/shared/ as the ONE canonical mock (not a tst_*.qml).
+ * per-screen API + the Plasma 6.5 desktopPositionsChanged). Defaults model one desktop set with the
+ * per-screen feature OFF (every screen == the global currentDesktop), so screen-agnostic tests stay valid;
+ * per-screen tests set `perScreenCurrent` and emit `currentDesktopForScreenChanged`, and reorder tests call
+ * `reorder(order)`. In tests/shared/ as the ONE canonical mock (not a tst_*.qml).
  */
 import QtQuick
 
@@ -24,5 +25,16 @@ QtObject {
     signal currentDesktopForScreenChanged(string screenName)
     function currentDesktopByScreenName(name) {
         return perScreenCurrent[name] !== undefined ? perScreenCurrent[name] : currentDesktop;
+    }
+
+    // What libtaskmanager does when KWin moves a desktop: re-sort both lists IN PLACE, so neither
+    // desktopIdsChanged nor desktopNamesChanged fires, then emit only desktopPositionsChanged.
+    signal desktopPositionsChanged()
+    function reorder(order) {
+        const names = order.map(id => desktopNames[desktopIds.indexOf(id)]);
+        desktopIds.splice(0, desktopIds.length, ...order);
+        if (desktopNames.length)
+            desktopNames.splice(0, desktopNames.length, ...names);
+        desktopPositionsChanged();
     }
 }
