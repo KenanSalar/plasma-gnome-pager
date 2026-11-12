@@ -136,8 +136,8 @@ Item {
             }
         }
 
-        // Behind a Loader, so with the markers off, the default, no dot builds either one. A sibling of the
-        // capsule rather than its child, to keep an opacity of its own.
+        // Behind a Loader, so a dot without a marker builds neither one. A sibling of the capsule rather
+        // than its child, to keep an opacity of its own.
         Loader {
             id: occupancyOverlay
             anchors.centerIn: capsule

@@ -18,6 +18,9 @@ Notable changes to Plasma Gnome Pager, newest first. Versions up to 1.8.2 are de
 
 - **A longer pill by default.** The current desktop's pill is now 4.5 times as long as it is
   thick, up from 3.5. If you've set Pill length yourself, your setting stays as it is.
+- **Occupied desktops are marked by default.** A desktop with open windows now gets a hollow ring
+  around its dot out of the box, where before the markers were off. If you've set them yourself,
+  your settings stay as they are.
 - **Behind-the-scenes cleanup.** The widget's code now uses standard JavaScript modules, which
   lets the project check and format it with oxlint and oxfmt. Apart from the changes above,
   nothing should look or behave differently.

@@ -176,7 +176,8 @@ TestCase {
 
     // occupancy
     function test_occupiedDotUsesOccupiedOpacity() {
-        const dot = makeDot({ active: false, occupied: true, inactiveOpacity: 0.45, hoverOpacity: 0.8, occupiedOpacity: 0.7 });
+        const dot = makeDot({ active: false, occupied: true, occupancyStyle: Logic.OCCUPANCY.Filled,
+                              inactiveOpacity: 0.45, hoverOpacity: 0.8, occupiedOpacity: 0.7 });
         const circle = circleOf(dot);
         fuzzyCompare(circle.opacity, dot.occupiedOpacity, 0.001, "an occupied inactive dot uses occupiedOpacity");
 
@@ -185,10 +186,10 @@ TestCase {
     }
 
     function test_occupiedPrecedence() {
-        const active = makeDot({ active: true, occupied: true, occupiedOpacity: 0.7 });
+        const active = makeDot({ active: true, occupied: true, occupancyStyle: Logic.OCCUPANCY.Filled, occupiedOpacity: 0.7 });
         fuzzyCompare(circleOf(active).opacity, 1.0, 0.001, "active beats occupied (full strength)");
 
-        const dot = makeDot({ active: false, occupied: true, hoverOpacity: 0.8, occupiedOpacity: 0.7 });
+        const dot = makeDot({ active: false, occupied: true, occupancyStyle: Logic.OCCUPANCY.Filled, hoverOpacity: 0.8, occupiedOpacity: 0.7 });
         const circle = circleOf(dot);
         fuzzyCompare(circle.opacity, dot.occupiedOpacity, 0.001, "occupied at rest");
 

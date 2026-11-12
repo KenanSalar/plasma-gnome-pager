@@ -18,7 +18,8 @@ The settings pages are exempt: the dialog builds them on demand.
 - **Draw with `Rectangle` and its `radius`**, never `Canvas`. `clip` and `layer.enabled` each add
   an offscreen buffer and a render pass, and nothing here overflows.
 - **Drop what isn't shown**: the hover background is `visible: opacity > 0`, and the occupancy
-  overlay and the window model are behind `Loader`s, so the default configuration builds neither.
+  overlay and the window model are behind `Loader`s, so a dot without a marker builds no overlay
+  and a configuration with every window consumer off builds no model.
 - **Animate with `Behavior`**, gated off before the first placement and when the duration is 0.
   A switch runs two dots' animations at once; anything that would run one per dot continuously
   belongs on one shared `Timer` instead.

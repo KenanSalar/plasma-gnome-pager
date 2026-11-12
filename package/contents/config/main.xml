@@ -124,7 +124,7 @@
         </entry>
         <!-- Brighten the dots of desktops that hold windows (occupied), so they stand out from empty ones. -->
         <entry name="showOccupancy" type="Bool">
-            <default>false</default>
+            <default>true</default>
         </entry>
         <!-- Opacity of the occupied marker (every occupancyStyle uses it; only when showOccupancy is on). -->
         <entry name="occupiedOpacity" type="Double">
@@ -133,7 +133,7 @@
         <!-- How an occupied dot is marked, an index into Logic.OCCUPANCY and the combo: 0 = Filled (the
              whole dot), 1 = Inner dot, 2 = Hollow ring. Each uses occupiedOpacity and the occupied colour. -->
         <entry name="occupancyStyle" type="Int">
-            <default>0</default>
+            <default>2</default>
         </entry>
         <!-- Follow the color scheme; when false, use activeColor / inactiveColor / occupiedColor below. -->
         <entry name="followThemeColors" type="Bool">

@@ -132,8 +132,8 @@ here: they follow **System Settings → Virtual Desktops**, so the pager always 
 | Extra length | 1.00× pill | How far the background reaches past each end of the dots. |
 | Extra thickness | 1.00× pill | How far it reaches on each side, never past the panel's edge. |
 | **Occupied desktops** | | |
-| Highlight desktops with open windows | Off | With several monitors, each pager counts only the windows on its own screen. |
-| Indicator style | Filled | A **Filled** dot, an **Inner dot** on top, or a **Hollow ring** on top. |
+| Highlight desktops with open windows | On | With several monitors, each pager counts only the windows on its own screen. |
+| Indicator style | Hollow ring | A **Filled** dot, an **Inner dot** on top, or a **Hollow ring** on top. |
 | Occupied opacity | 70% | |
 | **Colors** | | |
 | Follow the color scheme | On | The pill and the occupied marker take the highlight colour, the dots and the hover background the text colour. Turn it off to use the four colours below. |
