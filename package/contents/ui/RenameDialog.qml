@@ -69,7 +69,7 @@ PlasmaCore.Dialog {
             PlasmaComponents3.Button {
                 text: i18n("Rename")
                 icon.name: "edit-rename"
-                enabled: renameField.text.trim().length > 0
+                enabled: Logic.sanitizeDesktopName(renameField.text) !== ""
                 onClicked: renameDialog.commit()
             }
         }

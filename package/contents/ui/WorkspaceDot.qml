@@ -21,8 +21,7 @@ Item {
     property int dotStyle: Logic.DEFAULTS.dotStyle
     property real dotSize: Kirigami.Units.iconSizes.small / 2
     property real pillSize: Kirigami.Units.iconSizes.small / 2
-    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor
-    readonly property real pillWidth: dot.pillSize * dot.pillWidthFactor
+    property real pillWidth: dot.pillSize * Logic.DEFAULTS.pillWidthFactor
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity
     property bool occupied: false
@@ -54,9 +53,9 @@ Item {
     readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle, dot.dotStyle)
 
     readonly property bool ringStyle: Logic.isRingStyle(dot.dotStyle)
-    readonly property bool hasRing: Logic.dotHasRing(dot.dotStyle, dot.active)
-    readonly property bool bodyIsHollow: Logic.dotBodyIsHollow(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)
-    readonly property bool ringFilled: Logic.dotBodyFilled(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)
+    readonly property bool hasRing: Logic.dotHasRing(dot.dotStyle, dot.body)
+    readonly property bool bodyIsHollow: Logic.dotBodyIsHollow(dot.dotStyle, dot.body)
+    readonly property bool ringFilled: Logic.dotBodyFilled(dot.dotStyle, dot.body)
     // The occupied opacity goes into the fill, so the ring's border stays opaque.
     readonly property color filledBodyColor: Qt.rgba(dot.resolvedOccupied.r, dot.resolvedOccupied.g, dot.resolvedOccupied.b, dot.occupiedOpacity)
 

@@ -38,7 +38,7 @@ Item {
 
     // The first instance seeds the global setting from its own config; the rest adopt it.
     Component.onCompleted: {
-        controller.dynToken = Coordinator.join((en, pf) => controller.syncConfigRequested(en, pf));
+        controller.dynToken = Coordinator.join((nextEnabled, nextPrefix) => controller.syncConfigRequested(nextEnabled, nextPrefix));
         if (Coordinator.haveGlobal())
             controller.syncConfigRequested(Coordinator.globalEnabled(), Coordinator.globalPrefix());
         else
@@ -76,13 +76,12 @@ Item {
         const plan = Logic.dynamicWorkspacePlan(controller.desktopOccupancy, ids);
         if (!plan)
             return;
+        const count = controller.virtualDesktopInfo?.numberOfDesktops ?? ids.length;
         let spec = null;
         if (plan.kind === "add") {
-            // Appended at the end, so the new desktop's number is its position plus one.
-            const pos = controller.virtualDesktopInfo?.numberOfDesktops ?? ids.length;
-            spec = Logic.addSpec(pos, Logic.formatDynamicDesktopName(controller.namePrefix, pos + 1, controller.defaultPrefix));
+            // Appended at the end, so the new desktop's position is the count and its number one more.
+            spec = Logic.addSpec(count, Logic.formatDynamicDesktopName(controller.namePrefix, count + 1, controller.defaultPrefix));
         } else if (plan.kind === "remove") {
-            const count = controller.virtualDesktopInfo?.numberOfDesktops ?? ids.length;
             spec = Logic.removeSpec(plan.uuid, count);
         }
         if (!spec)

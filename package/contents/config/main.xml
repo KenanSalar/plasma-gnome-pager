@@ -95,7 +95,7 @@
         </entry>
         <!-- Active-capsule length, as a multiple of the pill thickness (its aspect ratio). -->
         <entry name="pillWidthFactor" type="Double">
-            <default>3.5</default>
+            <default>4.5</default>
         </entry>
         <!-- Opacity of an inactive (dim) dot. -->
         <entry name="inactiveOpacity" type="Double">

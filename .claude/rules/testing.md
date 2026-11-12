@@ -108,8 +108,8 @@ Each walk owes five things, none of which a passing run can show:
   indistinguishable from one holding nothing, which is why the read is asserted non-empty first.
 - **Commented-out text can't answer for the real thing.** A pattern over source text strips
   `<!-- -->` and `//` first, or a disabled entry passes for a live one.
-- **An exemption held to an exact count**, each entry asserted to still be exempt:
-  `wheelNotchDelta` is the one `DEFAULTS` key with no schema entry, pinned by the `- 1`.
+- **An exemption held to an exact count**, each entry asserted to still be exempt. `DEFAULTS`
+  holds only schema keys, so a constant that isn't a setting lives beside it, not in it.
 
 ## QtTest: timing and events
 

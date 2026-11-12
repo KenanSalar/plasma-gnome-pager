@@ -8,8 +8,7 @@
  */
 import * as Logic from "./logic.mjs";
 
-var _present = {}; // token -> true for each joined instance
-var _subs = {}; // token -> its onSync(enabled, prefix)
+var _subs = {}; // token -> its onSync(enabled, prefix), one per joined instance
 var _enabled = false;
 var _prefix = "";
 var _haveGlobal = false; // whether any instance has published yet
@@ -21,14 +20,12 @@ var _seq = 0;
  */
 export function join(onSync) {
     _seq += 1;
-    _present[_seq] = true;
     _subs[_seq] = onSync;
     return _seq;
 }
 
 /** Drops an instance from the election and from the sync. */
 export function leave(token) {
-    delete _present[token];
     delete _subs[token];
 }
 
@@ -58,7 +55,5 @@ export function publish(enabled, prefix) {
 
 /** Whether `token` is the one instance that writes: the lowest joined token, while the setting is on. */
 export function isWriter(token) {
-    var reg = {};
-    for (var t in _present) reg[t] = _enabled;
-    return Logic.electDynamicWriter(reg) === Number(token);
+    return _enabled && Logic.electDynamicWriter(Object.keys(_subs)) === Number(token);
 }

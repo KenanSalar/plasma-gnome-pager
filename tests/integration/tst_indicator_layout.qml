@@ -416,7 +416,7 @@ IndicatorTestCase {
 
         const dot = dotByUuid(indicator, ids[0]);
         fuzzyCompare(dot.dotSize, 20, 0.5, "dot gets the resolved dotSize");
-        fuzzyCompare(dot.pillWidthFactor, 3, 0.5, "dot gets pillWidthFactor");
+        fuzzyCompare(dot.pillWidth, 60, 0.5, "dot gets the resolved pillWidth");
         fuzzyCompare(dot.inactiveOpacity, 0.3, 0.001, "dot gets inactiveOpacity");
         fuzzyCompare(dot.hoverOpacity, 0.9, 0.001, "dot gets hoverOpacity");
     }

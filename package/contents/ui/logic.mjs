@@ -26,7 +26,7 @@ export var DEFAULTS = Object.freeze({
     dotSize: 0,
     pillSize: 0,
     spacingFactor: 0.5,
-    pillWidthFactor: 3.5,
+    pillWidthFactor: 4.5,
     inactiveOpacity: 0.45,
     hoverOpacity: 0.8,
     showHoverBackground: true,
@@ -40,8 +40,7 @@ export var DEFAULTS = Object.freeze({
     activeColor: "#3daee9",
     inactiveColor: "#eff0f1",
     occupiedColor: "#3daee9",
-    hoverBackgroundColor: "#eff0f1",
-    wheelNotchDelta: 120 // no schema entry: angleDelta units in one wheel notch
+    hoverBackgroundColor: "#eff0f1"
 });
 
 /** A settings page's field column in grid units, which slider tracks, fields and hints all line up on. */
@@ -98,12 +97,14 @@ export function resolveCurrentDesktop(perScreen, global) {
     return global ? String(global) : "";
 }
 
+/** In `angleDelta` units, as Qt reports one notch of a mouse wheel. */
+var WHEEL_NOTCH_DELTA = 120;
+
 /** Takes whole notches out of the running total as `steps`; feeding `remainder` back adds up a touchpad's. */
-export function accumulateWheel(accumulated, deltaY, threshold) {
-    var t = threshold > 0 ? threshold : DEFAULTS.wheelNotchDelta;
+export function accumulateWheel(accumulated, deltaY) {
     var total = accumulated + deltaY;
-    var steps = (total / t) | 0; // truncates toward zero
-    return { steps: steps, remainder: total - steps * t };
+    var steps = (total / WHEEL_NOTCH_DELTA) | 0; // truncates toward zero
+    return { steps: steps, remainder: total - steps * WHEEL_NOTCH_DELTA };
 }
 
 /** What a dot's body shows, which decides its colour and opacity. */
@@ -167,26 +168,18 @@ export function innerDotDiameter(dotSize) {
 }
 
 /** Whether the dot draws the ring outline: every non-current dot in the ring style, occupied or not. */
-export function dotHasRing(dotStyle, active) {
-    return isRingStyle(dotStyle) && !active;
+export function dotHasRing(dotStyle, body) {
+    return isRingStyle(dotStyle) && body !== DOT_BODY.Active;
 }
 
-/**
- * Whether the dot's interior is transparent: a non-current dot in the ring style, unless a `Filled`
- * marker fills it. Kept apart from `dotHasRing` so a filled dot keeps its outline.
- */
-export function dotBodyIsHollow(dotStyle, active, occupied, occupancyStyle) {
-    if (!isRingStyle(dotStyle)) return false;
-    if (active) return false;
-    if (occupied && occupancyStyle === OCCUPANCY.Filled) return false;
-    return true;
+/** Whether the dot's interior is transparent: an inactive body in the ring style. */
+export function dotBodyIsHollow(dotStyle, body) {
+    return isRingStyle(dotStyle) && body === DOT_BODY.Inactive;
 }
 
 /** Whether a ring-style dot has both its outline and a filled interior, the `Filled` marker's look. */
-export function dotBodyFilled(dotStyle, active, occupied, occupancyStyle) {
-    return (
-        dotHasRing(dotStyle, active) && !dotBodyIsHollow(dotStyle, active, occupied, occupancyStyle)
-    );
+export function dotBodyFilled(dotStyle, body) {
+    return isRingStyle(dotStyle) && body === DOT_BODY.Occupied;
 }
 
 /** Whether an occupied, non-current dot shows the `Ring` marker; in the ring style the body already is one. */
@@ -426,16 +419,10 @@ export function formatDynamicDesktopName(prefix, number, fallback) {
     return base + " " + number;
 }
 
-/** The smallest token `registry` maps to true, or -1 when none does. */
-export function electDynamicWriter(registry) {
-    if (!registry) return -1;
-    var winner = -1;
-    for (var token in registry) {
-        if (!registry[token]) continue;
-        var t = Number(token);
-        if (winner === -1 || t < winner) winner = t;
-    }
-    return winner;
+/** The smallest of `tokens`, compared as numbers since they arrive as object keys, or -1 for none. */
+export function electDynamicWriter(tokens) {
+    if (!tokens || tokens.length === 0) return -1;
+    return Math.min(...tokens.map(Number));
 }
 
 /** Whether a `dataChanged` touched one of `relevantRoles`; an empty `changedRoles` is Qt's "every role". */

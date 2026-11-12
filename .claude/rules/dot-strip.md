@@ -21,9 +21,10 @@ one desktop.**
   side, and pill-wide slots spread the dots apart.
 - **The advertised length is the formula, never the live extent**: a switch trades a growing
   element for a shrinking one, so the cell holds still while the pill moves.
-- **A style without a pill feeds the metrics and every dot a pill factor of 1 and an auto pill
-  size**, as the ring style does through `effPillWidthFactor` and `effPillSizeRequest`. No pill
-  formula learns which style is on.
+- **A style without a pill feeds the metrics a pill factor of 1 and an auto pill size**, as the
+  ring style does through `effPillWidthFactor` and `effPillSizeRequest`. The dots take the rendered
+  `dotSize`, `pillSize` and `pillWidth` from the metrics, so no pill formula learns which style is
+  on.
 
 ## Sizes
 

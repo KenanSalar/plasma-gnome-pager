@@ -53,7 +53,7 @@ cost of the always-on widget, `code-style.md` the comment format.
 ## Types qmllint can't see
 
 - **`Loader.item` and `Instantiator.objectAt()` are `QObject`**: cast them to the named type
-  (`tooltipLoader.item as WindowAggregator`, `objectAt(i) as WindowRow`) before reading a property,
+  (`aggregatorLoader.item as WindowAggregator`, `objectAt(i) as WindowRow`) before reading a property,
   or qmllint reports `missing-property`.
 - **`.contextProperties.ini` declares the `i18n*` and `Plasmoid` globals**, which Plasma injects at
   runtime. If they start warning as unqualified, qmllint isn't finding that file; it isn't a code
@@ -67,6 +67,8 @@ cost of the always-on widget, `code-style.md` the comment format.
   flickable and recycling for nothing.
 - **`visible: false` keeps an item's cost; a `Loader` drops it.** A subtree most configurations
   never show goes behind one, as the window model and the occupancy overlay do.
+- **Work a component behind a `Loader` defers goes on a child `Timer`, never `Qt.callLater`**, as
+  `WindowAggregator.scheduleRebuild` does: the timer goes with the component when it unloads.
 
 ## Tooling
 

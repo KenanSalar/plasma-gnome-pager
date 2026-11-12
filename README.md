@@ -125,7 +125,7 @@ here: they follow **System Settings → Virtual Desktops**, so the pager always 
 | Hover opacity | 80% | How bright a dot gets under the pointer. |
 | **Active pill** | | |
 | Pill thickness | Match dots | Set on its own, so a thick pill can sit over small dots or the other way round. |
-| Pill length | 3.5× pill | The pill's length as a multiple of its thickness. |
+| Pill length | 4.5× pill | The pill's length as a multiple of its thickness. |
 | **Hover background** | | |
 | Highlight the whole pager on hover | On | A rounded background fades in behind the pager, as in GNOME's top bar. Turned off, the pager takes only the room its dots need. |
 | Background opacity | 12% | |

@@ -14,7 +14,7 @@ The settings pages are exempt: the dialog builds them on demand.
   `desktopIds` and `desktopNames` are the deliberate exception, a handful of strings per change.
 - **Filter the window model's churn at the source**: a `dataChanged` that touches only roles no
   consumer reads (window focus fires constantly) doesn't rebuild, a burst of changes coalesces
-  into one `Qt.callLater`, and an output that didn't change isn't reassigned.
+  into one deferred rebuild, and an output that didn't change isn't reassigned.
 - **Draw with `Rectangle` and its `radius`**, never `Canvas`. `clip` and `layer.enabled` each add
   an offscreen buffer and a render pass, and nothing here overflows.
 - **Drop what isn't shown**: the hover background is `visible: opacity > 0`, and the occupancy

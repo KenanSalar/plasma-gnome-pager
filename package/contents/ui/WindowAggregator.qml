@@ -124,32 +124,21 @@ Item {
         }
     }
 
-    // One rebuild for a burst of signals.
-    function scheduleRebuild() {
-        Qt.callLater(aggregator.rebuild);
+    // One rebuild for a burst of signals, on a timer that dies with the aggregator: a Qt.callLater queued
+    // as the loader unloads it would still run, into the destroyed object.
+    Timer {
+        id: rebuildTimer
+        interval: 0
+        onTriggered: aggregator.rebuild()
     }
 
-    // The UUID lists arrive as variant wrappers, so they're stringified before logic.mjs compares them.
+    function scheduleRebuild() {
+        rebuildTimer.start();
+    }
+
     function rebuild() {
-        let windows = [];
-        for (let i = 0; i < winInstantiator.count; ++i) {
-            const o = winInstantiator.objectAt(i) as WindowRow;
-            if (!o)
-                continue;
-            windows.push({
-                title: o.display || "",
-                minimized: o.minimized,
-                onAll: o.onAllDesktops,
-                isWindow: o.isWindow,
-                skipPager: o.skipPager,
-                desktops: (o.windowDesktops || []).map(x => String(x)),
-                activities: (o.windowActivities || []).map(x => String(x)),
-                // A QRect isn't a plain JS value; null counts the window on every screen.
-                screen: o.windowScreen ? { x: o.windowScreen.x, y: o.windowScreen.y, width: o.windowScreen.width, height: o.windowScreen.height } : null
-            });
-        }
         const ids = aggregator.virtualDesktopInfo?.desktopIds ?? [];
-        const reduced = Logic.reduceWindowSnapshot(windows, ids, {
+        const reduced = Logic.reduceWindowSnapshot(aggregator.snapshotWindows(), ids, {
             windowList: aggregator.windowListActive,
             occupancy: aggregator.occupancyActive,
             dynamic: aggregator.dynamicActive,
@@ -166,6 +155,28 @@ Item {
             aggregator.screenOccupancy = reduced.screenOccupancy;
     }
 
+    // The UUID lists arrive as variant wrappers, so they're stringified before logic.mjs compares them.
+    function snapshotWindows() {
+        const windows = [];
+        for (let i = 0; i < winInstantiator.count; ++i) {
+            const row = winInstantiator.objectAt(i) as WindowRow;
+            if (!row)
+                continue;
+            windows.push({
+                title: row.display || "",
+                minimized: row.minimized,
+                onAll: row.onAllDesktops,
+                isWindow: row.isWindow,
+                skipPager: row.skipPager,
+                desktops: (row.windowDesktops || []).map(uuid => String(uuid)),
+                activities: (row.windowActivities || []).map(uuid => String(uuid)),
+                // A QRect isn't a plain JS value; null counts the window on every screen.
+                screen: row.windowScreen ? { x: row.windowScreen.x, y: row.windowScreen.y, width: row.windowScreen.width, height: row.windowScreen.height } : null
+            });
+        }
+        return windows;
+    }
+
     function titleHtml(title) {
         return Logic.sanitizeHtml(title.length ? title : i18nc("@item:intext window with no title", "Untitled Window"));
     }
@@ -174,24 +185,24 @@ Item {
     function formatList(titles) {
         const total = titles.length;
         const max = Logic.windowListMaximum(total);
-        let t = "<ul><li>" + titles.slice(0, max).map(x => aggregator.titleHtml(x)).join("</li><li>") + "</li></ul>";
+        let html = "<ul><li>" + titles.slice(0, max).map(title => aggregator.titleHtml(title)).join("</li><li>") + "</li></ul>";
         if (total > max)
-            t += i18ncp("@info:tooltip overflow label", "…and %1 other window", "…and %1 other windows", total - max);
-        return t;
+            html += i18ncp("@info:tooltip overflow label", "…and %1 other window", "…and %1 other windows", total - max);
+        return html;
     }
 
     // Laid out as the stock pager's tooltip is; the leading <style> drops the list's default margin.
-    function formatSubText(s) {
-        let t = "";
-        if (s.visible.length === 1)
-            t += aggregator.titleHtml(s.visible[0]);
-        else if (s.visible.length > 1)
-            t += i18ncp("@info:tooltip start of list", "%1 Window:", "%1 Windows:", s.visible.length) + aggregator.formatList(s.visible);
-        if (s.visible.length && s.minimized.length)
-            t += s.visible.length === 1 ? "<br><br>" : "<br>";
-        if (s.minimized.length > 0)
-            t += i18ncp("@info:tooltip", "%1 Minimized Window:", "%1 Minimized Windows:", s.minimized.length) + aggregator.formatList(s.minimized);
-        return t.length ? "<style>ul { margin: 0; }</style>" + t : "";
+    function formatSubText(group) {
+        let html = "";
+        if (group.visible.length === 1)
+            html += aggregator.titleHtml(group.visible[0]);
+        else if (group.visible.length > 1)
+            html += i18ncp("@info:tooltip start of list", "%1 Window:", "%1 Windows:", group.visible.length) + aggregator.formatList(group.visible);
+        if (group.visible.length && group.minimized.length)
+            html += group.visible.length === 1 ? "<br><br>" : "<br>";
+        if (group.minimized.length > 0)
+            html += i18ncp("@info:tooltip", "%1 Minimized Window:", "%1 Minimized Windows:", group.minimized.length) + aggregator.formatList(group.minimized);
+        return html.length ? "<style>ul { margin: 0; }</style>" + html : "";
     }
 
     // Switching a consumer on fills its output, switching it off empties it.

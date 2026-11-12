@@ -42,9 +42,6 @@ PlasmoidItem {
     readonly property bool dynamicWorkspaces: Plasmoid.configuration.dynamicWorkspaces ?? Logic.DEFAULTS.dynamicWorkspaces
     readonly property string dynamicNamePrefix: Plasmoid.configuration.dynamicNamePrefix ?? Logic.DEFAULTS.dynamicNamePrefix
 
-    // Dynamic workspaces would undo a manual add or remove at once.
-    readonly property bool canAddRemove: enableAddRemove && !dynamicWorkspaces
-
     readonly property int animationDuration: Plasmoid.configuration.animationDuration ?? Logic.DEFAULTS.animationDuration
     readonly property int dotStyle: Plasmoid.configuration.dotStyle ?? Logic.DEFAULTS.dotStyle
     readonly property bool singleLine: Plasmoid.configuration.singleLine ?? Logic.DEFAULTS.singleLine
@@ -68,77 +65,20 @@ PlasmoidItem {
     readonly property color occupiedColor: Plasmoid.configuration.occupiedColor ?? Logic.DEFAULTS.occupiedColor
     readonly property color hoverBackgroundColor: Plasmoid.configuration.hoverBackgroundColor ?? Logic.DEFAULTS.hoverBackgroundColor
 
-    // Without a fullRepresentation Plasma builds no representation at all, so the strip is that one,
-    // forced inline.
-    preferredRepresentation: fullRepresentation
-    fullRepresentation: WorkspaceIndicator {
-        vertical: root.isVertical
-        virtualDesktopInfo: vdi
-        enableScroll: root.enableScroll
-        scrollWrap: root.scrollWrap
-        invertScroll: root.invertScroll
-        showTooltips: root.showTooltips
-        desktopTooltips: root.desktopTooltips
+    // Dynamic workspaces would undo a manual add or remove at once.
+    readonly property bool canAddRemove: enableAddRemove && !dynamicWorkspaces
+    readonly property bool windowListActive: showTooltips && showWindowList
 
-        dotStyle: root.dotStyle
-        singleLine: root.singleLine
-        matchDesktopGrid: root.matchDesktopGrid
-        dotSizeRequest: root.dotSize
-        pillSizeRequest: root.pillSize
-        spacingFactor: root.spacingFactor
-        pillWidthFactor: root.pillWidthFactor
-        inactiveOpacity: root.inactiveOpacity
-        hoverOpacity: root.hoverOpacity
-        showHoverBackground: root.showHoverBackground
-        hoverBackgroundOpacity: root.hoverBackgroundOpacity
-        hoverLengthFactor: root.hoverLengthFactor
-        hoverThicknessFactor: root.hoverThicknessFactor
-        hoverBackgroundColor: root.hoverBackgroundColor
-        pillClickAnywhere: Logic.pillClickAnywhereActive(root.pillClickAnywhere, root.pillClickAction)
-        showOccupancy: root.showOccupancy
-        desktopOccupancy: root.screenOccupancy
-        occupiedOpacity: root.occupiedOpacity
-        occupancyStyle: root.occupancyStyle
-        followThemeColors: root.followThemeColors
-        activeColor: root.activeColor
-        inactiveColor: root.inactiveColor
-        occupiedColor: root.occupiedColor
-        animationDuration: root.animationDuration
-
-        onSwitchRequested: uuid => root.switchTo(uuid)
-        onActiveClicked: root.dispatch(Logic.pillClickSpec(root.pillClickAction))
-    }
-
-    TaskManager.VirtualDesktopInfo {
-        id: vdi
-    }
+    readonly property WorkspaceIndicator workspaceIndicator: root.fullRepresentationItem as WorkspaceIndicator
+    readonly property WindowAggregator windowAggregator: aggregatorLoader.item as WindowAggregator
 
     // The loader also runs for occupancy alone, which mustn't bring back a window list that's off.
-    readonly property var desktopTooltips: (root.showTooltips && root.showWindowList && tooltipLoader.item)
-        ? (tooltipLoader.item as WindowAggregator).desktopTooltips : []
-
-    readonly property var desktopOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).desktopOccupancy : []
-    readonly property var screenOccupancy: tooltipLoader.item ? (tooltipLoader.item as WindowAggregator).screenOccupancy : []
+    readonly property var desktopTooltips: root.windowListActive ? (root.windowAggregator?.desktopTooltips ?? []) : []
+    readonly property var desktopOccupancy: root.windowAggregator?.desktopOccupancy ?? []
+    readonly property var screenOccupancy: root.windowAggregator?.screenOccupancy ?? []
 
     // Screen.* holds only on the placed item; the zero rect before then counts windows on every screen.
-    readonly property rect screenRect: root.fullRepresentationItem
-        ? (root.fullRepresentationItem as WorkspaceIndicator).screenRect : Qt.rect(0, 0, 0, 0)
-
-    Loader {
-        id: tooltipLoader
-        active: (root.showTooltips && root.showWindowList) || root.dynamicWorkspaces || root.showOccupancy
-        sourceComponent: aggregatorComponent
-    }
-    Component {
-        id: aggregatorComponent
-        WindowAggregator {
-            virtualDesktopInfo: vdi
-            screenRect: root.screenRect
-            windowListActive: root.showTooltips && root.showWindowList
-            occupancyActive: root.showOccupancy
-            dynamicActive: root.dynamicWorkspaces
-        }
-    }
+    readonly property rect screenRect: root.workspaceIndicator?.screenRect ?? Qt.rect(0, 0, 0, 0)
 
     // A null spec is a guard that tripped, and sends nothing.
     function dispatch(spec) {
@@ -151,7 +91,7 @@ PlasmoidItem {
             "path": spec.path,
             "iface": spec.iface,
             "member": spec.member,
-            "arguments": spec.args.map(a => root.toDBusArg(a))
+            "arguments": spec.args.map(arg => root.toDBusArg(arg))
         });
         if (reply) {
             reply.finished.connect(() => {
@@ -163,19 +103,19 @@ PlasmoidItem {
     }
 
     // The variant wraps the plain value: KWin silently rejects a variant around a DBus.string.
-    function toDBusArg(a) {
-        switch (a.t) {
+    function toDBusArg(arg) {
+        switch (arg.t) {
         case "s":
-            return new DBus.string(a.v);
+            return new DBus.string(arg.v);
         case "u":
-            return new DBus.uint32(a.v);
+            return new DBus.uint32(arg.v);
         case "i":
-            return new DBus.int32(a.v);
+            return new DBus.int32(arg.v);
         case "v":
-            return new DBus.variant(a.v);
+            return new DBus.variant(arg.v);
         default:
-            console.warn("plasma-gnome-pager: toDBusArg got unknown DBus type letter", a.t);
-            return a.v;
+            console.warn("plasma-gnome-pager: toDBusArg got unknown DBus type letter", arg.t);
+            return arg.v;
         }
     }
 
@@ -193,25 +133,6 @@ PlasmoidItem {
 
     function removeLastDesktop() {
         root.removeDesktop(Logic.lastDesktopId(vdi.desktopIds));
-    }
-
-    DynamicWorkspacesController {
-        id: dynamicController
-
-        dynamicEnabled: root.dynamicWorkspaces
-        namePrefix: root.dynamicNamePrefix
-        defaultPrefix: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
-        virtualDesktopInfo: vdi
-        desktopOccupancy: root.desktopOccupancy
-
-        onDispatchRequested: spec => root.dispatch(spec)
-        onSyncConfigRequested: (nextEnabled, nextPrefix) => {
-            // Writing only a changed value keeps the write from echoing back through onChanged.
-            if (Plasmoid.configuration.dynamicWorkspaces !== nextEnabled)
-                Plasmoid.configuration.dynamicWorkspaces = nextEnabled;
-            if (Plasmoid.configuration.dynamicNamePrefix !== nextPrefix)
-                Plasmoid.configuration.dynamicNamePrefix = nextPrefix;
-        }
     }
 
     function renameDesktop(uuid, name) {
@@ -258,7 +179,7 @@ PlasmoidItem {
             priority: Plasmoid.LowPriorityAction
             visible: root.enableRename
             enabled: root.enableRename
-            onTriggered: root.openRenameDialog(vdi.currentDesktop)
+            onTriggered: root.openRenameDialog(root.workspaceIndicator?.currentDesktop || vdi.currentDesktop)
         },
         PlasmaCore.Action {
             text: i18n("Configure Virtual Desktops…")
@@ -267,6 +188,82 @@ PlasmoidItem {
             onTriggered: root.openVirtualDesktopsKcm()
         }
     ]
+
+    // Without a fullRepresentation Plasma builds no representation at all, so the strip is that one,
+    // forced inline.
+    preferredRepresentation: fullRepresentation
+    fullRepresentation: WorkspaceIndicator {
+        vertical: root.isVertical
+        virtualDesktopInfo: vdi
+        enableScroll: root.enableScroll
+        scrollWrap: root.scrollWrap
+        invertScroll: root.invertScroll
+        showTooltips: root.showTooltips
+        desktopTooltips: root.desktopTooltips
+
+        dotStyle: root.dotStyle
+        singleLine: root.singleLine
+        matchDesktopGrid: root.matchDesktopGrid
+        dotSizeRequest: root.dotSize
+        pillSizeRequest: root.pillSize
+        spacingFactor: root.spacingFactor
+        pillWidthFactor: root.pillWidthFactor
+        inactiveOpacity: root.inactiveOpacity
+        hoverOpacity: root.hoverOpacity
+        showHoverBackground: root.showHoverBackground
+        hoverBackgroundOpacity: root.hoverBackgroundOpacity
+        hoverLengthFactor: root.hoverLengthFactor
+        hoverThicknessFactor: root.hoverThicknessFactor
+        hoverBackgroundColor: root.hoverBackgroundColor
+        pillClickAnywhere: Logic.pillClickAnywhereActive(root.pillClickAnywhere, root.pillClickAction)
+        showOccupancy: root.showOccupancy
+        desktopOccupancy: root.screenOccupancy
+        occupiedOpacity: root.occupiedOpacity
+        occupancyStyle: root.occupancyStyle
+        followThemeColors: root.followThemeColors
+        activeColor: root.activeColor
+        inactiveColor: root.inactiveColor
+        occupiedColor: root.occupiedColor
+        animationDuration: root.animationDuration
+
+        onSwitchRequested: uuid => root.switchTo(uuid)
+        onActiveClicked: root.dispatch(Logic.pillClickSpec(root.pillClickAction))
+    }
+
+    TaskManager.VirtualDesktopInfo {
+        id: vdi
+    }
+
+    Loader {
+        id: aggregatorLoader
+        active: root.windowListActive || root.dynamicWorkspaces || root.showOccupancy
+        sourceComponent: WindowAggregator {
+            virtualDesktopInfo: vdi
+            screenRect: root.screenRect
+            windowListActive: root.windowListActive
+            occupancyActive: root.showOccupancy
+            dynamicActive: root.dynamicWorkspaces
+        }
+    }
+
+    DynamicWorkspacesController {
+        id: dynamicController
+
+        dynamicEnabled: root.dynamicWorkspaces
+        namePrefix: root.dynamicNamePrefix
+        defaultPrefix: i18nc("@info default base name for auto-created virtual desktops", "Desktop")
+        virtualDesktopInfo: vdi
+        desktopOccupancy: root.desktopOccupancy
+
+        onDispatchRequested: spec => root.dispatch(spec)
+        onSyncConfigRequested: (nextEnabled, nextPrefix) => {
+            // Writing only a changed value keeps the write from echoing back through onChanged.
+            if (Plasmoid.configuration.dynamicWorkspaces !== nextEnabled)
+                Plasmoid.configuration.dynamicWorkspaces = nextEnabled;
+            if (Plasmoid.configuration.dynamicNamePrefix !== nextPrefix)
+                Plasmoid.configuration.dynamicNamePrefix = nextPrefix;
+        }
+    }
 
     RenameDialog {
         id: renameDialog

@@ -16,9 +16,11 @@ Notable changes to Plasma Gnome Pager, newest first. Versions up to 1.8.2 are de
 
 ### Changed
 
+- **A longer pill by default.** The current desktop's pill is now 4.5 times as long as it is
+  thick, up from 3.5. If you've set Pill length yourself, your setting stays as it is.
 - **Behind-the-scenes cleanup.** The widget's code now uses standard JavaScript modules, which
-  lets the project check and format it with oxlint and oxfmt. Apart from the fix above, nothing
-  should look or behave differently.
+  lets the project check and format it with oxlint and oxfmt. Apart from the changes above,
+  nothing should look or behave differently.
 
 ### Known issues in KWin
 

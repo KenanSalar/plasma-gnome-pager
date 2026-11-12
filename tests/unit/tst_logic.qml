@@ -106,33 +106,28 @@ TestCase {
 
     function test_accumulateWheel_data() {
         return [
-            { tag: "full-notch-down", acc: 0, d: 120, t: 120, steps: 1, rem: 0 },
-            { tag: "full-notch-up", acc: 0, d: -120, t: 120, steps: -1, rem: 0 },
-            { tag: "half-notch-carries", acc: 0, d: 60, t: 120, steps: 0, rem: 60 },
-            { tag: "two-halves-make-a-notch", acc: 60, d: 60, t: 120, steps: 1, rem: 0 },
-            { tag: "touchpad-sub-notch", acc: 0, d: 40, t: 120, steps: 0, rem: 40 },
-            { tag: "overshoot-carries-remainder", acc: 0, d: 200, t: 120, steps: 1, rem: 80 },
-            { tag: "double-notch", acc: 0, d: 240, t: 120, steps: 2, rem: 0 },
-            { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 },
+            { tag: "full-notch-down", acc: 0, d: 120, steps: 1, rem: 0 },
+            { tag: "full-notch-up", acc: 0, d: -120, steps: -1, rem: 0 },
+            { tag: "half-notch-carries", acc: 0, d: 60, steps: 0, rem: 60 },
+            { tag: "two-halves-make-a-notch", acc: 60, d: 60, steps: 1, rem: 0 },
+            { tag: "touchpad-sub-notch", acc: 0, d: 40, steps: 0, rem: 40 },
+            { tag: "overshoot-carries-remainder", acc: 0, d: 200, steps: 1, rem: 80 },
+            { tag: "double-notch", acc: 0, d: 240, steps: 2, rem: 0 },
 
             // wheel up: `| 0` truncates toward zero, so step and remainder are both negative
-            { tag: "negative-overshoot-carries", acc: 0, d: -200, t: 120, steps: -1, rem: -80 },
-            { tag: "negative-double-notch", acc: 0, d: -240, t: 120, steps: -2, rem: 0 },
-            { tag: "negative-remainder-feeds-back", acc: -80, d: -60, t: 120, steps: -1, rem: -20 },
+            { tag: "negative-overshoot-carries", acc: 0, d: -200, steps: -1, rem: -80 },
+            { tag: "negative-double-notch", acc: 0, d: -240, steps: -2, rem: 0 },
+            { tag: "negative-remainder-feeds-back", acc: -80, d: -60, steps: -1, rem: -20 },
 
-            // several notches with a carried remainder, other thresholds, a missing or negative threshold
-            // (120 then), and a zero delta that only carries the total forward
-            { tag: "two-notches-with-remainder", acc: 0, d: 280, t: 120, steps: 2, rem: 40 },
-            { tag: "three-notches", acc: 0, d: 360, t: 120, steps: 3, rem: 0 },
-            { tag: "three-notches-with-remainder", acc: 0, d: 400, t: 120, steps: 3, rem: 40 },
-            { tag: "non-default-threshold", acc: 0, d: 240, t: 240, steps: 1, rem: 0 },
-            { tag: "negative-threshold-defaults-120", acc: 0, d: 120, t: -50, steps: 1, rem: 0 },
-            { tag: "undefined-threshold-defaults-120", acc: 0, d: 120, t: undefined, steps: 1, rem: 0 },
-            { tag: "delta-zero-noop", acc: 50, d: 0, t: 120, steps: 0, rem: 50 }
+            // several notches with a carried remainder, and a zero delta that only carries the total forward
+            { tag: "two-notches-with-remainder", acc: 0, d: 280, steps: 2, rem: 40 },
+            { tag: "three-notches", acc: 0, d: 360, steps: 3, rem: 0 },
+            { tag: "three-notches-with-remainder", acc: 0, d: 400, steps: 3, rem: 40 },
+            { tag: "delta-zero-noop", acc: 50, d: 0, steps: 0, rem: 50 }
         ];
     }
     function test_accumulateWheel(data) {
-        const r = Logic.accumulateWheel(data.acc, data.d, data.t);
+        const r = Logic.accumulateWheel(data.acc, data.d);
         compare(r.steps, data.steps, data.tag + " steps");
         fuzzyCompare(r.remainder, data.rem, 0.001, data.tag + " remainder");
     }
@@ -319,40 +314,34 @@ TestCase {
     }
 
     function test_dotHasRing() {
-        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, false), "Pill style → no ring outline");
-        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, true), "Pill style + active → no ring outline");
-        verify(Logic.dotHasRing(Logic.DOT_STYLE.Ring, false), "Ring style + non-current → ring outline");
-        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Ring, true), "Ring style + current → no outline (filled circle)");
+        var B = Logic.DOT_BODY;
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, B.Inactive), "Pill style → no ring outline");
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, B.Active), "Pill style + active → no ring outline");
+        verify(Logic.dotHasRing(Logic.DOT_STYLE.Ring, B.Inactive), "Ring style + non-current → ring outline");
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Ring, B.Active), "Ring style + current → no outline (filled circle)");
     }
 
     function test_dotBodyIsHollow_data() {
-        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring;
-        var F = Logic.OCCUPANCY.Filled, I = Logic.OCCUPANCY.InnerDot, R = Logic.OCCUPANCY.Ring;
+        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring, B = Logic.DOT_BODY;
         return [
-            // pill style
-            { tag: "pill-inactive", style: Pill, active: false, occupied: false, occ: F, exp: false },
-            { tag: "pill-active", style: Pill, active: true, occupied: false, occ: F, exp: false },
-            { tag: "pill-occupied-filled", style: Pill, active: false, occupied: true, occ: F, exp: false },
-            // ring style
-            { tag: "ring-active", style: Ring, active: true, occupied: false, occ: F, exp: false }, // current = filled circle
-            { tag: "ring-empty", style: Ring, active: false, occupied: false, occ: F, exp: true }, // hollow ring
-            { tag: "ring-occupied-filled", style: Ring, active: false, occupied: true, occ: F, exp: false }, // Filled fills the interior (keeps the outline)
-            { tag: "ring-occupied-innerdot", style: Ring, active: false, occupied: true, occ: I, exp: true }, // hollow + inner dot
-            { tag: "ring-occupied-ring", style: Ring, active: false, occupied: true, occ: R, exp: true } // hollow (overlay suppressed)
+            { tag: "pill-inactive", style: Pill, body: B.Inactive, exp: false },
+            { tag: "pill-occupied", style: Pill, body: B.Occupied, exp: false },
+            { tag: "pill-active", style: Pill, body: B.Active, exp: false },
+            { tag: "ring-inactive", style: Ring, body: B.Inactive, exp: true },
+            { tag: "ring-occupied", style: Ring, body: B.Occupied, exp: false }, // Filled fills the interior (keeps the outline)
+            { tag: "ring-active", style: Ring, body: B.Active, exp: false } // current = filled circle
         ];
     }
     function test_dotBodyIsHollow(data) {
-        compare(Logic.dotBodyIsHollow(data.style, data.active, data.occupied, data.occ), data.exp, data.tag);
+        compare(Logic.dotBodyIsHollow(data.style, data.body), data.exp, data.tag);
     }
 
     function test_dotBodyFilled() {
-        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring;
-        var F = Logic.OCCUPANCY.Filled, I = Logic.OCCUPANCY.InnerDot;
-        verify(Logic.dotBodyFilled(Ring, false, true, F), "Ring + non-current + occupied + Filled → ring outline + filled interior");
-        verify(!Logic.dotBodyFilled(Ring, false, false, F), "Ring + empty → hollow, not filled");
-        verify(!Logic.dotBodyFilled(Ring, false, true, I), "Ring + occupied + InnerDot → hollow (marker is an overlay)");
-        verify(!Logic.dotBodyFilled(Ring, true, true, F), "Ring + current → filled circle, but no ring outline → not 'ring filled'");
-        verify(!Logic.dotBodyFilled(Pill, false, true, F), "Pill style → never a filled ring");
+        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring, B = Logic.DOT_BODY;
+        verify(Logic.dotBodyFilled(Ring, B.Occupied), "Ring + Filled marker → ring outline + filled interior");
+        verify(!Logic.dotBodyFilled(Ring, B.Inactive), "Ring + inactive body → hollow, not filled");
+        verify(!Logic.dotBodyFilled(Ring, B.Active), "Ring + current → filled circle, but no ring outline → not 'ring filled'");
+        verify(!Logic.dotBodyFilled(Pill, B.Occupied), "Pill style → never a filled ring");
     }
 
     function test_effectiveDuration_data() {
@@ -971,21 +960,18 @@ TestCase {
         compare(Logic.formatDynamicDesktopName(longPrefix, 7, "Desktop"), new Array(101).join("a") + " 7", "prefix capped at 100, then ' 7'");
     }
 
-    // The registry's keys are object keys, so strings the function has to compare as numbers.
     function test_electDynamicWriter_data() {
         return [
-            { tag: "null", reg: null, exp: -1 },
-            { tag: "empty", reg: {}, exp: -1 },
-            { tag: "none-enabled", reg: { "1": false, "2": false }, exp: -1 },
-            { tag: "one-enabled", reg: { "1": true }, exp: 1 },
-            { tag: "lowest-enabled-wins", reg: { "1": true, "2": true }, exp: 1 },
-            { tag: "skip-disabled-lower", reg: { "1": false, "2": true }, exp: 2 },
-            { tag: "numeric-min-not-insertion", reg: { "2": true, "1": true }, exp: 1 },
-            { tag: "mixed", reg: { "3": false, "1": false, "2": true, "4": true }, exp: 2 }
+            { tag: "null", tokens: null, exp: -1 },
+            { tag: "empty", tokens: [], exp: -1 },
+            { tag: "one", tokens: ["1"], exp: 1 },
+            { tag: "lowest-wins", tokens: ["1", "2"], exp: 1 },
+            { tag: "numeric-min-not-insertion", tokens: ["2", "1"], exp: 1 },
+            { tag: "mixed", tokens: ["3", "1", "2", "4"], exp: 1 }
         ];
     }
     function test_electDynamicWriter(data) {
-        compare(Logic.electDynamicWriter(data.reg), data.exp, data.tag);
+        compare(Logic.electDynamicWriter(data.tokens), data.exp, data.tag);
     }
 
     // Made-up role numbers; the aggregator passes the real TasksModel ones.
@@ -1032,7 +1018,7 @@ TestCase {
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
             { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
-            { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
+            { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 4.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
             { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
             { tag: "showHoverBackground", key: "showHoverBackground", exp: true },
@@ -1046,8 +1032,7 @@ TestCase {
             { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
             { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
             { tag: "occupiedColor", key: "occupiedColor", exp: "#3daee9" },
-            { tag: "hoverBackgroundColor", key: "hoverBackgroundColor", exp: "#eff0f1" },
-            { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
+            { tag: "hoverBackgroundColor", key: "hoverBackgroundColor", exp: "#eff0f1" }
         ];
     }
     function test_defaults(data) {
@@ -1071,8 +1056,8 @@ TestCase {
                         "inactiveOpacity", "invertScroll", "matchDesktopGrid", "occupancyStyle", "occupiedColor", "occupiedOpacity",
                         "pillClickAction", "pillClickAnywhere", "pillSize", "pillWidthFactor", "scrollWrap",
                         "showHoverBackground", "showOccupancy", "showTooltips",
-                        "showWindowList", "singleLine", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 34, "DEFAULTS has exactly 34 keys");
+                        "showWindowList", "singleLine", "spacingFactor"].sort();
+        compare(keys.length, 33, "DEFAULTS has exactly 33 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
@@ -1118,8 +1103,8 @@ TestCase {
                 verify(false, "unhandled main.xml entry type '" + type + "' for '" + name + "'");
             }
         }
-        // A pattern that missed an entry would skip it in silence; wheelNotchDelta has none.
-        compare(seen, Object.keys(Logic.DEFAULTS).length - 1, "every main.xml entry was checked (all but wheelNotchDelta)");
+        // A pattern that missed an entry would skip it in silence.
+        compare(seen, Object.keys(Logic.DEFAULTS).length, "every main.xml entry was checked");
     }
 
     // KWin drops a call with a wrong string or type without an error, so each spec is pinned by value.

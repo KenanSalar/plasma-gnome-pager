@@ -75,7 +75,6 @@ Item {
 
     // Wheel motion short of a notch, carried into the next event.
     property real wheelAccumulator: 0
-    readonly property int wheelNotchDelta: Logic.DEFAULTS.wheelNotchDelta
 
     readonly property int desktopCount: desktopIds.length
 
@@ -88,8 +87,8 @@ Item {
     // -1 until the current desktop is in the list, which draws no pill.
     readonly property int activeIndex: desktopIds.indexOf(currentDesktop)
 
-    // The ring style has no pill: a pill factor of 1 and an auto pill size make every element a dot,
-    // in the metrics and in each dot alike.
+    // The ring style has no pill: a pill factor of 1 and an auto pill size make the metrics size every
+    // element as a dot.
     property int dotStyle: Logic.DEFAULTS.dotStyle
     readonly property bool ringStyle: Logic.isRingStyle(dotStyle)
     readonly property real effPillWidthFactor: ringStyle ? 1.0 : pillWidthFactor
@@ -185,7 +184,7 @@ Item {
     function handleWheel(angleDeltaY: real) {
         if (!indicator.enableScroll)
             return;
-        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY, indicator.wheelNotchDelta);
+        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY);
         indicator.wheelAccumulator = acc.remainder;
         if (acc.steps === 0)
             return;
@@ -304,7 +303,7 @@ Item {
                         dotStyle: indicator.dotStyle
                         dotSize: indicator.dotSize
                         pillSize: indicator.pillSize
-                        pillWidthFactor: indicator.effPillWidthFactor
+                        pillWidth: indicator.pillWidth
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
                         // Gated here so a stale array does nothing while the markers are off.

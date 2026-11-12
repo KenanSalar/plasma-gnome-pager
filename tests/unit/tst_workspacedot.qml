@@ -129,14 +129,13 @@ TestCase {
     }
 
     function test_independentPillThickness() {
-        const active = makeDot({ active: true, dotSize: 8, pillSize: 24, pillWidthFactor: 3 });
+        const active = makeDot({ active: true, dotSize: 8, pillSize: 24, pillWidth: 72 });
         const circle = circleOf(active);
-        fuzzyCompare(active.pillWidth, 72, 0.5, "pillWidth = pillSize * pillWidthFactor");
         fuzzyCompare(circle.height, 24, 0.5, "horizontal active capsule is pill-thick across (height == pillSize)");
         fuzzyCompare(circle.width, 72, 0.5, "horizontal active capsule is pill-long (width == pillWidth)");
         fuzzyCompare(circle.radius, 12, 0.5, "stadium ends at half the pill thickness (pillSize/2)");
 
-        const inactive = makeDot({ active: false, dotSize: 8, pillSize: 24, pillWidthFactor: 3 });
+        const inactive = makeDot({ active: false, dotSize: 8, pillSize: 24, pillWidth: 72 });
         const inactiveCircle = circleOf(inactive);
         fuzzyCompare(inactiveCircle.width, 8, 0.5, "inactive stays a dotSize circle (width)");
         fuzzyCompare(inactiveCircle.height, 8, 0.5, "inactive stays a dotSize circle (height)");
@@ -277,9 +276,9 @@ TestCase {
         compare(ring.border.color, ringStyle.occupiedColor, "Ring: border uses the custom occupiedColor");
     }
 
-    // The ring style. pillWidthFactor 1 stands in for what the indicator passes in that style.
+    // ring style
     function test_filledRingStyleInactiveIsHollow() {
-        const dot = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, active: false, inactiveOpacity: 0.45 });
+        const dot = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, active: false, inactiveOpacity: 0.45 });
         verify(dot.hasRing, "a non-current dot in the Filled & ring style draws the ring outline");
         verify(dot.bodyIsHollow, "an empty non-current dot has a transparent interior");
         const circle = circleOf(dot);
@@ -298,7 +297,7 @@ TestCase {
 
     function test_filledRingStyleOccupancyComposition() {
         // Filled once took the ring's outline away along with the hollow interior.
-        const filled = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, occupied: true,
+        const filled = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, occupied: true,
                                  occupancyStyle: Logic.OCCUPANCY.Filled, occupiedOpacity: 0.7, active: false });
         verify(filled.hasRing, "Filled occupancy keeps the ring outline in the Filled & ring style");
         verify(!filled.bodyIsHollow, "Filled occupancy fills the ring interior");
@@ -310,14 +309,14 @@ TestCase {
         verify(!Qt.colorEqual(fc.color, "transparent"), "the interior is filled, not transparent");
         fuzzyCompare(fc.color.a, filled.occupiedOpacity, 0.01, "the filled interior carries the occupied opacity (baked into the fill)");
 
-        const inner = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, occupied: true,
+        const inner = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, occupied: true,
                                 occupancyStyle: Logic.OCCUPANCY.InnerDot, active: false });
         verify(inner.hasRing, "InnerDot occupancy keeps the ring outline");
         verify(inner.bodyIsHollow, "InnerDot occupancy keeps a hollow interior");
         verify(inner.showInnerDot, "InnerDot occupancy still adds the centre dot on the ring");
         compare(TreeWalk.collect(inner, Elements.isCircle).filter(c => c.visible).length, 2, "ring body + inner dot");
 
-        const ring = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, pillWidthFactor: 1, occupied: true,
+        const ring = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, occupied: true,
                                occupancyStyle: Logic.OCCUPANCY.Ring, active: false });
         verify(ring.hasRing, "Ring occupancy keeps the ring outline");
         verify(ring.bodyIsHollow, "Ring occupancy keeps a hollow interior");

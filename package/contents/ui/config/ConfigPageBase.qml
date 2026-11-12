@@ -17,7 +17,7 @@ Kirigami.ScrollablePage {
     // { n, t }: the key, and bool, int, real, string or color for how it compares.
     property var configKeys: []
 
-    property bool isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
+    readonly property bool isModified: configKeys.some(k => root.fieldChanged(k.n, k.t))
 
     // For combos and text fields, so they line up with the slider tracks.
     readonly property int fieldWidth: Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS
@@ -25,29 +25,30 @@ Kirigami.ScrollablePage {
     // SnapAlways can land a real a rounding error away from its default.
     readonly property real epsilon: 1e-9
 
-    function fieldChanged(page, name, kind) {
-        var a = page["cfg_" + name];
-        var b = page["cfg_" + name + "Default"];
+    function fieldChanged(name, kind) {
+        var value = root["cfg_" + name];
+        var defaultValue = root["cfg_" + name + "Default"];
         if (kind === "real")
-            return Math.abs(a - b) > root.epsilon;
+            return Math.abs(value - defaultValue) > root.epsilon;
         if (kind === "color")
-            return !Qt.colorEqual(a, b);
-        return a !== b;
+            return !Qt.colorEqual(value, defaultValue);
+        return value !== defaultValue;
     }
 
-    function resetField(page, name) {
-        page["cfg_" + name] = page["cfg_" + name + "Default"];
+    function resetField(name) {
+        root["cfg_" + name] = root["cfg_" + name + "Default"];
     }
 
-    signal defaultsRequested()
-    onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
+    function resetToDefaults() {
+        root.configKeys.forEach(k => root.resetField(k.n));
+    }
 
     actions: [
         Kirigami.Action {
             text: i18n("Defaults")
             icon.name: "edit-undo-symbolic"
             enabled: root.isModified
-            onTriggered: root.defaultsRequested()
+            onTriggered: root.resetToDefaults()
         }
     ]
 }
