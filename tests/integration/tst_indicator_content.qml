@@ -373,6 +373,28 @@ IndicatorTestCase {
         tryCompare(dotByUuid(indicator, ids[0]), "desktopName", "Uno", 2000, "the dot's name updates reactively");
     }
 
+    // A KWin reorder (Grid desktop drag, the KCM) re-sorts the source lists in place and signals only
+    // desktopPositionsChanged, so a pager listening only for desktopIdsChanged keeps the old order.
+    function test_dotsFollowReorderedDesktops() {
+        const vdi = makeMock(ids, ids[0]);
+        const indicator = makeIndicator(vdi);
+
+        vdi.reorder([ids[1], ids[2], ids[0]]);   // the first desktop moved to the end
+
+        compare(dotsByIndex(indicator).map(dot => dot.modelData), [ids[1], ids[2], ids[0]],
+            "the dots take KWin's new order");
+    }
+
+    function test_dotNamesFollowReorderedDesktops() {
+        const vdi = makeMock(ids, ids[0], ["One", "Two", "Three"]);
+        const indicator = makeIndicator(vdi);
+
+        vdi.reorder([ids[1], ids[2], ids[0]]);
+
+        compare(dotsByIndex(indicator).map(dot => dot.desktopName), ["Two", "Three", "One"],
+            "each name moves with its desktop, not with its old position");
+    }
+
     function test_reactiveDesktopTooltipsMutation() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { desktopTooltips: ["w0", "w1", "w2"] });
         compare(dotByUuid(indicator, ids[1]).tooltipText, "w1", "initial window-list subText");

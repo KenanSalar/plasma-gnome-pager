@@ -148,6 +148,21 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "a real wheel event does nothing when scroll is disabled");
     }
 
+    // After a reorder, wheel-up from the moved (now last) desktop must reach its neighbour in KWin's order.
+    // Wrap is off: wrapping from the stale first position lands on the same desktop and hides the defect.
+    function test_wheelStepsThroughReorderedDesktops() {
+        const vdi = makeMock(ids, ids[0]);
+        const indicator = makeIndicator(vdi, { enableScroll: true, scrollWrap: false, width: 200, height: 50 });
+        vdi.reorder([ids[1], ids[2], ids[0]]);
+        switchSpy.target = indicator;
+        switchSpy.clear();
+
+        mouseWheel(indicator, indicator.width / 2, indicator.height / 2, 0, 120);   // wheel up
+
+        compare(switchSpy.count, 1, "wheel-up from the moved desktop switches");
+        compare(switchSpy.signalArguments[0][0], ids[2], "it targets KWin's previous desktop, not the stale one");
+    }
+
     // Clicking the CURRENT desktop's pill raises activeClicked (the pill-click action), not a switch.
     // Driven via the dot's activated() signal (also the Accessible.onPressAction path).
     function test_clickActiveDotEmitsActiveClicked() {
