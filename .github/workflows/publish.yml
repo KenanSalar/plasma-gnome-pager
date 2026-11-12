@@ -1,28 +1,22 @@
 name: Publish
 
-# Cut a draft GitHub Release from a pushed `v*.*.*` tag. package/metadata.json's .KPlugin.Version
-# is the single source of truth and the tag has to agree -- the gate below fails the run on a
-# mismatch, so the bump and the tag are one act rather than two that can drift. The release is
-# created as a DRAFT carrying the built .plasmoid + GitHub's auto-generated notes; you edit the
-# description and publish manually, which is the QA step. The KDE Store upload is separate and
-# manual (the store has no stable upload API).
+# Drafts a GitHub release with the .plasmoid from a pushed v*.*.* tag, which has to equal
+# metadata.json's KPlugin.Version. Editing the notes and publishing the draft by hand is the QA step;
+# the KDE Store upload is manual, as the store has no stable upload API.
 #
-# Releasing: bump .KPlugin.Version on main, push v<Version>, wait for the draft, publish it.
-# Landing a PR on main ships nothing on its own.
+# Releasing: bump KPlugin.Version on main, push v<Version>, wait for the draft, publish it.
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ["v*.*.*"]
   workflow_dispatch:
 
-# One group for every release run, keyed on nothing: the shared resource is the draft, not the ref
-# that reached it, so a tag push racing a dispatch of the same version would otherwise be two
-# groups clobbering one draft. Never cancel a run mid-upload.
+# One group for every run, not one per ref: a tag push and a dispatch of the same version share one
+# draft. A run is never cancelled mid-upload.
 concurrency:
   group: publish
   cancel-in-progress: false
 
-# Write is needed to create the release, and to create the tag at publish time on the dispatch
-# path (where the tag doesn't exist yet). Nothing else.
+# To create the release, and on the dispatch path the tag it doesn't have yet.
 permissions:
   contents: write
 
@@ -35,14 +29,11 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      # Resolve version/id from metadata.json (the SSOT) and decide the action:
-      #   no release for the tag      -> create  (a fresh draft)
-      #   existing release is a draft -> update  (refresh the .plasmoid, keep edited notes)
-      #   existing release published  -> skip    (bump the version to start a new cycle)
+      # No release yet creates a draft, a draft gets its .plasmoid refreshed, a published one is skipped.
       - name: Resolve version and release state
         id: gate
         env:
@@ -52,9 +43,7 @@ jobs:
           VERSION=$(jq -r '.KPlugin.Version' package/metadata.json)
           ID=$(jq -r '.KPlugin.Id' package/metadata.json)
           TAG="v${VERSION}"
-          # The tag fires the run, but metadata.json is what the .plasmoid's filename and the
-          # installed package's version carry, so a mismatch would ship a package naming a
-          # different release. Caught here rather than drafted and published.
+          # The .plasmoid's name and the installed version come from metadata.json, not the tag.
           if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "$TAG" ]; then
             echo "::error::Tag ${REF_NAME} does not match package/metadata.json's ${TAG}."
             echo "::error::Fix .KPlugin.Version on main, then re-point the tag."
@@ -79,9 +68,7 @@ jobs:
             echo "==> no release for ${TAG} -> create a fresh draft"
           fi
 
-      # gettext provides msgfmt, which `make package` calls via its i18n dependency. gh / jq / zip /
-      # make are preinstalled on ubuntu-latest; no Qt/Plasma toolchain is needed (packaging is just
-      # zip + compiled .mo catalogs).
+      # msgfmt for the catalogs; the runner has the rest, and packaging needs no Qt.
       - name: Install packaging tools
         if: steps.gate.outputs.mode != 'skip'
         run: sudo apt-get update && sudo apt-get install -y gettext
@@ -90,9 +77,7 @@ jobs:
         if: steps.gate.outputs.mode != 'skip'
         run: make package VERSION="${{ steps.gate.outputs.version }}"
 
-      # New version: open the draft at the tagged commit with auto-generated notes + the .plasmoid.
-      # --target is ignored once the tag exists (the push path); it's what keeps a dispatch-created
-      # draft pointed at the commit it was built from rather than main's HEAD at publish time.
+      # --target matters only on the dispatch path, keeping the draft on the commit it was built from.
       - name: Create draft release
         if: steps.gate.outputs.mode == 'create'
         run: |
@@ -103,8 +88,7 @@ jobs:
             --generate-notes \
             "${{ steps.gate.outputs.plasmoid }}"
 
-      # Draft already exists (e.g. the tag was re-pointed before you published): swap in the rebuilt
-      # .plasmoid but DO NOT touch the description -- it may already be hand-edited.
+      # The notes may already be edited, so only the .plasmoid is replaced.
       - name: Refresh draft asset
         if: steps.gate.outputs.mode == 'update'
         run: |

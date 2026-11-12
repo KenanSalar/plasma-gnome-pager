@@ -1,16 +1,12 @@
 /*
- * Plasma Gnome Pager — tst_indicator_input.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Input: scroll/wheel switching (handleWheel + real mouseWheel), the wheel accumulator, and the
- * live scroll-setting toggles.
- * Derives from the shared IndicatorTestCase (tests/shared/) for the fixtures: the component
- * factory, the VirtualDesktopInfo doubles, the switchRequested spy, and the dot-tree locators.
+ * A built WorkspaceIndicator on VdiMock, driven by real wheel and click events: what a scroll or a
+ * click asks for, and the scroll settings changing at runtime.
  */
 import "../shared"
-import "../shared/elements.js" as Elements
+import "../shared/elements.mjs" as Elements
 
 IndicatorTestCase {
     id: inputCase
@@ -36,7 +32,6 @@ IndicatorTestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "scroll up moves to the previous desktop");
     }
 
-    // invertScroll flips the mapping: wheel DOWN → previous, wheel UP → next. Default off.
     function test_invertScrollDownStepsPrevious() {
         const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: true });
         switchSpy.target = indicator;
@@ -104,7 +99,7 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "no switching when enableScroll is false");
     }
 
-    // Touchpad/hi-res wheels report sub-notch deltas that must accumulate to a full notch before stepping.
+    // A touchpad reports deltas smaller than a notch.
     function test_scrollAccumulatesSubNotch() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true });
         switchSpy.target = indicator;
@@ -117,8 +112,7 @@ IndicatorTestCase {
         compare(switchSpy.signalArguments[0][0], ids[1], "accumulated notch moves to the next desktop");
     }
 
-    // Real wheel EVENTS (not just handleWheel) — the path broken in-shell: a MouseArea behind the dots
-    // receives the wheel because the dots have no onWheel, so it propagates down.
+    // Real events, as the routing behind the dots is what broke in the shell while the handler worked.
     function test_wheelEventStepsNext() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -148,8 +142,7 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "a real wheel event does nothing when scroll is disabled");
     }
 
-    // After a reorder, wheel-up from the moved (now last) desktop must reach its neighbour in KWin's order.
-    // Wrap is off: wrapping from the stale first position lands on the same desktop and hides the defect.
+    // Without wrap: wrapping from the stale first position landed on the same desktop and hid the defect.
     function test_wheelStepsThroughReorderedDesktops() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi, { enableScroll: true, scrollWrap: false, width: 200, height: 50 });
@@ -163,8 +156,6 @@ IndicatorTestCase {
         compare(switchSpy.signalArguments[0][0], ids[2], "it targets KWin's previous desktop, not the stale one");
     }
 
-    // Clicking the CURRENT desktop's pill raises activeClicked (the pill-click action), not a switch.
-    // Driven via the dot's activated() signal (also the Accessible.onPressAction path).
     function test_clickActiveDotEmitsActiveClicked() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         switchSpy.target = indicator;
@@ -177,7 +168,6 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "and does NOT emit a switch");
     }
 
-    // Clicking any OTHER (inactive) dot still switches to it, never raising the pill action.
     function test_clickInactiveDotEmitsSwitchRequested() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         switchSpy.target = indicator;
@@ -191,8 +181,7 @@ IndicatorTestCase {
         compare(activeSpy.count, 0, "and does NOT fire the pill action");
     }
 
-    // Scroll never raises the pill action — even the single-desktop + wrap no-op (handleWheel only ever
-    // emits switchRequested), so the pill action is reachable solely from a click/press of the active dot.
+    // A scroll on a single wrapping desktop steps onto the current one, which a click would treat as the pill.
     function test_scrollNeverEmitsActiveClicked() {
         const single = makeIndicator(makeMock([ids[0]], ids[0]), { enableScroll: true, scrollWrap: true });
         switchSpy.target = single;
@@ -200,13 +189,11 @@ IndicatorTestCase {
         activeSpy.target = single;
         activeSpy.clear();
 
-        single.handleWheel(-120);   // 1 desktop + wrap: stepIndex stays put
+        single.handleWheel(-120);   // one desktop with wrap: the step lands back on it
         compare(activeSpy.count, 0, "wrap on a single desktop never fires the pill action");
         compare(switchSpy.count, 0, "and emits no switch either");
     }
 
-    // pillClickAnywhere: the hovered background is a click target too, so the action no longer has to be
-    // aimed at the current pill. A REAL click well clear of the centred strip must reach the layer below it.
     function test_clickBackgroundEmitsActiveClicked() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -219,7 +206,6 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "and never switches desktop");
     }
 
-    // With the toggle off the layer accepts no buttons at all — clicks fall straight through, exactly as before.
     function test_clickBackgroundIgnoredWhenDisabled() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50, pillClickAnywhere: false });
         activeSpy.target = indicator;
@@ -229,7 +215,6 @@ IndicatorTestCase {
         compare(activeSpy.count, 0, "the background is inert when the toggle is off");
     }
 
-    // The enlarged target sits BEHIND the dots, so it must not steal their clicks.
     function test_clickAnywhereDoesNotBlockDotClicks() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -244,7 +229,6 @@ IndicatorTestCase {
         compare(activeSpy.count, 0, "the background action does not also fire");
     }
 
-    // Accepting a button on the wheel layer must not disturb wheel delivery.
     function test_scrollStillWorksWithClickAreaEnabled() {
         const indicator = makeIndicator(makeMock(ids, ids[0]), { enableScroll: true, width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -257,7 +241,6 @@ IndicatorTestCase {
         compare(activeSpy.count, 0, "and scrolling never fires the pill action");
     }
 
-    // Wheel events must not block clicks: the wheel MouseArea sits behind the dots, so press/release reach them.
     function test_wheelLayerDoesNotBlockClicks() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -270,9 +253,7 @@ IndicatorTestCase {
         compare(switchSpy.signalArguments[0][0], ids[0], "the clicked dot's UUID is forwarded");
     }
 
-    // Scrolling while the current desktop is stale (activeIndex == -1, a transient add/remove
-    // state) is a no-op — stepIndex returns -1, so handleWheel emits nothing. Covers the
-    // next<0 guard via both the handler and a real wheel event.
+    // The current desktop missing from the list, as during an add or remove.
     function test_scrollWhileStaleIsNoOp() {
         const indicator = makeIndicator(makeMock(ids, staleUuid), { enableScroll: true, width: 200, height: 50 });
         compare(indicator.activeIndex, -1, "stale current → no active element");
@@ -286,8 +267,7 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "a real wheel event is a no-op too");
     }
 
-    // Negative (wheel-up) remainder persists across events: -200 steps once and carries -80, so a
-    // following -40 completes the next notch (a dropped remainder would never switch).
+    // A dropped remainder would never complete the second notch.
     function test_wheelAccumulatorCarriesNegativeRemainder() {
         const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true });
         switchSpy.target = indicator;
@@ -302,8 +282,6 @@ IndicatorTestCase {
         compare(switchSpy.count, 2, "the carried remainder completes a second notch");
     }
 
-    // scroll: positive (wheel-up) remainder carry — symmetric to the negative case: +200 steps once and
-    // carries +80, so a following +40 completes the next notch (we assert the count and carried remainder).
     function test_wheelPositiveRemainderCarry() {
         const indicator = makeIndicator(makeMock(ids, ids[2]), { enableScroll: true });
         switchSpy.target = indicator;
@@ -326,18 +304,18 @@ IndicatorTestCase {
         indicator.handleWheel(-120);
         compare(switchSpy.count, 0, "no switch while scrolling is disabled");
 
-        indicator.enableScroll = true;   // user enables scrolling mid-session
+        indicator.enableScroll = true;
         indicator.handleWheel(-120);
         compare(switchSpy.count, 1, "enabling scroll at runtime makes the wheel step");
         compare(switchSpy.signalArguments[0][0], ids[1], "and it steps to the next desktop");
 
-        indicator.enableScroll = false;  // ...and disables it again
+        indicator.enableScroll = false;
         indicator.handleWheel(-120);
         compare(switchSpy.count, 1, "disabling scroll again stops further steps");
     }
 
     function test_invertScrollToggledLive() {
-        // current stays ids[1] throughout, so both steps compute from the middle — only the direction flips.
+        // The mock's current never moves, so both steps start from the middle.
         const indicator = makeIndicator(makeMock(ids, ids[1]), { enableScroll: true, invertScroll: false });
         switchSpy.target = indicator;
         switchSpy.clear();
@@ -359,7 +337,7 @@ IndicatorTestCase {
         indicator.handleWheel(-120);   // down from the last desktop, no wrap → no-op
         compare(switchSpy.count, 0, "no wrap: scrolling past the end is a no-op");
 
-        indicator.scrollWrap = true;   // user enables wrap mid-session
+        indicator.scrollWrap = true;
         indicator.handleWheel(-120);   // down from the last desktop, wrapping → first
         compare(switchSpy.count, 1, "enabling wrap at runtime wraps past the end");
         compare(switchSpy.signalArguments[0][0], ids[0], "and it wraps to the first desktop");

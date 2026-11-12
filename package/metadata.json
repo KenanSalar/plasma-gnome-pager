@@ -1,9 +1,7 @@
 {
     "KPackageStructure": "Plasma/Applet",
     "X-Plasma-API-Minimum-Version": "6.0",
-    "X-Plasma-Provides": [
-        "org.kde.plasma.virtualdesktops"
-    ],
+    "X-Plasma-Provides": ["org.kde.plasma.virtualdesktops"],
     "KPlugin": {
         "Id": "com.github.kenansalar.plasma-gnome-pager",
         "Name": "Plasma Gnome Pager",

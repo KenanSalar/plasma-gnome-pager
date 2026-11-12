@@ -1,0 +1,14 @@
+name: Set up Node
+description: Install the project's Node version and its locked dev tooling.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 26
+        cache: npm
+
+    - name: Install dev tooling
+      shell: bash
+      run: npm ci

@@ -1,24 +1,19 @@
 /*
- * Plasma Gnome Pager — tst_indicator_content.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Content & reactivity: per-screen current desktop, names/tooltips/occupancy relay, colours, hover,
- * accessibility, and bind-don't-cache mutations.
- * Derives from the shared IndicatorTestCase (tests/shared/) for the fixtures: the component
- * factory, the VirtualDesktopInfo doubles, the switchRequested spy, and the dot-tree locators.
+ * A built WorkspaceIndicator on VdiMock: what reaches each dot (this screen's current desktop, names,
+ * tooltips, occupancy, colours, accessibility) and the hover background, as the sources change live.
  */
 import QtQuick                        // Text.RichText + the Accessible attached property
 import org.kde.kirigami as Kirigami
 import "../shared"
-import "../shared/elements.js" as Elements
+import "../shared/elements.mjs" as Elements
 
 IndicatorTestCase {
     id: contentCase
     name: "IndicatorContent"
 
-    // The active dot follows THIS screen's current desktop, not the global one.
     function test_perScreenActiveFollowsOwnScreen() {
         const vdi = makeMock(ids, ids[0]);              // global current = first desktop
         vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
@@ -28,14 +23,14 @@ IndicatorTestCase {
         verify(!dotByUuid(indicator, ids[0]).active, "the global current is NOT active on this screen");
     }
 
-    // The reported bug: switching ANOTHER monitor's desktop must NOT move this strip's pill.
+    // The reported bug: switching on one monitor moved the pill on every monitor.
     function test_perScreenIgnoresOtherScreenSwitch() {
         const vdi = makeMock(ids, ids[0]);
         vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
         const indicator = makeIndicator(vdi, { screenName: "DP-2" });
         verify(dotByUuid(indicator, ids[2]).active, "starts on this screen's current (uuid-c)");
 
-        // Monitor DP-1 switches to uuid-b: its per-screen current and the global current both move.
+        // DP-1 switches, which moves the global current desktop with it.
         vdi.perScreenCurrent = { "DP-1": ids[1], "DP-2": ids[2] };
         vdi.currentDesktop = ids[1];                    // global follows the active output (DP-1)
         vdi.currentDesktopForScreenChanged("DP-1");
@@ -45,7 +40,6 @@ IndicatorTestCase {
         verify(!dotByUuid(indicator, ids[1]).active, "it does not follow the other screen's new desktop");
     }
 
-    // This screen's own switch updates the active dot reactively (bind, don't cache).
     function test_perScreenReactiveToOwnScreenSwitch() {
         const vdi = makeMock(ids, ids[0]);
         vdi.perScreenCurrent = { "DP-2": ids[0] };
@@ -60,7 +54,6 @@ IndicatorTestCase {
         verify(!dotByUuid(indicator, ids[0]).active, "the old dot deactivates");
     }
 
-    // An unknown screen falls back to the global current (models a screen the API doesn't know).
     function test_perScreenFallsBackToGlobalWhenScreenUnknown() {
         const vdi = makeMock(ids, ids[1]);
         vdi.perScreenCurrent = { "DP-1": ids[2] };       // only DP-1 has an entry
@@ -69,7 +62,7 @@ IndicatorTestCase {
         verify(dotByUuid(indicator, ids[1]).active, "global current is active when this screen is unknown");
     }
 
-    // Empty screenName (representation not yet placed) → global current, exercising the screenName guard.
+    // The screen name is empty until the panel places the representation.
     function test_perScreenEmptyScreenNameUsesGlobal() {
         const vdi = makeMock(ids, ids[2]);
         vdi.perScreenCurrent = { "DP-1": ids[0] };
@@ -77,9 +70,6 @@ IndicatorTestCase {
         compare(indicator.currentDesktop, ids[2], "empty screenName uses the global current");
         verify(dotByUuid(indicator, ids[2]).active, "global current is active with no screen name");
     }
-
-    // animate latch: a one-way latch gating the morph so the FIRST valid placement is instant (active
-    // element already a capsule, no grow-in on reload). See CLAUDE.md.
 
     function test_dotsReceiveDesktopName() {
         const names = ["One", "Two", "Three"];
@@ -90,7 +80,7 @@ IndicatorTestCase {
         }
     }
 
-    // robustness.md: names can lag ids during an add/remove — the dot gets "" (no OOB).
+    // Names can lag the ids during an add or remove.
     function test_dotDesktopNameGuardsShortNames() {
         const indicator = makeIndicator(makeMock(ids, currentUuid, ["One"]));   // names shorter than ids
         compare(dotByUuid(indicator, ids[2]).desktopName, "", "missing name resolves to empty string");
@@ -104,8 +94,7 @@ IndicatorTestCase {
         verify(dotByUuid(indicator, ids[0]).showTooltips, "toggling showTooltips updates the dots reactively");
     }
 
-    // window-list tooltip: per-dot subText, index-aligned with desktopIds. main.qml hands the indicator an
-    // array parallel to desktopNames; the indicator feeds each dot its entry by globalIndex (like the name).
+    // window list
 
     function test_dotsReceiveTooltipText() {
         const tips = ["win-a", "win-b", "win-c"];
@@ -116,13 +105,11 @@ IndicatorTestCase {
         }
     }
 
-    // robustness.md: the tooltip array can lag ids during an add/remove — the dot gets "" (no OOB).
     function test_dotTooltipTextGuardsShortArray() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { desktopTooltips: ["win-a"] });
         compare(dotByUuid(indicator, ids[2]).tooltipText, "", "missing tooltip resolves to empty string");
     }
 
-    // Index-aligned across the whole flat list, not reset per line (mirrors test_gridNamesMapAcrossLines).
     function test_tooltipTextMapsAcrossLines() {
         const tips = ["w0", "w1", "w2", "w3"];
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { desktopTooltips: tips });
@@ -130,8 +117,7 @@ IndicatorTestCase {
             compare(dotByUuid(indicator, fourIds[i]).tooltipText, tips[i], "dot " + i + " keeps its global window-list subText");
     }
 
-    // occupied-dot indicator: per-dot `occupied`, index-aligned with desktopIds (like the tooltip text). main.qml
-    // hands the indicator a bool[] from the window aggregator; the indicator feeds each dot its entry by globalIndex.
+    // occupancy
     function test_dotsReceiveOccupancy() {
         const occ = [true, false, true];
         const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: true, desktopOccupancy: occ });
@@ -139,20 +125,17 @@ IndicatorTestCase {
             compare(dotByUuid(indicator, ids[i]).occupied, occ[i], "dot " + i + " gets its index-aligned occupancy");
     }
 
-    // Gated on showOccupancy: with the feature off, no dot is marked occupied (the array is ignored).
     function test_occupancyIgnoredWhenShowOccupancyOff() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: false, desktopOccupancy: [true, true, true] });
         for (let i = 0; i < ids.length; i++)
             verify(!dotByUuid(indicator, ids[i]).occupied, "dot " + i + " is not occupied while showOccupancy is off");
     }
 
-    // robustness.md: the occupancy array can lag ids during an add/remove — a missing entry resolves to false (no OOB).
     function test_dotOccupancyGuardsShortArray() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: true, desktopOccupancy: [true] });
         verify(!dotByUuid(indicator, ids[2]).occupied, "missing occupancy resolves to false");
     }
 
-    // Index-aligned across the whole flat list, not reset per line (mirrors test_tooltipTextMapsAcrossLines).
     function test_occupancyMapsAcrossLines() {
         const occ = [true, false, false, true];
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { showOccupancy: true, desktopOccupancy: occ });
@@ -160,7 +143,6 @@ IndicatorTestCase {
             compare(dotByUuid(indicator, fourIds[i]).occupied, occ[i], "dot " + i + " keeps its global occupancy");
     }
 
-    // The chosen occupancy STYLE reaches every dot (2 = Hollow ring); the per-style visuals are unit-tested on the dot.
     function test_dotsReceiveOccupancyStyle() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { showOccupancy: true, occupancyStyle: 2, desktopOccupancy: [true, false, true] });
         const dots = collectDots(indicator);
@@ -168,9 +150,7 @@ IndicatorTestCase {
             compare(dots[i].occupancyStyle, 2, "dot " + i + " receives the occupancyStyle");
     }
 
-    // occupiedOpacity + occupiedColor reach every dot. Like test_dotsReceiveOccupancyStyle, this asserts
-    // the wiring (the per-style look is unit-tested on the dot); occupiedColor forwards regardless of
-    // followThemeColors — the dot resolves theme-vs-custom itself.
+    // The custom colour reaches the dots either way; each dot decides between it and the theme.
     function test_dotsReceiveOccupiedColorAndOpacity() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             showOccupancy: true, desktopOccupancy: [true, false, true],
@@ -183,10 +163,7 @@ IndicatorTestCase {
         }
     }
 
-    // appearance / colour / animation config flow through: main.qml feeds the indicator the Appearance
-    // keys, which it forwards per-dot. These assert the wiring (the look is covered by the dot unit tests).
-
-    // Custom colours flow through: with followThemeColors off, each dot uses the configured colours.
+    // appearance
     function test_colorsFlowThrough() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             followThemeColors: false,
@@ -199,7 +176,6 @@ IndicatorTestCase {
         compare(circleOf(inactiveDot).color, indicator.inactiveColor, "inactive dot uses the custom inactive colour");
     }
 
-    // animationDuration flows through to each dot and resolves there.
     function test_animationDurationFlowsThrough() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { animationDuration: 250 });
         const dot = dotByUuid(indicator, ids[0]);
@@ -207,33 +183,28 @@ IndicatorTestCase {
         compare(dot.effectiveDuration, 250, "dot resolves it to effectiveDuration");
     }
 
-    // Per-screen current: re-resolution on a LIVE indicator via the two Connections —
-    // onScreenNameChanged (panel moved output) and onDesktopIdsChanged (a desktop was removed/reassigned).
-
-    // Panel dragged to another monitor: screenName changes on a live indicator → current re-resolves
-    // (onScreenNameChanged).
+    // The panel dragged to another monitor.
     function test_perScreenReactiveToScreenNameChange() {
         const vdi = makeMock(ids, ids[0]);
         vdi.perScreenCurrent = { "DP-1": ids[0], "DP-2": ids[2] };
         const indicator = makeIndicator(vdi, { screenName: "DP-1" });
         verify(dotByUuid(indicator, ids[0]).active, "starts on DP-1's current (uuid-a)");
 
-        indicator.screenName = "DP-2";   // the widget's panel moved to the other monitor
+        indicator.screenName = "DP-2";
 
         compare(indicator.currentDesktop, ids[2], "current re-resolves to the new screen's current");
         verify(dotByUuid(indicator, ids[2]).active, "the active dot follows the new output");
         verify(!dotByUuid(indicator, ids[0]).active, "the old output's dot deactivates");
     }
 
-    // A desktop add/remove can change THIS screen's current; onDesktopIdsChanged must re-resolve it.
+    // Removing a desktop can move this screen's current one.
     function test_perScreenReResolvesOnDesktopRemoval() {
         const vdi = makeMock(ids, ids[0]);
         vdi.perScreenCurrent = { "DP-2": ids[2] };
         const indicator = makeIndicator(vdi, { screenName: "DP-2" });
         verify(dotByUuid(indicator, ids[2]).active, "starts on this screen's current (uuid-c)");
 
-        // uuid-c removed; KWin moves this screen to uuid-b. Update the map, then shrink desktopIds (which
-        // fires onDesktopIdsChanged → re-resolve).
+        // KWin moves this screen to uuid-b before the list loses uuid-c.
         vdi.perScreenCurrent = { "DP-2": ids[1] };
         vdi.desktopIds = [ids[0], ids[1]];
 
@@ -242,10 +213,9 @@ IndicatorTestCase {
         verify(!dotByUuid(indicator, ids[2]), "the removed desktop's dot is gone");
     }
 
-    // Scroll edge: no active element, and remainder sign across events
+    // hover
 
-    // Hover reaches the dots through the wheel layer: it sits BEHIND them, so hovering an inactive dot in the
-    // REAL composition still brightens it (analogue of the click test).
+    // Through the composed strip, where the wheel layer sits behind the dots.
     function test_hoverBrightensDotInComposedStrip() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const dot = dotByUuid(indicator, ids[0]);   // inactive (current is uuid-b)
@@ -260,8 +230,6 @@ IndicatorTestCase {
         tryCompare(circle, "opacity", indicator.inactiveOpacity, 2000, "returns to dim when not hovered");
     }
 
-    // The GNOME hover background: nothing at rest, the configured opacity while the pointer is anywhere over
-    // the widget. `visible` is bound to opacity, so an unhovered background is genuinely dropped.
     function test_hoverBackgroundAppearsOnHover() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const bg = hoverBackgroundOf(indicator);
@@ -276,17 +244,15 @@ IndicatorTestCase {
         tryCompare(bg, "visible", false, 2000, "and is dropped again");
     }
 
-    // The regression this design exists for: the dots sit ON TOP of the wheel layer and take hover from it,
-    // so a background driven by wheelArea alone would blink off every time the pointer crossed a dot.
-    // Every assertion after the first fade-in is SYNCHRONOUS on purpose: `hovered` ORs two sources that flip
-    // in separate notifications, so a change in Qt's hover delivery order would dip it inside a single
-    // mouseMove — restarting the fade — and a settled tryCompare would still pass while the user saw the blink.
+    // Driven by the wheel layer alone, the background blinked off over every dot. Each check after the
+    // first fade-in is synchronous: `hovered` ORs two sources that change in separate notifications, so
+    // a dip inside one mouseMove restarts the fade, and a tryCompare would pass once it had healed.
     function test_hoverBackgroundStaysVisibleOverADot() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const bg = hoverBackgroundOf(indicator);
         const lit = indicator.hoverBackgroundOpacity;
 
-        mouseMove(indicator, 5, indicator.height / 2);   // over the gap first — only this one has to settle
+        mouseMove(indicator, 5, indicator.height / 2);   // the gap first; only this one waits for the fade
         tryCompare(bg, "opacity", lit, 2000, "lit over a dot-free spot");
 
         const inactive = Elements.centerOf(dotByUuid(indicator, ids[0]), indicator);
@@ -304,7 +270,6 @@ IndicatorTestCase {
         fuzzyCompare(bg.opacity, lit, 0.001, "and never dips leaving a dot");
     }
 
-    // Switched off, no amount of hovering shows it.
     function test_hoverBackgroundDisabledNeverShows() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50, showHoverBackground: false });
         const bg = hoverBackgroundOf(indicator);
@@ -315,7 +280,6 @@ IndicatorTestCase {
         compare(bg.visible, false, "and unrendered");
     }
 
-    // Colour follows the scheme by default and the custom key otherwise — same rule as the dots.
     function test_hoverBackgroundFollowsThemeColor() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         compare(hoverBackgroundOf(indicator).color, Kirigami.Theme.textColor, "follows the theme text colour");
@@ -331,11 +295,10 @@ IndicatorTestCase {
         tryCompare(hoverBackgroundOf(indicator), "color", Kirigami.Theme.textColor, 2000, "and flips back live");
     }
 
-    // The placement check runs AFTER the per-screen current resolves in onCompleted: created on this
-    // screen's current, that element is a capsule on frame 0 (per-screen variant of firstPlacementImmediate).
+    // The latch reads activeIndex after the screen's current desktop has resolved, not before.
     function test_firstPlacementImmediatePerScreen() {
         const vdi = makeMock(ids, ids[0]);              // global current is uuid-a
-        vdi.perScreenCurrent = { "DP-2": ids[2] };      // but THIS screen is on uuid-c
+        vdi.perScreenCurrent = { "DP-2": ids[2] };      // and this screen's is uuid-c
         const indicator = makeIndicator(vdi, { screenName: "DP-2" });
         compare(indicator.currentDesktop, ids[2], "onCompleted resolved the per-screen current");
         compare(indicator.animate, true, "the latch is on after a valid per-screen placement");
@@ -343,8 +306,6 @@ IndicatorTestCase {
                      "this screen's current is already a capsule on the first frame");
     }
 
-    // per-screen degrade paths: an explicit EMPTY per-screen entry ("") is excluded by
-    // resolveCurrentDesktop, so the indicator falls back to the global current (drives the pure rule e2e).
     function test_perScreenEmptyEntryFallsBackToGlobal() {
         const vdi = makeMock(ids, ids[1]);
         vdi.perScreenCurrent = { "DP-2": "" };
@@ -353,7 +314,6 @@ IndicatorTestCase {
         verify(dotByUuid(indicator, ids[1]).active, "the global current is the active dot");
     }
 
-    // Older Plasma (pre-6.7): no currentDesktopByScreenName, so the typeof guard resolves the global current.
     function test_olderPlasmaDegradesToGlobal() {
         const vdi = makeLegacyVdi({ desktopIds: ids, currentDesktop: ids[2] });
         const indicator = makeIndicator(vdi, { screenName: "DP-9" });
@@ -361,8 +321,6 @@ IndicatorTestCase {
         verify(dotByUuid(indicator, ids[2]).active, "the global current is the active dot on older Plasma");
     }
 
-    // bind-don't-cache for the names / tooltips arrays: mutate them on a LIVE indicator and assert the
-    // dots update (a cached copy would not).
     function test_reactiveDesktopNamesMutation() {
         const vdi = makeMock(ids, currentUuid, ["One", "Two", "Three"]);
         const indicator = makeIndicator(vdi);
@@ -373,8 +331,8 @@ IndicatorTestCase {
         tryCompare(dotByUuid(indicator, ids[0]), "desktopName", "Uno", 2000, "the dot's name updates reactively");
     }
 
-    // A KWin reorder (Grid desktop drag, the KCM) re-sorts the source lists in place and signals only
-    // desktopPositionsChanged, so a pager listening only for desktopIdsChanged keeps the old order.
+    // A reorder in KWin's Grid view or settings re-sorts the lists in place and emits only
+    // desktopPositionsChanged.
     function test_dotsFollowReorderedDesktops() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
@@ -404,8 +362,6 @@ IndicatorTestCase {
         tryCompare(dotByUuid(indicator, ids[1]), "tooltipText", "x1", 2000, "the dot's window-list subText updates reactively");
     }
 
-    // The active capsule stays full strength on hover IN THE COMPOSED STRIP — hover affects inactive dots
-    // only, even through the behind-dots wheel layer.
     function test_activeCapsuleNoHoverEffectInComposition() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const capsule = dotByUuid(indicator, currentUuid);
@@ -418,8 +374,7 @@ IndicatorTestCase {
         fuzzyCompare(circle.opacity, 1.0, 0.001, "hover does not change the active capsule in the strip");
     }
 
-    // tooltip routing THROUGH the composed strip (not just the dot properties): reach into each dot's
-    // actual PlasmaCore.ToolTipArea and assert the strip-level data lands on mainText/subText/active/textFormat.
+    // Down to each dot's own ToolTipArea, not just the dot's properties.
 
     function test_tooltipAreaRoutesNameAndSubTextThroughStrip() {
         const names = ["One", "Two", "Three"];
@@ -434,13 +389,11 @@ IndicatorTestCase {
             verify(tip.active, "tooltip is active when enabled and named");
         }
 
-        // Turning tooltips off at runtime deactivates every dot's ToolTipArea (reactive through the strip).
         indicator.showTooltips = false;
         for (let j = 0; j < ids.length; j++)
             verify(!Elements.tooltipOf(dotByUuid(indicator, ids[j])).active, "ToolTipArea inactive once showTooltips is off");
     }
 
-    // The ToolTipArea data follows the GLOBAL index across grid lines (the mapping reaches the actual tooltip).
     function test_tooltipAreaMapsAcrossGridLines() {
         const names = ["n0", "n1", "n2", "n3"];
         const tips = ["t0", "t1", "t2", "t3"];
@@ -452,20 +405,17 @@ IndicatorTestCase {
         }
     }
 
-    // accessibility THROUGH the composed strip (per-screen + multi-line): role/name/checked are unit-tested
-    // on a lone dot; these verify they hold once composed and driven live — the CHECKED dot is THIS screen's
-    // current, not the global current.
+    // The checked dot is this screen's current desktop, not the global one.
 
     function test_accessibleCheckedTracksPerScreenActiveDot() {
         const vdi = makeMock(ids, ids[0], ["One", "Two", "Three"]);   // global current = uuid-a
-        vdi.perScreenCurrent = { "DP-2": ids[2] };                    // THIS screen is on uuid-c
+        vdi.perScreenCurrent = { "DP-2": ids[2] };                    // this screen's is uuid-c
         const indicator = makeIndicator(vdi, { screenName: "DP-2" });
 
         verify(dotByUuid(indicator, ids[2]).Accessible.checked, "this screen's current dot reports checked to AT");
         verify(!dotByUuid(indicator, ids[0]).Accessible.checked, "the GLOBAL current is NOT checked on this screen");
         compare(dotByUuid(indicator, ids[1]).Accessible.name, "Two", "accessible name is the index-aligned desktop name");
 
-        // This screen switches: the checked state moves reactively (same path as the visible pill).
         vdi.perScreenCurrent = { "DP-2": ids[1] };
         vdi.currentDesktopForScreenChanged("DP-2");
         verify(dotByUuid(indicator, ids[1]).Accessible.checked, "checked follows this screen's new current");
@@ -479,8 +429,7 @@ IndicatorTestCase {
             compare(dotByUuid(indicator, fourIds[i]).Accessible.name, names[i], "accessible name keeps its global index across lines");
     }
 
-    // followThemeColors live toggle at the indicator level: toggle it on a running strip and assert the
-    // dots' colours switch theme<->custom (the colour Behavior animates, so poll).
+    // The colour Behavior animates the change, hence the polling.
     function test_followThemeColorsToggledLive() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             followThemeColors: true, activeColor: "#ff0000", inactiveColor: "#00ff00"
@@ -490,13 +439,13 @@ IndicatorTestCase {
         compare(activeCircle.color, Kirigami.Theme.highlightColor, "following the theme: active dot uses highlightColor");
         compare(inactiveCircle.color, Kirigami.Theme.textColor, "following the theme: inactive dot uses textColor");
 
-        indicator.followThemeColors = false;   // user opts into custom colours mid-session
+        indicator.followThemeColors = false;
         tryVerify(function () {
             return Qt.colorEqual(activeCircle.color, indicator.activeColor)
                 && Qt.colorEqual(inactiveCircle.color, indicator.inactiveColor);
         }, 2000, "custom colours take over reactively when follow-theme is turned off");
 
-        indicator.followThemeColors = true;    // ...and back to the theme
+        indicator.followThemeColors = true;
         tryVerify(function () {
             return Qt.colorEqual(activeCircle.color, Kirigami.Theme.highlightColor)
                 && Qt.colorEqual(inactiveCircle.color, Kirigami.Theme.textColor);

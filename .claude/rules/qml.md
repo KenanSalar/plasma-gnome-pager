@@ -1,91 +1,76 @@
-# QML / Qt Quick 6 Best Practices
+---
+paths:
+  - "**/*.qml"
+---
 
-Language-level conventions for the QML in this widget. Plasma-specific structure is in
-`plasmoid.md`; theming/units in `kirigami.md`; rendering cost in `qml-performance.md`.
+# QML
 
-## Imports
+Qt 6 QML as this tree writes it. `kirigami.md` has units and theme, `qml-performance.md` the
+cost of the always-on widget, `code-style.md` the comment format.
 
-- **Un-versioned imports** in Qt 6 / Plasma 6: `import QtQuick`, not `import QtQuick 2.15`.
-- Alias multi-symbol modules (`import org.kde.kirigami as Kirigami`) and always qualify
-  (`Kirigami.Units.smallSpacing`) — unqualified access is slower and `qmllint`-hostile.
-- Keep imports to the public surface in `robustness.md`.
+## Files and imports
 
-## File & component structure
+- **One component per file**, the filename its type name; siblings in a directory need no import.
+  A one-off type used only inside one file is an inline `component` there (`WindowRow`).
+- **The widget's components open with `pragma ComponentBehavior: Bound`**, which scopes delegate
+  ids and `required property` bindings and lets the engine compile more ahead of time. A settings
+  page needs it once a delegate reads an outer id, as `ConfigAppearance`'s combo delegate does.
+- **Imports are aliased and every use qualified** (`Kirigami.Units.smallSpacing`); `logic.mjs`
+  comes in `as Logic`, one directory up from the settings pages.
+- **The JavaScript is ES modules (`.mjs`), never `.pragma library` scripts**: oxlint and oxfmt
+  parse only standard JavaScript, which `.pragma` and `.import` aren't. The QML sees only what a
+  module `export`s; `coordinator.mjs`'s header says why every pager shares its state.
 
-- **One component per file**, PascalCase filename = component name. Files in the same directory
-  are importable by filename with no explicit import (`WorkspaceDot {}` from
-  `WorkspaceDot.qml`).
-- Start reusable components with `pragma ComponentBehavior: Bound` — it scopes delegate/
-  Repeater `required property` bindings correctly and lets the engine optimize. Use
-  `required property` for inputs a parent must supply.
-- Give every non-trivial element an `id`. The root `id` is conventionally `root`.
+## Properties and bindings
 
-## Properties & bindings
+- **An input is a typed property with a default**, taken from `Logic.DEFAULTS` when it mirrors a
+  setting. `required property` is for delegates (`modelData`, `index`), never for anything Plasma
+  instantiates.
+- **Derived values are `readonly property` bindings.** Imperative assignment breaks a binding
+  without a warning; the one source that needs it is a method with a signal
+  (`currentDesktopByScreenName`), modelled as one property recomputed in one function.
+- **`var` is for arrays and objects.** A `var` notifies on every reassignment, even to an equal
+  array, so compare before assigning; a binding that must notify after an in-place change returns
+  a fresh copy.
+- **A model role that can be `undefined` lands in a `var`**: a typed property such as `rect`
+  refuses `undefined`, logs it, and keeps its previous value.
+- **A capitalised model role isn't a valid property name**: read it off `model`
+  (`model.VirtualDesktops`), and only a lowercase role like `display` can be `required`.
+- **Don't name an input after an `Item` property**: `enabled`, `visible` and `state` already
+  exist. Name it for what it switches, as `dynamicEnabled` does.
+- **A binding loop means a rendered value feeds back into what sizes it**; qmllint and the
+  console both report one.
 
-- **Declare a typed property over juggling state imperatively**: `property int activeIndex: ...`.
-  Prefer `readonly property` for derived values.
-- **Prefer declarative bindings to imperative assignment.** `color: active ? a : b` — not
-  setting `color` inside `Component.onCompleted` or a signal handler. Imperative assignment
-  *breaks* the binding and desyncs on the next dependency change.
-- Don't fight bindings: to combine a binding with occasional manual writes, model the source of
-  truth as one property and bind everything else off it.
-- Expose child internals with `property alias` (used heavily for `cfg_<key>` config aliases).
-- Use `Behavior on <prop> { NumberAnimation { duration: ... } }` for smooth transitions
-  (the pill slide) instead of hand-driven animations.
+## Signals and connections
 
-## Signals & handlers
+- **Custom signals are declared typed** (`signal switchRequested(string uuid)`) and handled with
+  arrow functions that name their parameters.
+- **`Connections` use function handlers** (`function onDesktopIdsChanged() {}`). A handler for a
+  signal the target may lack goes in its own block with `ignoreUnknownSignals: true`.
+- **Handlers stay thin**: anything with a branch calls a named function, and a pure branch lives
+  in `logic.mjs`.
 
-- Declare custom signals (`signal activated()`); handle with `onActivated:`. Connect across
-  objects with `Connections { target: x; function onFoo() { ... } }` (Qt 6 function-style
-  handlers, not the old `onFoo:` string form).
-- Keep handlers thin — call a named function for anything non-trivial so it's testable and
-  re-usable.
+## Types qmllint can't see
 
-## Layout & positioning
+- **`Loader.item` and `Instantiator.objectAt()` are `QObject`**: cast them to the named type
+  (`aggregatorLoader.item as WindowAggregator`, `objectAt(i) as WindowRow`) before reading a property,
+  or qmllint reports `missing-property`.
+- **`.contextProperties.ini` declares the `i18n*` and `Plasmoid` globals**, which Plasma injects at
+  runtime. If they start warning as unqualified, qmllint isn't finding that file; it isn't a code
+  defect.
 
-- **Anchors** for relative positioning (`anchors.centerIn: parent`); **`Row`/`Column`/`Grid`**
-  (positioners) for evenly-laid sequences like the dot strip; **`RowLayout`/`ColumnLayout`/
-  `GridLayout`** only when you need stretch/fill/alignment distribution.
-- Reserve absolute `x`/`y` for overlays and computed positions (e.g. the sliding pill bound to
-  the active dot's geometry).
-- Never set `width: parent.width` *and* anchor the same axis — pick one.
+## Layout and instantiation
 
-## Repeater vs ListView
-
-- **`Repeater`** instantiates every delegate eagerly — correct for a small, fixed count like a
-  handful of virtual-desktop dots. Drive it with `model: vdi.desktopIds` or `model:
-  vdi.numberOfDesktops`.
-- **`ListView`/`GridView`** virtualize (recycle delegates) — use only for long/unbounded lists.
-  Overkill (and adds a flickable) for a pager.
-
-## Visibility & loading
-
-- `visible: false` stops rendering/hit-testing but the item still occupies layout space; for a
-  positioner/layout child use `if (cond) Item {}` (or a `Loader`) to truly drop it.
-- `Loader { active: cond; sourceComponent: ... }` defers building rarely-shown subtrees
-  (e.g. a popup `fullRepresentation`).
-
-## i18n
-
-- Wrap all user-visible strings: `i18n("text")`, `i18nc("context", "text")`,
-  `i18np("%1 desktop", "%1 desktops", n)`. These are globally available in plasmoids.
-- Don't translate icon names, theme tokens, DBus identifiers, or proper nouns
-  ("KDE", "GNOME").
+- **Positioners (`Grid`) for the strip, `Layout`s for the settings pages and the dialog.** Don't
+  set `width: parent.width` and anchor the same axis.
+- **A `Repeater` builds the dots**, a handful of eager delegates; a `ListView` would add a
+  flickable and recycling for nothing.
+- **`visible: false` keeps an item's cost; a `Loader` drops it.** A subtree most configurations
+  never show goes behind one, as the window model and the occupancy overlay do.
+- **Work a component behind a `Loader` defers goes on a child `Timer`, never `Qt.callLater`**, as
+  `WindowAggregator.scheduleRebuild` does; the comment on its timer says why.
 
 ## Tooling
 
-- Run **`qmllint`** on every file (catches removed Plasma 6 symbols, unqualified lookups,
-  binding loops) and **`qmlformat`** to normalize style. Treat `qmllint` warnings as errors.
-
-## Common pitfalls
-
-- **Imperative assignment silently kills a binding** — the property stops updating with no
-  error. If a value "won't update," check whether something assigned it imperatively.
-- **Binding loops** (`A.width` depends on `B.width` depends on `A.width`) — `qmllint`/console
-  warns; break by anchoring or introducing an independent source property.
-- **`var` for numbers/strings** — prefer typed `int`/`real`/`string`/`bool`/`color` properties;
-  `var` defeats engine optimizations.
-- **Reading `parent` in a component's root binding** is fragile — pass host metrics in as
-  explicit `required property`s.
-- **JS array identity**: `vdi.desktopIds` returns a fresh array; comparing it by reference
-  across changes won't work — compare by length/contents or bind to specific elements.
+`make lint` treats a qmllint warning as an error. `qmlformat-qt6` isn't a gate and the tree isn't
+formatted with it, so don't run it over a file you're only touching.

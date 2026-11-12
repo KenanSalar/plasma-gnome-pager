@@ -1,12 +1,10 @@
 /*
- * Plasma Gnome Pager — WorkspaceIndicator.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The dot strip (GNOME REFLOW model). Layout + scroll + wiring only: delegates size math to
- * IndicatorMetrics and the per-screen current to ScreenCurrentDesktop, binds live to VirtualDesktopInfo,
- * reports clicks/scroll via switchRequested. Imports no org.kde.plasma.*, so it stays headless-testable.
+ * The dot strip: one WorkspaceDot per desktop in KWin's rows, with scrolling and the hover background.
+ * IndicatorMetrics sizes it and ScreenCurrentDesktop says which desktop is current on this screen.
+ * Nothing from org.kde.plasma is imported, so it loads headless.
  */
 pragma ComponentBehavior: Bound
 
@@ -14,17 +12,17 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 Item {
     id: indicator
 
-    // Reactive read-only desktop state, supplied by main.qml. NOT `required` — Plasma's representation loader fails creation SILENTLY on that; null + guard instead.
+    // Not required: Plasma's representation loader fails without a word on a required property.
     property var virtualDesktopInfo: null
 
-    // Null-safe live views. The desktop SET is global; only "which is current" is per-screen (below).
-    // A reorder re-sorts both in place and signals only desktopPositionsChanged, hence the revision read and the
-    // fresh copy. Keep them on the indicator: forwarding from a child breaks globalIndex (see CLAUDE.md).
+    // A reorder re-sorts both lists in place and emits only desktopPositionsChanged, so these read the
+    // revision and return a copy. They stay here: read through a child, a dying dot evaluates
+    // globalIndex after its line is gone on the next re-layout.
     property int positionsRevision: 0
     readonly property var desktopIds: {
         indicator.positionsRevision;
@@ -44,17 +42,15 @@ Item {
         }
     }
 
-    // Per-desktop tooltip subText (window list), index-aligned with desktopIds. Default [] → name-only tooltip.
     property var desktopTooltips: []
 
-    // This panel's output (KWin connector name, e.g. "DP-1") from the Screen attached property so it reflects THIS monitor. Tests override; "" → global.
+    // The output's name as KWin knows it (DP-1); empty falls back to the global current desktop.
     property string screenName: Screen.name
 
-    // This panel's output RECT in the virtual-desktop space (Screen has no `geometry`), read by main.qml to
-    // drive per-screen occupancy. Tests override; a zero rect → occupancy degrades to global (single-monitor look).
+    // Screen has no geometry property; a zero rect counts windows on every screen.
     property rect screenRect: Qt.rect(Screen.virtualX, Screen.virtualY, Screen.width, Screen.height)
 
-    // The current desktop FOR THIS SCREEN (Plasma 6.7 per-output), resolved by ScreenCurrentDesktop.
+    // Differs from vdi.currentDesktop while KWin switches desktops per screen.
     readonly property string currentDesktop: screenCurrent.currentDesktop
 
     ScreenCurrentDesktop {
@@ -63,111 +59,89 @@ Item {
         screenName: indicator.screenName
     }
 
-    // Behaviour flags, supplied by main.qml (defaults match the schema).
     property bool enableScroll: Logic.DEFAULTS.enableScroll
     property bool scrollWrap: Logic.DEFAULTS.scrollWrap
-    property bool invertScroll: Logic.DEFAULTS.invertScroll   // flip the wheel-sign → direction mapping
+    property bool invertScroll: Logic.DEFAULTS.invertScroll
     property bool showTooltips: Logic.DEFAULTS.showTooltips
 
-    // Panel orientation. false = horizontal row (also the Planar/floating default); true = vertical column.
+    // The panel's orientation, read only by gridVertical.
     property bool vertical: false
 
-    // When true, ignore KWin's grid rows and lay every desktop out in ONE line (forces desktopRows = 1 below).
-    // ORTHOGONAL to matchDesktopGrid: this sets the line COUNT, that sets the DIRECTION — so singleLine +
-    // matchDesktopGrid on a vertical panel gives a single HORIZONTAL row, while singleLine alone is a vertical strip.
     property bool singleLine: Logic.DEFAULTS.singleLine
-
-    // When true on a vertical panel, run the layout ACROSS the panel instead of down it: for a multi-row grid that
-    // mirrors KWin's orientation (rows top-to-bottom, the GNOME-reflow default is to transpose it down); with
-    // singleLine it makes the one line horizontal. No effect on a horizontal panel (it already runs across).
     property bool matchDesktopGrid: Logic.DEFAULTS.matchDesktopGrid
 
-    // Effective major-axis orientation: true = down the panel (vertical), false = across it (horizontal). ALL grid
-    // geometry below (the two Grid flows, the metrics axis, the Layout hints, the dot's capsule axis) keys off THIS.
-    // singleLine changes the line COUNT (above), matchDesktopGrid the DIRECTION — independent.
+    // Whether the lines run down the panel, the one orientation every piece of geometry below reads.
     readonly property bool gridVertical: vertical && !matchDesktopGrid
 
-    // Running total of hi-res/touchpad wheel deltas; whole notches become steps (the remainder carries).
+    // Wheel motion short of a notch, carried into the next event.
     property real wheelAccumulator: 0
-    readonly property int wheelNotchDelta: Logic.DEFAULTS.wheelNotchDelta
 
     readonly property int desktopCount: desktopIds.length
 
-    // KWin's grid row count, read live (null-guarded, >= 1). We MIRROR KWin so "Rows" re-lays out reactively —
-    // unless singleLine forces it to 1 (collapse the grid into one line of all desktops).
     readonly property int desktopRows: singleLine ? 1 : (virtualDesktopInfo?.desktopLayoutRows > 0 ? virtualDesktopInfo.desktopLayoutRows : 1)
 
-    // Desktops per line (columns = ceil(count / rows)) and the row-major split into lines.
     readonly property int perLine: Logic.gridColumns(desktopCount, desktopRows)
     readonly property var lines: Logic.chunk(desktopIds, perLine)
     readonly property int lineCount: lines.length
 
-    // Active element index, or -1 for any transient state (empty ids, empty/absent current) → no capsule.
+    // -1 until the current desktop is in the list, which draws no pill.
     readonly property int activeIndex: desktopIds.indexOf(currentDesktop)
 
-    // Overall pager look (Logic.DOT_STYLE). The "Filled & ring" style has NO pill, so we neutralize the
-    // pill params below: feeding pillWidthFactor=1 + pillSizeRequest=0 makes the metrics AND each dot size
-    // every element uniformly (the active extent collapses to dotSize) without touching IndicatorMetrics.
+    // The ring style has no pill: a pill factor of 1 and an auto pill size make the metrics size every
+    // element as a dot.
     property int dotStyle: Logic.DEFAULTS.dotStyle
     readonly property bool ringStyle: Logic.isRingStyle(dotStyle)
     readonly property real effPillWidthFactor: ringStyle ? 1.0 : pillWidthFactor
     readonly property int effPillSizeRequest: ringStyle ? 0 : pillSizeRequest
 
-    // Hover-background clearance, neutralized the same way when the background is off: zero factors mean
-    // zero padding, which restores the pre-feature geometry byte-for-byte. Gating the two FACTORS is what
-    // keeps the sizing engine free of the feature flag — and stops a future clearance property forgetting it.
+    // No clearance while the hover background is off, so the metrics need no flag of their own.
     readonly property real effHoverLengthFactor: showHoverBackground ? hoverLengthFactor : 0
     readonly property real effHoverThicknessFactor: showHoverBackground ? hoverThicknessFactor : 0
 
-    // Config requests fed to the sizing engine; dotSize/pillSize `0 = auto` resolved in IndicatorMetrics.
-    property int dotSizeRequest: Logic.DEFAULTS.dotSize    // px override; 0 = auto
-    property int pillSizeRequest: Logic.DEFAULTS.pillSize  // px pill thickness; 0 = auto (match dots)
-    property real spacingFactor: Logic.DEFAULTS.spacingFactor      // uniform gap as a multiple of a dot
-    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor  // active capsule length, × the pill thickness
+    // 0 = auto, resolved by IndicatorMetrics.
+    property int dotSizeRequest: Logic.DEFAULTS.dotSize
+    property int pillSizeRequest: Logic.DEFAULTS.pillSize
+    property real spacingFactor: Logic.DEFAULTS.spacingFactor
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
-    property real hoverOpacity: Logic.DEFAULTS.hoverOpacity        // inactive-dot hover brighten target
+    property real hoverOpacity: Logic.DEFAULTS.hoverOpacity
 
-    // GNOME-style hover background: a stadium behind the WHOLE widget cell while the pointer is over it.
     property bool showHoverBackground: Logic.DEFAULTS.showHoverBackground
     property real hoverBackgroundOpacity: Logic.DEFAULTS.hoverBackgroundOpacity
-    property real hoverLengthFactor: Logic.DEFAULTS.hoverLengthFactor        // extra length at EACH end, x the pill thickness
-    property real hoverThicknessFactor: Logic.DEFAULTS.hoverThicknessFactor  // extra thickness on EACH side, likewise
-    property color hoverBackgroundColor: Kirigami.Theme.textColor   // used only when NOT following the theme
+    property real hoverLengthFactor: Logic.DEFAULTS.hoverLengthFactor
+    property real hoverThicknessFactor: Logic.DEFAULTS.hoverThicknessFactor
+    property color hoverBackgroundColor: Kirigami.Theme.textColor
 
-    // Fire the pill-click action from anywhere on that background, not just the current desktop's pill.
     property bool pillClickAnywhere: Logic.DEFAULTS.pillClickAnywhere
 
-    // Occupied-dot indicator: when showOccupancy, an occupied dot (desktopOccupancy[globalIndex]) is marked per occupancyStyle.
     property bool showOccupancy: Logic.DEFAULTS.showOccupancy
-    property var desktopOccupancy: []                              // per-desktop bool[], index-aligned with desktopIds (per-screen, from main.qml)
-    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity  // marker opacity (all styles)
-    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle     // Filled/InnerDot/Ring (Logic.OCCUPANCY)
+    property var desktopOccupancy: []   // this screen's, index-aligned with desktopIds
+    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity
+    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle
 
-    // The sizing engine: requests + grid shape + live geometry → effective sizes + extents (forwarded below).
     IndicatorMetrics {
         id: metrics
         dotSizeRequest: indicator.dotSizeRequest
-        pillSizeRequest: indicator.effPillSizeRequest   // ring style: 0 → pill thickness == dot (no pill)
+        pillSizeRequest: indicator.effPillSizeRequest
         spacingFactor: indicator.spacingFactor
-        pillWidthFactor: indicator.effPillWidthFactor   // ring style: 1 → active extent == dot (no pill)
+        pillWidthFactor: indicator.effPillWidthFactor
         availableMajor: indicator.gridVertical ? indicator.height : indicator.width
         availableCross: indicator.gridVertical ? indicator.width : indicator.height
         perLine: indicator.perLine
         lineCount: indicator.lineCount
-        hoverLengthFactor: indicator.effHoverLengthFactor        // 0 when the background is off (no clearance)
+        hoverLengthFactor: indicator.effHoverLengthFactor
         hoverThicknessFactor: indicator.effHoverThicknessFactor
     }
 
-    // Effective (rendered) sizes — scale-to-fit applied; == natural when there is room.
+    // Rendered sizes, shrunk to fit the panel.
     readonly property real dotSize: metrics.dotSize
-    readonly property real pillSize: metrics.pillSize          // effective pill thickness (tracks the dot)
-    readonly property real pillWidth: metrics.pillWidth        // active capsule LENGTH (major axis)
-    readonly property real dotSpacing: metrics.dotSpacing      // uniform gap between every element
-    readonly property real lineThickness: metrics.lineThickness   // one line: a dot, or the pill where it is thicker
-    // Conserved (capsule-bearing) extents — the strip is pinned to these so a cross-row morph can't drift it.
+    readonly property real pillSize: metrics.pillSize
+    readonly property real pillWidth: metrics.pillWidth
+    readonly property real dotSpacing: metrics.dotSpacing
+    readonly property real lineThickness: metrics.lineThickness
     readonly property real stripLength: metrics.stripLength
     readonly property real crossThickness: metrics.crossThickness
-    // Natural/floor extents (geometry-independent — feed the Layout hints; no loop).
+    // Sizes from the settings alone, which the Layout hints read.
     readonly property real naturalDotSize: metrics.naturalDotSize
     readonly property real naturalPillSize: metrics.naturalPillSize
     readonly property real pillThicknessRatio: metrics.pillThicknessRatio
@@ -176,9 +150,7 @@ Item {
     readonly property real floorStripLength: metrics.floorStripLength
     readonly property real naturalCrossThickness: metrics.naturalCrossThickness
     readonly property real floorCrossThickness: metrics.floorCrossThickness
-    // Hover-background clearance around the strip (all 0 when it is off). The hint-side pair is
-    // geometry-independent and drives the Layout hints below; hoverCrossPaddingEffective and
-    // hoverCrossExtent are rendered sizes and feed only the Rectangle.
+    // The padded extents feed the hints; the effective padding and the cross extent only the Rectangle.
     readonly property real hoverPadding: metrics.hoverPadding
     readonly property real hoverCrossPadding: metrics.hoverCrossPadding
     readonly property real hoverCrossPaddingEffective: metrics.hoverCrossPaddingEffective
@@ -186,61 +158,52 @@ Item {
     readonly property real paddedCrossThickness: metrics.paddedCrossThickness
     readonly property real hoverCrossExtent: metrics.hoverCrossExtent
 
-    // Colour + animation config, passed straight through to each dot (the indicator draws nothing itself).
     property bool followThemeColors: Logic.DEFAULTS.followThemeColors
     property color activeColor: Kirigami.Theme.highlightColor
     property color inactiveColor: Kirigami.Theme.textColor
-    property color occupiedColor: Kirigami.Theme.highlightColor   // occupied-marker colour (custom; theme accent when following the scheme)
-    property int animationDuration: Logic.DEFAULTS.animationDuration   // ms; 0 = follow the theme
+    property color occupiedColor: Kirigami.Theme.highlightColor
+    property int animationDuration: Logic.DEFAULTS.animationDuration
 
-    // Theme-vs-custom, same idiom as the dot's resolvedActive/resolvedInactive (kept live so a scheme change re-evaluates).
+    // GNOME washes with the text colour; the accent would muddy the pill in front of it.
     readonly property color resolvedHoverBackground: followThemeColors ? Kirigami.Theme.textColor : hoverBackgroundColor
-    // Reuses the dot's duration rule, so reduce-animations kills the hover fade too.
     readonly property int effectiveDuration: Logic.effectiveDuration(animationDuration, Kirigami.Units.longDuration)
 
-    // Strip-wide hover. The dots sit ON TOP of wheelArea and take hover from it, so neither source alone is
-    // enough: OR the gaps (wheelArea) with whichever dot reports itself hovered. A parent HoverHandler would
-    // not do — a child hoverEnabled item ends hover delivery before ancestors' handlers run.
+    // The dots sit over wheelArea and take the hover from it, so the strip is hovered when either is.
+    // A HoverHandler here would never fire: a hover-enabled child ends delivery before its ancestors.
     property int hoveredDotIndex: -1
     readonly property bool hovered: wheelArea.containsMouse || hoveredDotIndex >= 0
-    // Belt and braces: a dot DOES report its leave as it is torn down (verified — any desktopIds change
-    // rebuilds every delegate, and the outgoing one clears the index itself), so this only covers a teardown
-    // that somehow does not. It does NOT keep the background lit across the rebuild: the fresh dot under a
-    // stationary pointer reports no hover until the pointer moves.
+    // A dot reports its leave as it's destroyed, so this only covers one that doesn't. The new dot under
+    // a still pointer reports no hover until the pointer moves.
     onDesktopIdsChanged: hoveredDotIndex = -1
 
-    // Raised on a click or scroll; main.qml turns the UUID into a KWin switch.
     signal switchRequested(string uuid)
 
-    // Raised when the ALREADY-CURRENT desktop's dot (the pill) is clicked/pressed; main.qml maps it to the
-    // configured pill-click action. Scroll never raises this (handleWheel only ever emits switchRequested).
+    // A click on this screen's current desktop, or anywhere with pillClickAnywhere; scrolling never raises it.
     signal activeClicked()
 
-    // Wheel → switch. Thin wrapper; the branching (notch accumulation, clamp/wrap, -1 ignore) is in logic.js and unit-tested.
     function handleWheel(angleDeltaY: real) {
         if (!indicator.enableScroll)
             return;
-        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY, indicator.wheelNotchDelta);
+        const acc = Logic.accumulateWheel(indicator.wheelAccumulator, angleDeltaY);
         indicator.wheelAccumulator = acc.remainder;
         if (acc.steps === 0)
-            return;   // sub-notch motion accumulated; nothing to do yet
-        // Default: wheel up (+) → previous desktop; down (−) → next, so negate. invertScroll keeps the sign.
+            return;
+        // Wheel up is positive and goes to the previous desktop.
         const dir = indicator.invertScroll ? acc.steps : -acc.steps;
-        const next = Logic.stepIndex(indicator.activeIndex, indicator.desktopIds.length, dir, indicator.scrollWrap);
+        const step = indicator.scrollWrap ? Logic.wrappedStep : Logic.clampedStep;
+        const next = step(indicator.activeIndex, indicator.desktopIds.length, dir);
         if (next < 0 || next === indicator.activeIndex)
-            return;   // empty/unknown source, or a clamped no-op at an end
+            return;
         const uuid = indicator.desktopIds[next];
         if (!uuid)
-            return;   // transient empty id (robustness.md: guard before use)
+            return;
         indicator.switchRequested(uuid);
     }
 
-    // Size hints. Major axis: preferred==max==paddedStripLength (the natural strip plus the hover-background
-    // clearance), min==floorStripLength — the BARE floor, so a cramped panel compresses the clearance away
-    // first and only then scales the dots. Cross axis: preferred==paddedCrossThickness (the background needs
-    // its room even where the panel does not stretch us), max==-1 (free to fill the thickness), min==floor.
-    // Swaps with `gridVertical`. Every value here is geometry-INDEPENDENT — a rendered size would close the
-    // loop implicitHeight → availableCross → dotSize → implicitHeight.
+    // Only sizes from the settings, never rendered ones: those would loop through availableCross back
+    // into dotSize. A panel that sized the representation by its implicit size alone would hand it a
+    // square cell, drawing the dots over the neighbours. The minimum is the bare strip, so a cramped
+    // panel squeezes out the hover clearance before the dots shrink.
     implicitWidth: gridVertical ? paddedCrossThickness : paddedStripLength
     implicitHeight: gridVertical ? paddedStripLength : paddedCrossThickness
     Layout.minimumWidth: gridVertical ? floorCrossThickness : floorStripLength
@@ -250,8 +213,8 @@ Item {
     Layout.preferredHeight: implicitHeight
     Layout.maximumHeight: gridVertical ? paddedStripLength : -1
 
-    // Gate the morph so the FIRST valid placement is instant (no grow-in on reload), later switches animate.
-    // ScreenCurrentDesktop (a child) resolves currentDesktop in its onCompleted first, so activeIndex is valid here.
+    // The first placement is instant, so a reload shows the pill already grown; later switches animate.
+    // ScreenCurrentDesktop, a child, has resolved currentDesktop by the time this onCompleted runs.
     property bool animate: false
     onActiveIndexChanged: {
         if (activeIndex >= 0 && !animate) {
@@ -264,17 +227,16 @@ Item {
         }
     }
 
-    // GNOME-style hover background, behind everything. Purely decorative — no MouseArea of its own, so it can
-    // never interfere with the dots' hit-testing; the clicks it looks clickable for are wheelArea's below.
+    // Takes no input, so it can't come between a dot and the pointer; the clicks it invites are wheelArea's.
     Rectangle {
         id: hoverBackground
         anchors.centerIn: parent
         width: indicator.gridVertical ? indicator.hoverCrossExtent : indicator.width
         height: indicator.gridVertical ? indicator.height : indicator.hoverCrossExtent
-        radius: Math.min(width, height) / 2   // stadium in either orientation
+        radius: Math.min(width, height) / 2
         color: indicator.resolvedHoverBackground
         opacity: Logic.hoverBackgroundAlpha(indicator.showHoverBackground, indicator.hovered, indicator.hoverBackgroundOpacity)
-        visible: opacity > 0                  // drop it entirely when off/unhovered rather than draw a transparent rect
+        visible: opacity > 0
 
         Behavior on opacity {
             enabled: indicator.effectiveDuration > 0
@@ -285,10 +247,9 @@ Item {
         }
     }
 
-    // Scroll-to-switch, strip-wide hover, and (when pillClickAnywhere) the enlarged click target. This MouseArea
-    // sits BEHIND the dots: a wheel over a dot propagates down to it, hover/clicks over a dot are the dot's, and
-    // only the surrounding cell reaches onClicked here. acceptedButtons excludes the right button throughout, so
-    // the applet context menu always falls through; with the toggle off it accepts nothing, exactly as before.
+    // Behind the dots: a wheel over a dot falls through to here, while clicks and hover stay the dot's.
+    // A WheelHandler didn't get the wheel reliably in a panel. The right button is never accepted, which
+    // leaves the context menu to the applet.
     MouseArea {
         id: wheelArea
         anchors.fill: parent
@@ -298,12 +259,12 @@ Item {
         onClicked: indicator.activeClicked()
     }
 
-    // Two nested positioners mirror KWin's grid: OUTER stacks lines on the cross axis, INNER the dots on the major axis (one 2-D Grid would fatten a column).
+    // A Grid per line inside an outer Grid: one two-dimensional Grid would widen the pill's whole column.
     Grid {
         id: strip
         anchors.centerIn: parent
-        // Pin to the conserved extent so a cross-row morph can't resize+recenter the strip (else the dots drift).
-        // Content-sized would dip mid-morph as the capsule moves between lines; this keeps the footprint constant.
+        // Pinned to a line holding the pill: sized by its content it would shrink midway through a switch
+        // between lines, and re-centring would drag every dot.
         width: indicator.gridVertical ? indicator.crossThickness : indicator.stripLength
         height: indicator.gridVertical ? indicator.stripLength : indicator.crossThickness
         spacing: indicator.dotSpacing
@@ -311,19 +272,18 @@ Item {
         columns: indicator.gridVertical ? -1 : 1
 
         Repeater {
-            // `lines` is [] while the source is transiently null/empty, so the outer Repeater is empty.
             model: indicator.lines
 
             delegate: Grid {
                 id: lineStrip
 
-                required property var modelData    // this line's UUIDs (a row-major chunk)
-                required property int index        // line index (KWin row)
+                required property var modelData
+                required property int index
 
                 spacing: indicator.dotSpacing
                 rows: indicator.gridVertical ? -1 : 1
                 columns: indicator.gridVertical ? 1 : -1
-                // Centre every element on the CROSS axis: the line is as thick as its tallest element (the capsule when pillSize > dotSize).
+                // A pill thicker than the dots makes the line thicker, so the dots centre across it.
                 verticalItemAlignment: indicator.gridVertical ? Grid.AlignTop : Grid.AlignVCenter
                 horizontalItemAlignment: indicator.gridVertical ? Grid.AlignHCenter : Grid.AlignLeft
 
@@ -336,17 +296,17 @@ Item {
                         required property string modelData
                         required property int index
 
-                        // Position in the flat desktopIds/desktopNames: earlier lines are full at perLine.
+                        // Every line before this one is full.
                         readonly property int globalIndex: lineStrip.index * indicator.perLine + workspaceDot.index
 
                         vertical: indicator.gridVertical
                         dotStyle: indicator.dotStyle
                         dotSize: indicator.dotSize
-                        pillSize: indicator.pillSize                  // == dotSize in ring mode (no pill)
-                        pillWidthFactor: indicator.effPillWidthFactor // == 1 in ring mode (active extent == dot)
+                        pillSize: indicator.pillSize
+                        pillWidth: indicator.pillWidth
                         inactiveOpacity: indicator.inactiveOpacity
                         hoverOpacity: indicator.hoverOpacity
-                        // Gating on showOccupancy here keeps a stale/short desktopOccupancy array harmless when the feature is off.
+                        // Gated here so a stale array does nothing while the markers are off.
                         occupied: indicator.showOccupancy && (indicator.desktopOccupancy[workspaceDot.globalIndex] ?? false)
                         occupiedOpacity: indicator.occupiedOpacity
                         occupancyStyle: indicator.occupancyStyle
@@ -358,15 +318,14 @@ Item {
                         active: indicator.currentDesktop === workspaceDot.modelData
                         animate: indicator.animate
 
-                        // Each dot's tooltip name + window-list subText (|| "" guards the transient frame where names/tooltips lag ids).
+                        // Names and tooltips can lag the ids for a frame.
                         desktopName: indicator.desktopNames[workspaceDot.globalIndex] || ""
                         tooltipText: indicator.desktopTooltips[workspaceDot.globalIndex] || ""
                         showTooltips: indicator.showTooltips
 
-                        // Clicking the current desktop's pill runs the configured action; any other dot switches.
+                        // Only the indicator knows this screen's current desktop, so it decides what a click means.
                         onActivated: workspaceDot.active ? indicator.activeClicked() : indicator.switchRequested(workspaceDot.modelData)
 
-                        // Dots take hover from the wheelArea below, so they hand it back up to keep the background lit.
                         onHoveredChanged: indicator.hoveredDotIndex = Logic.nextHoveredIndex(indicator.hoveredDotIndex, workspaceDot.globalIndex, workspaceDot.hovered)
                     }
                 }

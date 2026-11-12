@@ -20,8 +20,8 @@ real plasmashell/KWin/DBus, so that boundary defines the tiers:
   resolver, driven by the shared `VdiMock`), and the four reusable config-page controls
   (`tst_configslider.qml`, `tst_confighint.qml`, `tst_configpercentslider.qml`, `tst_configsection.qml`
   — the config *pages* stay e2e-only, but these controls are Kirigami-only and so do load headless) — one
-  component each, driven only by properties — plus the pure-JS tiers `tst_logic.qml` (the `logic.js` tier)
-  and `tst_coordinator.qml` (the `coordinator.js` shared-state machine), which import the `.js` directly,
+  component each, driven only by properties — plus the pure-JS tiers `tst_logic.qml` (the `logic.mjs` tier)
+  and `tst_coordinator.qml` (the `coordinator.mjs` shared-state machine), which import the module directly,
   no Plasma/Kirigami, so they run on bare qt6 + qttest.
 - **Plasma deps in tested components are OK *if* they load headless.** The goal is headless
   testability, not zero Plasma imports. `WorkspaceDot` imports `org.kde.plasma.core` for its
@@ -81,11 +81,11 @@ Put it in the right tier folder and name it `tst_<thing>.qml` (the `tst_` prefix
 `qmltestrunner` only discovers `tst_*.qml`, so files here are never run as tests; they're plain
 imports:
 
-- `treewalk.js` (`import "../shared/treewalk.js" as TreeWalk`) — a `.pragma library` that
+- `treewalk.mjs` (`import "../shared/treewalk.mjs" as TreeWalk`) — a module that
   depth-first collects descendants matching a predicate (the dot/circle/tooltip delegates are
   nested, so a flat `children` scan misses them).
-- `elements.js` (`import "../shared/elements.js" as Elements`) — element locators built on
-  `treewalk.js`: the duck-type predicates (`isCircle`/`isDot`/`isTooltip`) and the
+- `elements.mjs` (`import "../shared/elements.mjs" as Elements`) — element locators built on
+  `treewalk.mjs`: the duck-type predicates (`isCircle`/`isDot`/`isTooltip`) and the
   `circleOf`/`tooltipOf` collectors, shared by both tiers.
 - `VdiMock.qml` (`import "../shared"`, then `VdiMock {}`) — the **canonical**
   `VirtualDesktopInfo` double; instantiate it inside a `Component` and build per-test via a
@@ -134,10 +134,10 @@ Conventions:
 
 The zero-dependency **pure-JS logic tier**: the branching logic (scroll index clamp/wrap, hi-res
 wheel accumulation, "never remove the last desktop", hover-suppress) lives in
-`package/contents/ui/logic.js` (`.pragma library`) and is unit-tested by `tests/unit/tst_logic.qml`,
-which imports the `.js` directly — no Plasma/Kirigami needed, so it runs on any bare `qt6` + `qttest`
+`package/contents/ui/logic.mjs` (an ES module) and is unit-tested by `tests/unit/tst_logic.qml`,
+which imports the module directly — no Plasma/Kirigami needed, so it runs on any bare `qt6` + `qttest`
 environment (and in CI). Prefer adding new branching logic there and asserting it directly, rather
-than only through QML. CI runs qmllint + tests + ESLint on every PR
+than only through QML. CI runs qmllint, the tests, oxlint and oxfmt on every PR
 (`.github/workflows/pr-validation.yml`).
 
 **Test the event path, not just the handler.** Scroll-to-switch broke in-shell while a test that

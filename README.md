@@ -1,315 +1,182 @@
-# Plasma Gnome Pager (Plasma 6)
+# Plasma Gnome Pager
 
-A GNOME-style virtual-desktop switcher for KDE Plasma 6 panels: dim dots, with a highlighted
-**pill** that morphs over the current workspace.
-
-## Screenshots
+A GNOME-style virtual desktop switcher for KDE Plasma 6 panels: one dim dot per desktop, with the
+current one stretched into a highlighted pill.
 
 ![Plasma Gnome Pager switching desktops](screenshots/showcase.gif)
 
-> The animation above is captured at the panel's native height (~48 px tall), so its
-> resolution is necessarily low — it looks crisp at real size in your panel.
-
-| Theme highlight (default) | Custom pill colour |
-|---|---|
-| ![Dot strip following the theme highlight colour](screenshots/pager-theme.png) | ![Dot strip with a custom pill colour](screenshots/pager-light.png) |
-
-On a **vertical side panel** the row of dots becomes a column and the pill grows vertically —
-the same widget, transposed:
-
-![Plasma Gnome Pager switching desktops on a vertical panel](screenshots/showcase-vertical.gif)
-
-| Vertical — theme highlight (default) | Vertical — custom pill colour |
-|---|---|
-| ![Vertical dot column following the theme highlight colour](screenshots/pager-theme-vertical.png) | ![Vertical dot column with a custom pill colour](screenshots/pager-light-vertical.png) |
-
-| Right-click menu | Settings — Behavior | Settings — Appearance |
-|---|---|---|
-| ![Context menu](screenshots/context-menu.png) | ![Behavior settings page](screenshots/config-behavior.png) | ![Appearance settings page](screenshots/config-appearance.png) |
-
 ## Features
 
-- **Live dot strip** — one dim circle per virtual desktop, in order, sized via
-  `Kirigami.Units` (HiDPI-correct on fractional scaling).
-- **Reflow / morph pill** — the active desktop's dot morphs in place into a wider highlighted
-  capsule; the strip reflows around it (no overlay), so the pill-to-dot gap matches the
-  dot-to-dot gap for the signature GNOME look. The pill's thickness can be sized independently
-  of the dots (`pillSize`, `0` = match dots), so a thick pill can sit over thin dots or vice
-  versa. The first placement is instant (no grow-in on shell reload); later switches animate,
-  and motion respects the "reduce animations" setting.
-- **Pager styles** — pick the overall look in **Appearance → Pager style**: the default
-  **Sliding pill** (the reflow look above), or **Filled & ring** — no pill, every desktop the
-  same size with the current one a solid filled circle and the others hollow rings (the
-  GNOME-style "Desktop Indicator" look). The occupied-desktop markers still apply in both.
-- **Reactive** — bound to `VirtualDesktopInfo`, so switches made from the keyboard, another
-  pager, or KWin settings update the widget immediately (state is never cached).
-- **Click & scroll to switch** — click a dot, or scroll over the strip (with optional
-  wrap-around and optional inverted direction); hi-res/touchpad sub-notches are accumulated.
-- **Click the current desktop** — optional (default off): clicking the highlighted current
-  desktop can trigger **Show Desktop**, **Overview**, or **Grid** (it toggles the matching KWin
-  action); clicking any other desktop still just switches to it. By default that action can be
-  triggered from **anywhere on the widget**, not just the small current-desktop pill.
-- **Hover background (GNOME-style)** — a rounded highlight fades in behind the whole pager while
-  the pointer is over it, exactly like GNOME's panel workspace indicator, with its own colour and
-  opacity and a slider for the clearance it leaves around the dots on each axis. Can be turned off, and
-  when it is the widget's footprint is unchanged.
-- **Hover & tooltips** — dots brighten on hover; each dot has a tooltip with the desktop name
-  and, optionally, a GNOME / stock-pager-style list of the windows open on that desktop
-  (sourced from the public `TasksModel`).
-- **Occupied-desktop indicator** — optional (default off): mark desktops that hold windows so they
-  stand out from empty ones (a GNOME / i3-style "occupied" cue). Choose the style — **filled** dot,
-  an **inner dot**, or a **hollow ring** on top — with a configurable colour and opacity. On
-  multi-monitor setups each pager reflects *its* monitor (a desktop is "occupied" only if a window
-  on it is on that screen), matching the per-screen current desktop below.
-- **Add / remove / rename desktops** — from the right-click menu (each entry individually
-  toggleable; never removes the last desktop).
-- **Configure Virtual Desktops…** — a right-click entry (like the stock pager) that opens System
-  Settings' Virtual Desktops page.
-- **Dynamic workspaces (GNOME-style)** — optional (default off): automatically keeps exactly one
-  empty desktop at the end — open a window on the last desktop and a new empty one appears; close
-  the windows and the surplus empties are removed. Auto-created desktops are named from a
-  configurable prefix (`"Desktop 2"`, `"Desktop 3"`, …). It's a single **global** behaviour: the
-  toggle and the prefix sync across every panel/monitor, and only one pager actually manages the
-  desktops (no double-create), all through KWin's public DBus — no KWin script required. Activity-aware:
-  a desktop that holds windows in *any* activity is kept, since KWin shares one desktop set across all
-  activities.
-- **Accessible** — each dot is exposed as a named, pressable button (`Accessible.role` / `name` /
-  press action), so screen readers (Orca) announce each desktop and can activate it.
-- **Works everywhere a pager goes** — **a vertical side panel behaves identically to a
-  horizontal one** (the row of dots becomes a column and the pill grows vertically), plus a
-  multi-row grid that mirrors KWin's "Rows" setting live. On a thin or crowded panel the dots
-  **scale to fit** on both axes rather than overflowing onto neighbours. Two optional layout tweaks
-  for multi-row setups (**Appearance**): **"Show all desktops in a single line"** ignores the grid
-  rows and lays everything out as one strip following the panel (a single vertical strip on a vertical
-  panel), and **"Match the virtual-desktop grid layout"** lays a multi-row grid out in KWin's
-  orientation (rows top-to-bottom) on a vertical panel instead of running it down the panel.
-- **Per-screen current desktop** — Plasma 6.7's "switch desktops independently for each
-  screen": each pager reflects *its* monitor's current desktop, not the global one.
-- **Theme-following, or your own colours** — by default dim dots use the text colour at reduced
-  opacity and the pill uses the highlight colour, so the widget follows your colour scheme; you
-  can also pin custom active/inactive colours.
-- **Configurable** — a full settings dialog (Behavior + Appearance) with a Defaults action;
-  see [Configuration](#configuration).
+- **Two looks**: the sliding pill, or **Filled & ring**, where every desktop is the same size and
+  the current one is a solid dot among hollow rings
+- **Click a dot or scroll** over the pager to switch, and optionally click the current desktop for
+  Show Desktop, Overview or Grid
+- **Tooltips** with each desktop's name and the windows open on it
+- **A marker on desktops with open windows**, if you want one, in three styles
+- **Add, remove and rename desktops** from the right-click menu, or let **dynamic workspaces** keep
+  one empty desktop at the end, as GNOME does
+- **Any panel**: horizontal or vertical, with KWin's grid rows mirrored live and dots that shrink
+  to fit a thin panel
+- **One pager per monitor**, each following its own screen when Plasma 6.7 switches desktops per
+  screen
+- **A hover highlight** behind the whole pager, as in GNOME's top bar
+- **Your colour scheme by default**, or colours of your own
+- **Screen reader support**, with each dot a named button
+- **Translated into 13 languages**
 
 ## Why this exists
 
-Several third-party GNOME-style pagers break across Plasma point releases (e.g. 6.6 → 6.7)
-because they depend on **private** QML imports (`org.kde.plasma.private.*`) or ship a compiled
-C++ plugin. This widget is deliberately built to be robust:
+Several GNOME-style pagers for Plasma break on point releases, because they import Plasma's private
+QML modules or ship a compiled C++ plugin. This one does neither. It's plain QML on public APIs,
+reading desktops from `org.kde.taskmanager` and switching them through KWin's DBus interface. It
+was built on Plasma 6.6, came through the upgrade to 6.7 untouched, and picked up per-screen
+desktops through the public API alone.
 
-- **Pure QML** — no compiled plugin, so Qt/KF6 upgrades can't break it.
-- **Public, stable, versionless imports only** — `org.kde.plasma.plasmoid`,
-  `org.kde.plasma.core`, `org.kde.kirigami`, `org.kde.taskmanager` (`VirtualDesktopInfo` for
-  reading state, `TasksModel` for the window-list tooltips), and `org.kde.plasma.workspace.dbus`
-  (KWin DBus for switching/adding/removing). No `org.kde.plasma.private.*`.
-- **Reactive bindings** to `VirtualDesktopInfo` so the pill always reflects the real state,
-  including switches made via keyboard or other widgets.
+## Installation
 
-It was built on Plasma 6.6.5, survived the upgrade to 6.7, and gained per-screen desktop
-support through the public API alone — no rebuild required.
+You need Plasma 6.0 or later.
 
-## Requirements
+**From the KDE Store**: right-click the panel or desktop, pick **Add Widgets… → Get New Widgets… →
+Download New Plasma Widgets**, and search for "Plasma Gnome Pager". It's also on the
+[store page](https://store.kde.org/p/2363190).
 
-- KDE Plasma 6.0+ on KDE Frameworks 6 and Qt 6 (developed on Plasma 6.6/6.7, Qt 6.11, Fedora KDE)
-- `kpackagetool6`, `plasmawindowed` (from `plasma-workspace`)
-
-## Install / uninstall
-
-### From source
-
-```bash
-make install    # kpackagetool6 --install package
-make update     # kpackagetool6 --upgrade package
-make uninstall  # kpackagetool6 --remove <id>
-make package    # build a distributable .plasmoid into dist/
-```
-
-If you've run `make dev` (the live-editing symlink, below), run `make dev-undev` first — the
-install/upgrade targets refuse to run while the dev symlink is present (otherwise
-kpackagetool6's remove-then-install step would delete your source tree through the symlink).
-
-Widget id: `com.github.kenansalar.plasma-gnome-pager`
-
-### From a release (`.plasmoid`)
-
-Each tagged release attaches a ready-to-install `.plasmoid` — grab the latest from the
-[**Releases**](https://github.com/KenanSalar/plasma-gnome-pager/releases) page and install it
-with either:
+**From a release**: download the `.plasmoid` from the
+[Releases page](https://github.com/KenanSalar/plasma-gnome-pager/releases) and pick **Install
+Widget From Local File…** in the same Get New Widgets menu, or run:
 
 ```bash
 kpackagetool6 --type Plasma/Applet --install com.github.kenansalar.plasma-gnome-pager-<version>.plasmoid
 ```
 
-or the GUI: right-click the desktop/panel → **Add Widgets… → Get New Widgets… → Install Widget
-From Local File…**.
+**From source**, with `make` and gettext installed:
 
-### KDE Store
+```bash
+git clone https://github.com/KenanSalar/plasma-gnome-pager.git
+cd plasma-gnome-pager
+make install    # later, make update to upgrade and make uninstall to remove it
+```
 
-Published on the KDE Store: **[Plasma Gnome Pager](https://store.kde.org/p/2363190)** (also on
-[OpenDesktop](https://www.opendesktop.org/p/2363190/)). Install it straight from the desktop:
-right-click the panel or desktop → **Add Widgets… → Get New Widgets… → Download New Plasma
-Widgets**, then search for "Plasma Gnome Pager".
+Then add **Plasma Gnome Pager** to a panel from **Add Widgets…**. What changed in each version is
+in [CHANGELOG.md](CHANGELOG.md).
+
+## Screenshots
+
+The animations are recorded at real panel size, so they look a little soft here.
+
+| Theme highlight (default) | Custom pill colour |
+|---|---|
+| ![Dot strip following the theme highlight colour](screenshots/pager-theme.png) | ![Dot strip with a custom pill colour](screenshots/pager-light.png) |
+
+On a vertical panel the row of dots becomes a column, and the pill grows vertically:
+
+![Plasma Gnome Pager switching desktops on a vertical panel](screenshots/showcase-vertical.gif)
+
+| Vertical, theme highlight (default) | Vertical, custom pill colour |
+|---|---|
+| ![Vertical dot column following the theme highlight colour](screenshots/pager-theme-vertical.png) | ![Vertical dot column with a custom pill colour](screenshots/pager-light-vertical.png) |
+
+| Right-click menu | Behavior settings | Appearance settings |
+|---|---|---|
+| ![Context menu](screenshots/context-menu.png) | ![Behavior settings page](screenshots/config-behavior.png) | ![Appearance settings page](screenshots/config-appearance.png) |
 
 ## Configuration
 
-Right-click the widget → **Configure…**. Every setting applies live and persists across a shell
-restart; the defaults give the intended GNOME look out of the box. Each page groups its rows under
-headings, and the tables below follow the same grouping and order, so they can be read side by side
-with the dialog.
+Right-click the pager and pick **Configure…**. The defaults give the GNOME look, and the tables
+below follow the dialog's order. The grid rows and the per-screen current desktop aren't settings
+here: they follow **System Settings → Virtual Desktops**, so the pager always agrees with KWin.
 
-### Behavior
+<details>
+<summary><b>Behavior</b>: switching, tooltips and managing desktops</summary>
 
-| Setting | Default | Description |
+| Setting | Default | Notes |
 |---|---|---|
 | **Mouse** | | |
-| `enableScroll` | `true` | Scroll over the strip to switch desktops. |
-| `scrollWrap` | `false` | When scrolling past the first/last desktop, wrap around (else clamp). |
-| `invertScroll` | `false` | Invert the scroll direction (wheel up → next desktop instead of previous). |
-| `pillClickAction` | `Nothing` | Action when clicking the highlighted **current** desktop: Show Desktop, Overview, or Grid (it toggles the matching KWin action). Clicking any other desktop still just switches to it. |
-| `pillClickAnywhere` | `true` | Let that action fire from anywhere on the widget (the hovered background), not just the current desktop's pill. Clicking another desktop still switches to it; inert while `pillClickAction` is Nothing. |
+| Scroll over the pager to switch desktops | On | |
+| Wrap around at the first and last desktop | Off | |
+| Invert the scroll direction | Off | Wheel up moves to the next desktop instead of the previous one. |
+| Click current desktop | Nothing | Show Desktop, Overview or Grid, toggled by clicking the highlighted desktop. Clicking any other desktop still switches to it. |
+| Trigger it from anywhere on the widget | On | The click action also fires from the space around the dots. |
 | **Tooltips** | | |
-| `showTooltips` | `true` | Show the desktop name in a tooltip on hover. |
-| `showWindowList` | `true` | Also list the windows open on a desktop in its tooltip (only applies when tooltips are on). |
+| Show the desktop name on hover | On | |
+| List the open windows in the tooltip | On | |
 | **Desktop management** | | |
-| `enableAddRemove` | `true` | Offer Add / Remove Desktop entries in the right-click menu. Disabled (greyed out, entries hidden) while `dynamicWorkspaces` is on, since the two manage desktops in conflicting ways. |
-| `enableRename` | `true` | Offer a "Rename Current Desktop…" entry in the right-click menu. |
-| `dynamicWorkspaces` | `false` | GNOME-style dynamic workspaces: automatically keep exactly one empty desktop at the end (add when the last fills, trim surplus trailing empties). A single **global** setting — synced across all panels/monitors. |
-| `dynamicNamePrefix` | _(empty)_ | Base name for desktops created by dynamic workspaces; the desktop's number is appended (e.g. "Desktop 2"). Empty = the localized default "Desktop". Also synced across panels. |
+| Add and remove desktops from the right-click menu | On | Unavailable while desktops are added and removed automatically. |
+| Rename the current desktop from the right-click menu | On | |
+| Automatically add and remove desktops (GNOME-style) | Off | Keeps exactly one empty desktop at the end: a new one appears when the last fills, and extra empty ones at the end are removed. A desktop with windows in any activity counts as in use. One setting for every pager on every monitor. |
+| New desktop name | Desktop | What those desktops are called, followed by their number. Shared the same way. |
 | **Animation** | | |
-| `animationDuration` | `0` | Morph animation length in ms; **0 = follow the theme** (`Kirigami.Units.longDuration`, which also inherits "reduce animations"). |
+| Animation duration | Default | Default follows Plasma's animation speed, so turning animations off in System Settings turns these off too. |
 
-### Appearance
+</details>
 
-| Setting | Default | Description |
+<details>
+<summary><b>Appearance</b>: style, layout, sizes, hover and colours</summary>
+
+| Setting | Default | Notes |
 |---|---|---|
-| `dotStyle` | `Sliding pill` | Overall look: **Sliding pill** (the reflow pill) or **Filled & ring** (no pill; current = filled circle, others = hollow rings). The pill-size settings apply only to Sliding pill. |
+| Pager style | Sliding pill | **Sliding pill**, or **Filled & ring**: no pill, every desktop the same size, the current one filled and the rest hollow rings. The pill settings apply only to Sliding pill. |
 | **Layout** | | |
-| `singleLine` | `false` | Ignore the virtual-desktop grid **rows** and lay every desktop out in a single line, regardless of KWin's "Rows" setting. Combine with `matchDesktopGrid` to choose the direction (one vertical strip on its own, or one horizontal row with `matchDesktopGrid` on). |
-| `matchDesktopGrid` | `false` | **Vertical panels only:** run the layout **across** the panel instead of down it — for a multi-row grid this mirrors KWin's orientation (rows top-to-bottom, like the stock pager); combined with `singleLine` it gives a single horizontal row. No effect on a horizontal panel. |
-| `spacingFactor` | `0.5` | Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). |
+| Show all desktops in a single line | Off | Ignores KWin's grid rows. |
+| Match the virtual-desktop grid layout | Off | On a vertical panel, lays the dots out across the panel in KWin's grid order instead of down it. With a single line, that makes one horizontal row. |
+| Spacing | 0.75× dot | The gap between neighbouring dots, the pill included, as a multiple of the dot size. |
 | **Dots** | | |
-| `dotSize` | `0` | Inactive-dot diameter in px; **0 = auto** (`Kirigami.Units.iconSizes.small / 2`, HiDPI-aware). |
-| `inactiveOpacity` | `0.45` | Opacity of an inactive (dim) dot. |
-| `hoverOpacity` | `0.8` | Opacity an inactive dot brightens to on hover. |
+| Dot size | Default | Default follows Plasma's icon sizes, so it scales with the display. |
+| Inactive opacity | 45% | |
+| Hover opacity | 80% | How bright a dot gets under the pointer. |
 | **Active pill** | | |
-| `pillSize` | `0` | Active-pill thickness in px, sized **independently of the dots** (e.g. a normal pill over tiny dots); **0 = auto** (matches the dot size, so the pill tracks the dots by default). |
-| `pillWidthFactor` | `3.5` | Active-capsule length, as a multiple of the **pill thickness** (its aspect ratio). |
+| Pill thickness | Match dots | Set on its own, so a thick pill can sit over small dots or the other way round. |
+| Pill length | 4.5× pill | The pill's length as a multiple of its thickness. |
 | **Hover background** | | |
-| `showHoverBackground` | `true` | GNOME-style: fade a rounded background in behind the whole pager while the pointer is over it. Sized in GNOME's proportions by default and adjustable per axis with the two sliders below; turning it off restores the original footprint exactly. |
-| `hoverBackgroundOpacity` | `0.12` | Opacity of that hover background; only when `showHoverBackground` is on. |
-| `hoverLengthFactor` | `1.0` | Clearance the background leaves at **each end** of the strip, as a multiple of the pill thickness. |
-| `hoverThicknessFactor` | `1.0` | Clearance it leaves on **each side** across the strip, likewise. The defaults give one whole pill thickness all round (a background 3× the pill thick), matching GNOME; lower them for a tighter highlight. Always capped at the panel thickness. |
+| Highlight the whole pager on hover | On | A rounded background fades in behind the pager, as in GNOME's top bar. Turned off, the pager takes only the room its dots need. |
+| Background opacity | 12% | |
+| Extra length | 1.00× pill | How far the background reaches past each end of the dots. |
+| Extra thickness | 1.00× pill | How far it reaches on each side, never past the panel's edge. |
 | **Occupied desktops** | | |
-| `showOccupancy` | `false` | Mark desktops that hold windows so they stand out from empty ones. |
-| `occupancyStyle` | `Filled` | How an occupied desktop is marked: **Filled** (the whole dot), **Inner dot** (a dot on top), or **Hollow ring** (a ring on top). Only when `showOccupancy` is on. |
-| `occupiedOpacity` | `0.7` | Opacity of the occupied marker (every style uses it); only when `showOccupancy` is on. |
+| Highlight desktops with open windows | On | With several monitors, each pager counts only the windows on its own screen. |
+| Indicator style | Hollow ring | A **Filled** dot, an **Inner dot** on top, or a **Hollow ring** on top. **Filled & ring** draws Hollow ring as Filled, since its dots already are rings. |
+| Occupied opacity | 70% | |
 | **Colors** | | |
-| `followThemeColors` | `true` | Follow the colour scheme (active = highlight, inactive = text colour, occupied = accent). When off, use the custom colours below. |
-| `activeColor` | `#3daee9` | Custom active-capsule colour (used only when `followThemeColors` is off). |
-| `inactiveColor` | `#eff0f1` | Custom inactive-dot colour (used only when `followThemeColors` is off). |
-| `occupiedColor` | `#3daee9` | Custom occupied-marker colour (used only when `followThemeColors` is off). |
-| `hoverBackgroundColor` | `#eff0f1` | Custom hover-background colour (used only when `followThemeColors` is off; otherwise the theme's text colour). |
+| Follow the color scheme | On | The pill and the occupied marker take the highlight colour, the dots and the hover background the text colour. Turn it off to use the four colours below. |
+| Active desktop | `#3daee9` | |
+| Inactive desktop | `#eff0f1` | |
+| Occupied desktop | `#3daee9` | |
+| Hover highlight | `#eff0f1` | |
 
-The **multi-row grid** and the **per-screen current desktop** are not settings — they
-auto-mirror KWin (System Settings → Virtual Desktops → "Rows", and the per-output desktop
-feature), so they always agree with the rest of the system.
+</details>
 
-## Project layout
-
-```
-plasma-gnome-pager/
-├── Makefile                 # dev / install / package / test helpers
-├── README.md
-├── CLAUDE.md                # architecture & conventions (authoritative)
-├── LICENSE                  # GPL-3.0-or-later (full text)
-├── .gitignore
-├── .contextProperties.ini   # declares i18n/Plasmoid globals so qmllint stays clean
-├── eslint.config.mjs        # strict ESLint flat config for the pure-JS tier
-├── package.json             # dev-only Node deps for ESLint (package-lock.json committed; not shipped)
-├── tools/                   # eslint-qml-js-parser.mjs — lets ESLint parse the .pragma library JS
-├── .github/                 # CI workflows (PR validation, PR-source guard, publish) + CODEOWNERS
-├── screenshots/             # README media (not shipped in the package)
-├── po/                      # translation source: per-language *.po (the *.pot template is generated)
-├── tests/                   # headless QML tests (not shipped in the package)
-│   ├── README.md
-│   ├── unit/                       # one component in isolation (+ pure-JS logic)
-│   ├── integration/                # components composed + reactive wiring
-│   └── shared/                     # shared test helpers / mocks
-└── package/                 # the KPackage (this is what gets installed)
-    ├── metadata.json
-    └── contents/
-        ├── config/
-        │   ├── main.xml              # KConfigXT schema (the settings keys)
-        │   └── config.qml            # ConfigModel: the settings categories
-        ├── locale/                   # compiled *.mo catalogs (generated by `make i18n`)
-        └── ui/
-            ├── main.qml              # PlasmoidItem root: data source, DBus helpers, actions
-            ├── WorkspaceIndicator.qml # the dot strip (row / column / grid + reflow)
-            ├── WorkspaceDot.qml       # one element (dot ⇄ capsule morph + tooltip)
-            ├── WindowAggregator.qml   # shared TasksModel: window-list tooltip + dynamic-workspace (global) & indicator (per-screen) occupancy
-            ├── DynamicWorkspacesController.qml # GNOME-style auto add/remove of one empty trailing desktop
-            ├── logic.js               # pure, unit-tested branching logic (no Plasma deps)
-            ├── coordinator.js         # shared cross-panel state: dynamic-workspaces global sync + writer election
-            └── config/                # settings pages (ConfigGeneral, ConfigAppearance, …)
-```
+The config keys behind these are in [`main.xml`](package/contents/config/main.xml).
 
 ## Development
 
-Planning to send a patch? [CONTRIBUTING.md](CONTRIBUTING.md) covers the branch naming, the CI gates,
-and what gets checked on review.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the setup, the ground rules and how pull requests are
+handled. The Makefile covers the rest:
 
 ```bash
 make dev                # symlink package/ into ~/.local/share/plasma/plasmoids for live editing
-make test               # run the widget standalone in a window (shows QML errors in the terminal)
+make dev-undev          # remove that symlink
+make test               # run the widget standalone, QML errors in the terminal
 make restart            # reload plasmashell to pick up changes in the panel
-make check              # run all headless QML tests — unit + integration (see tests/README.md)
-make check-unit         # run only the unit tier (tests/unit)
-make check-integration  # run only the integration tier (tests/integration)
-make lint               # qmllint the widget UI + config pages + tests
-make lint-js            # ESLint the pure-JS tier (logic.js/coordinator.js + tests/shared/*.js)
-make verify             # all static + headless gates in one go: lint + lint-js + check
-make package            # build a distributable .plasmoid into dist/
-make messages           # extract translatable strings into po/ (.pot + merge .po files)
-make i18n               # compile po/*.po into the package (contents/locale/.../*.mo)
-make dev-undev          # remove the dev symlink
+make check              # all headless tests, unit and integration (see tests/README.md)
+make check-unit         # only tests/unit
+make check-integration  # only tests/integration
+make lint               # qmllint over the widget, the settings pages and the tests
+make lint-js            # oxlint over the JavaScript modules
+make format             # oxfmt the JavaScript, JSON and YAML in place
+make format-check       # fail on any file oxfmt would change
+make verify             # lint, lint-js, format-check and check: what CI runs
+make messages           # extract the strings and merge them into po/*.po
+make i18n               # compile po/*.po into the package
+make package            # build a .plasmoid into dist/
 ```
 
-`make lint-js` and `make verify` lint the pure-JS tier with ESLint, which is a dev-only Node
-dependency — run `npm install` (or `npm ci`) once first. None of this is shipped in the `.plasmoid`.
-
-The tests cover the Kirigami-only components (`WorkspaceDot`, `WorkspaceIndicator` driven by a
-mock `VirtualDesktopInfo`, the shared `ConfigSlider` control, the pure `logic.js`, the
-`coordinator.js` state machine, and the `DynamicWorkspacesController` reactive state machine driven
-by a mock `VirtualDesktopInfo` + injected occupancy); `main.qml` itself — and the live window/desktop
-models + the real cross-panel coordination — needs a live plasmashell + KWin session, so it is
-verified by the manual `make dev` → `make test` → `make restart` loop.
+`lint-js`, `format`, `format-check` and `verify` need `npm ci` once first. Nothing from Node ships
+in the `.plasmoid`.
 
 ## Translations
 
-The widget ships **English** (the source language) plus **13 translation catalogs**: Arabic
-(`ar`), Simplified Chinese (`zh_CN`), French (`fr`), German (`de`), Greek (`el`), Italian
-(`it`), Japanese (`ja`), Polish (`pl`), European Portuguese (`pt`), Brazilian Portuguese
-(`pt_BR`), Russian (`ru`), Spanish (`es`), and Turkish (`tr`). All user-visible strings are
-translated through `ki18n`; Plasma auto-binds them to the catalog domain
-`plasma_applet_com.github.kenansalar.plasma-gnome-pager`. The committed translation source is the
-per-language `po/*.po`; the `*.pot` template is regenerated from the QML by `make messages` and the
-compiled `*.mo` catalogs are generated into `package/contents/locale/<lang>/LC_MESSAGES/` by
-`make i18n` (so `make install`/`update`/`dev` ship them automatically) — both are gitignored.
-
-**Contributing a translation** — say, Korean:
-
-```bash
-make messages                              # refresh po/*.pot from the current strings
-msginit --locale=ko -i po/plasma_applet_com.github.kenansalar.plasma-gnome-pager.pot -o po/ko.po
-$EDITOR po/ko.po                           # translate each msgstr (Lokalize / Poedit work well)
-make i18n                                  # compile, then `make restart` to see it in the panel
-```
-
-Open a pull request **against `main`** with the new `po/ko.po` (and, optionally, a
-`Description[ko]` key in `package/metadata.json` so the description in **Add Widgets** is localized
-too). After changing any in-code string, re-run `make messages` and commit the updated `.po` (the
-`.pot` is gitignored). [CONTRIBUTING.md](CONTRIBUTING.md#translations) lists what gets checked on
-review.
+Besides English, the pager ships in Arabic, Simplified Chinese, French, German, Greek, Italian,
+Japanese, Polish, European and Brazilian Portuguese, Russian, Spanish and Turkish, and follows your
+Plasma language. [CONTRIBUTING.md](CONTRIBUTING.md#translations) has the steps for adding another.
 
 ## License
 

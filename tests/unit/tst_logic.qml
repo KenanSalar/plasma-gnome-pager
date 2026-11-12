@@ -1,62 +1,63 @@
 /*
- * Plasma Gnome Pager — tst_logic.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * UNIT tests for the pure-JS logic tier (package/contents/ui/logic.js), imported directly with NO
- * Plasma/Kirigami dependency — the cheapest, most exhaustive tier for the branching logic (clamp/wrap,
- * wheel accumulation, never-remove-last, …). Run with `make check-unit`.
+ * logic.mjs imported directly, with nothing from Plasma or Kirigami: the cheapest place to pin a
+ * decision, so the most exhaustive.
  */
 import QtTest
-import "../../package/contents/ui/logic.js" as Logic
+import "../../package/contents/ui/logic.mjs" as Logic
 
 TestCase {
     id: testCase
     name: "Logic"
 
-    // --- stepIndex: clamp vs wrap, and the -1 "ignore me" states --------------------
-    function test_stepIndex_data() {
+    function test_clampedStep_data() {
         return [
-            // wrap across the ends, in both directions and by more than one
-            { tag: "wrap-forward-over-end", cur: 2, count: 3, delta: 1, wrap: true, exp: 0 },
-            { tag: "wrap-backward-over-start", cur: 0, count: 3, delta: -1, wrap: true, exp: 2 },
-            { tag: "wrap-forward-multi", cur: 0, count: 3, delta: 4, wrap: true, exp: 1 },
-            { tag: "wrap-backward-multi", cur: 0, count: 3, delta: -4, wrap: true, exp: 2 },
+            // past either end is a step that goes nowhere
+            { tag: "high", cur: 2, count: 3, delta: 1, exp: 2 },
+            { tag: "low", cur: 0, count: 3, delta: -1, exp: 0 },
+            { tag: "high-multi", cur: 1, count: 3, delta: 5, exp: 2 },
+            { tag: "low-multi", cur: 1, count: 3, delta: -5, exp: 0 },
+            { tag: "mid-step", cur: 0, count: 3, delta: 1, exp: 1 },
+            { tag: "single-up", cur: 0, count: 1, delta: 1, exp: 0 },
+            { tag: "single-down", cur: 0, count: 1, delta: -1, exp: 0 },
+            { tag: "delta-zero", cur: 1, count: 3, delta: 0, exp: 1 },
 
-            // clamp at the ends (scrolling past the edge is a no-op step)
-            { tag: "clamp-high", cur: 2, count: 3, delta: 1, wrap: false, exp: 2 },
-            { tag: "clamp-low", cur: 0, count: 3, delta: -1, wrap: false, exp: 0 },
-            { tag: "clamp-high-multi", cur: 1, count: 3, delta: 5, wrap: false, exp: 2 },
-
-            // a normal mid-range step
-            { tag: "mid-step", cur: 0, count: 3, delta: 1, wrap: false, exp: 1 },
-
-            // a single desktop: every step stays put, wrap or not
-            { tag: "single-clamp-up", cur: 0, count: 1, delta: 1, wrap: false, exp: 0 },
-            { tag: "single-wrap-up", cur: 0, count: 1, delta: 1, wrap: true, exp: 0 },
-            { tag: "single-wrap-down", cur: 0, count: 1, delta: -1, wrap: true, exp: 0 },
-
-            // states the caller must ignore: empty list, unknown/transient current, OOB current
-            { tag: "empty-clamp", cur: -1, count: 0, delta: 1, wrap: false, exp: -1 },
-            { tag: "empty-wrap", cur: -1, count: 0, delta: 1, wrap: true, exp: -1 },
-            { tag: "unknown-current-clamp", cur: -1, count: 3, delta: 1, wrap: false, exp: -1 },
-            { tag: "unknown-current-wrap", cur: -1, count: 3, delta: 1, wrap: true, exp: -1 },
-            { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, wrap: false, exp: -1 },
-            // the count/current guards run BEFORE the wrap branch, so OOB current is -1 even with wrap.
-            { tag: "out-of-range-current-wrap", cur: 5, count: 3, delta: 1, wrap: true, exp: -1 },
-            { tag: "negative-count", cur: 0, count: -2, delta: 1, wrap: false, exp: -1 },
-
-            // delta 0 is a no-op that returns the current index (not -1)
-            { tag: "delta-zero-clamp", cur: 1, count: 3, delta: 0, wrap: false, exp: 1 },
-            { tag: "delta-zero-wrap", cur: 1, count: 3, delta: 0, wrap: true, exp: 1 }
+            // states the caller ignores: an empty list, a current not in it, a current out of range
+            { tag: "empty", cur: -1, count: 0, delta: 1, exp: -1 },
+            { tag: "unknown-current", cur: -1, count: 3, delta: 1, exp: -1 },
+            { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, exp: -1 },
+            { tag: "negative-count", cur: 0, count: -2, delta: 1, exp: -1 }
         ];
     }
-    function test_stepIndex(data) {
-        compare(Logic.stepIndex(data.cur, data.count, data.delta, data.wrap), data.exp, data.tag);
+    function test_clampedStep(data) {
+        compare(Logic.clampedStep(data.cur, data.count, data.delta), data.exp, data.tag);
     }
 
-    // --- canRemoveDesktop: never remove the last one --------------------------------
+    function test_wrappedStep_data() {
+        return [
+            // across the ends, in both directions and by more than a lap
+            { tag: "forward-over-end", cur: 2, count: 3, delta: 1, exp: 0 },
+            { tag: "backward-over-start", cur: 0, count: 3, delta: -1, exp: 2 },
+            { tag: "forward-multi", cur: 0, count: 3, delta: 4, exp: 1 },
+            { tag: "backward-multi", cur: 0, count: 3, delta: -4, exp: 2 },
+            { tag: "mid-step", cur: 0, count: 3, delta: 1, exp: 1 },
+            { tag: "single-up", cur: 0, count: 1, delta: 1, exp: 0 },
+            { tag: "single-down", cur: 0, count: 1, delta: -1, exp: 0 },
+            { tag: "delta-zero", cur: 1, count: 3, delta: 0, exp: 1 },
+
+            // the range check runs before the wrap, so these stay -1 rather than wrapping into range
+            { tag: "empty", cur: -1, count: 0, delta: 1, exp: -1 },
+            { tag: "unknown-current", cur: -1, count: 3, delta: 1, exp: -1 },
+            { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, exp: -1 },
+            { tag: "negative-count", cur: 0, count: -2, delta: 1, exp: -1 }
+        ];
+    }
+    function test_wrappedStep(data) {
+        compare(Logic.wrappedStep(data.cur, data.count, data.delta), data.exp, data.tag);
+    }
+
     function test_canRemoveDesktop_data() {
         return [
             { tag: "zero", count: 0, exp: false },
@@ -70,7 +71,6 @@ TestCase {
         compare(Logic.canRemoveDesktop(data.count), data.exp, data.tag);
     }
 
-    // --- lastDesktopId: guard null/empty, else the last UUID ------------------------
     function test_lastDesktopId_data() {
         return [
             { tag: "empty", ids: [], exp: "" },
@@ -78,7 +78,7 @@ TestCase {
             { tag: "single", ids: ["a"], exp: "a" },
             { tag: "many", ids: ["a", "b", "c"], exp: "c" },
             { tag: "undefined", ids: undefined, exp: "" },
-            // the last element is returned RAW (no string coercion), so a non-string id comes back as-is.
+            // returned as it is, without coercion to a string
             { tag: "non-string-last", ids: [1, 2, 3], exp: 3 }
         ];
     }
@@ -86,8 +86,6 @@ TestCase {
         compare(Logic.lastDesktopId(data.ids), data.exp, data.tag);
     }
 
-    // resolveCurrentDesktop: prefer the per-screen value (Plasma 6.7), else fall back to the global
-    // current when it's missing (undefined/null/"" ). Both empty → "" (the no-source state).
     function test_resolveCurrentDesktop_data() {
         return [
             { tag: "per-screen-wins", perScreen: "uuid-screen", global: "uuid-global", exp: "uuid-screen" },
@@ -106,87 +104,82 @@ TestCase {
         compare(Logic.resolveCurrentDesktop(data.perScreen, data.global), data.exp, data.tag);
     }
 
-    // --- accumulateWheel: whole notches step, sub-notch motion carries --------------
     function test_accumulateWheel_data() {
         return [
-            { tag: "full-notch-down", acc: 0, d: 120, t: 120, steps: 1, rem: 0 },
-            { tag: "full-notch-up", acc: 0, d: -120, t: 120, steps: -1, rem: 0 },
-            { tag: "half-notch-carries", acc: 0, d: 60, t: 120, steps: 0, rem: 60 },
-            { tag: "two-halves-make-a-notch", acc: 60, d: 60, t: 120, steps: 1, rem: 0 },
-            { tag: "touchpad-sub-notch", acc: 0, d: 40, t: 120, steps: 0, rem: 40 },
-            { tag: "overshoot-carries-remainder", acc: 0, d: 200, t: 120, steps: 1, rem: 80 },
-            { tag: "double-notch", acc: 0, d: 240, t: 120, steps: 2, rem: 0 },
-            { tag: "threshold-defaults-to-120", acc: 0, d: 120, t: 0, steps: 1, rem: 0 },
+            { tag: "full-notch-down", acc: 0, d: 120, steps: 1, rem: 0 },
+            { tag: "full-notch-up", acc: 0, d: -120, steps: -1, rem: 0 },
+            { tag: "half-notch-carries", acc: 0, d: 60, steps: 0, rem: 60 },
+            { tag: "two-halves-make-a-notch", acc: 60, d: 60, steps: 1, rem: 0 },
+            { tag: "touchpad-sub-notch", acc: 0, d: 40, steps: 0, rem: 40 },
+            { tag: "overshoot-carries-remainder", acc: 0, d: 200, steps: 1, rem: 80 },
+            { tag: "double-notch", acc: 0, d: 240, steps: 2, rem: 0 },
 
-            // negative deltas (wheel up): (total / t) | 0 truncates TOWARD zero, so step and remainder are
-            // both negative — the upward-scroll path.
-            { tag: "negative-overshoot-carries", acc: 0, d: -200, t: 120, steps: -1, rem: -80 },
-            { tag: "negative-double-notch", acc: 0, d: -240, t: 120, steps: -2, rem: 0 },
-            { tag: "negative-remainder-feeds-back", acc: -80, d: -60, t: 120, steps: -1, rem: -20 },
+            // wheel up: `| 0` truncates toward zero, so step and remainder are both negative
+            { tag: "negative-overshoot-carries", acc: 0, d: -200, steps: -1, rem: -80 },
+            { tag: "negative-double-notch", acc: 0, d: -240, steps: -2, rem: 0 },
+            { tag: "negative-remainder-feeds-back", acc: -80, d: -60, steps: -1, rem: -20 },
 
-            // exhaustive: multiple notches in one delta WITH a carried remainder; a non-120 threshold;
-            // an absent/negative threshold (both default back to 120); and a zero delta (a no-op that
-            // simply carries the running accumulator forward).
-            { tag: "two-notches-with-remainder", acc: 0, d: 280, t: 120, steps: 2, rem: 40 },
-            { tag: "three-notches", acc: 0, d: 360, t: 120, steps: 3, rem: 0 },
-            { tag: "three-notches-with-remainder", acc: 0, d: 400, t: 120, steps: 3, rem: 40 },
-            { tag: "non-default-threshold", acc: 0, d: 240, t: 240, steps: 1, rem: 0 },
-            { tag: "negative-threshold-defaults-120", acc: 0, d: 120, t: -50, steps: 1, rem: 0 },
-            { tag: "undefined-threshold-defaults-120", acc: 0, d: 120, t: undefined, steps: 1, rem: 0 },
-            { tag: "delta-zero-noop", acc: 50, d: 0, t: 120, steps: 0, rem: 50 }
+            // several notches with a carried remainder, and a zero delta that only carries the total forward
+            { tag: "two-notches-with-remainder", acc: 0, d: 280, steps: 2, rem: 40 },
+            { tag: "three-notches", acc: 0, d: 360, steps: 3, rem: 0 },
+            { tag: "three-notches-with-remainder", acc: 0, d: 400, steps: 3, rem: 40 },
+            { tag: "delta-zero-noop", acc: 50, d: 0, steps: 0, rem: 50 }
         ];
     }
     function test_accumulateWheel(data) {
-        const r = Logic.accumulateWheel(data.acc, data.d, data.t);
+        const r = Logic.accumulateWheel(data.acc, data.d);
         compare(r.steps, data.steps, data.tag + " steps");
         fuzzyCompare(r.remainder, data.rem, 0.001, data.tag + " remainder");
     }
 
-    // --- dotOpacity: active > hover > occupied-marker(Filled/Ring) > dim (empty, or the InnerDot body) ---
-    function test_dotOpacity_data() {
+    function test_dotBody_data() {
         var F = Logic.OCCUPANCY.Filled;
         return [
-            { tag: "idle", active: false, hovered: false, occupied: false, style: F, exp: 0.45 },
-            { tag: "hovered", active: false, hovered: true, occupied: false, style: F, exp: 0.8 },
-            { tag: "active-not-hovered", active: true, hovered: false, occupied: false, style: F, exp: 1.0 },
-            { tag: "active-and-hovered", active: true, hovered: true, occupied: false, style: F, exp: 1.0 },
-            { tag: "occupied-filled", active: false, hovered: false, occupied: true, style: F, exp: 0.7 },
-            { tag: "occupied-and-hovered", active: false, hovered: true, occupied: true, style: F, exp: 0.8 },
-            { tag: "occupied-and-active", active: true, hovered: false, occupied: true, style: F, exp: 1.0 },
-            // InnerDot and Ring keep a DIM body — their markers are overlays that carry occupiedOpacity themselves.
-            { tag: "occupied-ring-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: 0.45 },
-            { tag: "occupied-innerdot-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: 0.45 }
+            { tag: "empty", active: false, occupied: false, style: F, exp: Logic.DOT_BODY.Inactive },
+            { tag: "active", active: true, occupied: false, style: F, exp: Logic.DOT_BODY.Active },
+            { tag: "active-beats-occupied", active: true, occupied: true, style: F, exp: Logic.DOT_BODY.Active },
+            { tag: "filled-occupied", active: false, occupied: true, style: F, exp: Logic.DOT_BODY.Occupied },
+            // InnerDot and Ring keep an inactive body; their markers carry the occupied look themselves.
+            { tag: "innerdot-occupied", active: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: Logic.DOT_BODY.Inactive },
+            { tag: "ring-occupied", active: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: Logic.DOT_BODY.Inactive }
+        ];
+    }
+    function test_dotBody(data) {
+        compare(Logic.dotBody(data.active, data.occupied, data.style), data.exp, data.tag);
+    }
+
+    function test_dotOpacity_data() {
+        var B = Logic.DOT_BODY;
+        return [
+            { tag: "inactive", body: B.Inactive, hovered: false, exp: 0.45 },
+            { tag: "inactive-hovered", body: B.Inactive, hovered: true, exp: 0.8 },
+            { tag: "occupied", body: B.Occupied, hovered: false, exp: 0.7 },
+            { tag: "occupied-hovered", body: B.Occupied, hovered: true, exp: 0.8 },
+            { tag: "active", body: B.Active, hovered: false, exp: 1.0 },
+            { tag: "active-hovered", body: B.Active, hovered: true, exp: 1.0 }
         ];
     }
     function test_dotOpacity(data) {
-        fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, data.occupied, data.style, 0.45, 0.8, 0.7), data.exp, 0.001, data.tag);
+        const opacities = { inactive: 0.45, hover: 0.8, occupied: 0.7 };
+        fuzzyCompare(Logic.dotOpacity(data.body, data.hovered, opacities), data.exp, 0.001, data.tag);
     }
 
-    // The opacities are parameters, not constants: a non-default inactive/hover/occupied triple flows
-    // through, and the tier order holds (active > hover > occupied-marker > dim).
     function test_dotOpacityCustomRatios() {
-        var F = Logic.OCCUPANCY.Filled;
-        fuzzyCompare(Logic.dotOpacity(false, false, false, F, 0.2, 0.9, 0.6), 0.2, 0.001, "idle uses the given inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, true, false, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover uses the given hoverOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, false, true, F, 0.2, 0.9, 0.6), 0.6, 0.001, "occupied (Filled) uses occupiedOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, true, true, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover beats occupied");
-        fuzzyCompare(Logic.dotOpacity(true, false, false, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active is full strength, ignoring inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(true, true, true, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active beats hover and occupied");
-        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.Ring, 0.2, 0.9, 0.6), 0.2, 0.001, "Ring body stays dim (the ring overlay carries the opacity)");
-        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.InnerDot, 0.2, 0.9, 0.6), 0.2, 0.001, "InnerDot body stays dim (the inner dot carries the opacity)");
+        const opacities = { inactive: 0.2, hover: 0.9, occupied: 0.6 };
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Inactive, false, opacities), 0.2, 0.001, "inactive uses the given inactive opacity");
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Inactive, true, opacities), 0.9, 0.001, "hover uses the given hover opacity");
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Occupied, false, opacities), 0.6, 0.001, "occupied uses the given occupied opacity");
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Active, false, opacities), 1.0, 0.001, "active is full strength whatever is configured");
     }
 
-    // --- nextHoveredIndex: which dot the strip counts as hovered, from one dot's enter/leave ---
     function test_nextHoveredIndex_data() {
         return [
             { tag: "enter-from-nothing", current: -1, index: 2, hovered: true, exp: 2 },
             { tag: "leave-own-index", current: 2, index: 2, hovered: false, exp: -1 },
-            // The guard the whole design rests on: Qt delivers the NEW dot's enter before the old dot's
-            // leave, so by the time dot 1 reports its leave the index already names dot 2 — clearing it
-            // would blink the background off mid-move between two adjacent dots.
+            // Qt delivers dot 2's enter before dot 1's leave, so the index already names dot 2 here.
             { tag: "dot-to-dot-enter", current: 1, index: 2, hovered: true, exp: 2 },
             { tag: "dot-to-dot-stale-leave", current: 2, index: 1, hovered: false, exp: 2 },
-            // A leave from a dot nobody recorded (a teardown after the index was already cleared) is inert.
+            // a leave from a dot nobody recorded, as at a teardown after the index was cleared
             { tag: "stale-leave-while-clear", current: -1, index: 3, hovered: false, exp: -1 },
             { tag: "index-zero-enter", current: -1, index: 0, hovered: true, exp: 0 },
             { tag: "index-zero-leave", current: 0, index: 0, hovered: false, exp: -1 }
@@ -196,16 +189,15 @@ TestCase {
         compare(Logic.nextHoveredIndex(data.current, data.index, data.hovered), data.exp, data.tag);
     }
 
-    // --- hoverBackgroundAlpha: the hover background is the configured opacity while hovered, 0 otherwise ---
     function test_hoverBackgroundAlpha_data() {
         return [
             { tag: "on-hovered", enabled: true, hovered: true, opacity: 0.12, exp: 0.12 },
             { tag: "on-not-hovered", enabled: true, hovered: false, opacity: 0.12, exp: 0 },
             { tag: "off-hovered", enabled: false, hovered: true, opacity: 0.12, exp: 0 },
             { tag: "off-not-hovered", enabled: false, hovered: false, opacity: 0.12, exp: 0 },
-            // The opacity is a PARAMETER, not a constant — a custom value comes straight through.
+            // a custom opacity comes straight through
             { tag: "custom-opacity", enabled: true, hovered: true, opacity: 0.6, exp: 0.6 },
-            // A user who drags the slider to zero gets nothing drawn, same as switching it off.
+            // the slider at zero draws nothing, as if switched off
             { tag: "zero-opacity", enabled: true, hovered: true, opacity: 0, exp: 0 }
         ];
     }
@@ -213,7 +205,6 @@ TestCase {
         fuzzyCompare(Logic.hoverBackgroundAlpha(data.enabled, data.hovered, data.opacity), data.exp, 0.001, data.tag);
     }
 
-    // --- hoverPadding: per-side clearance, scaled off the line thickness by a user-set factor ---
     function test_hoverPadding_data() {
         return [
             { tag: "gnome-length", line: 10, factor: Logic.DEFAULTS.hoverLengthFactor, exp: 10.0 },
@@ -227,8 +218,7 @@ TestCase {
         fuzzyCompare(Logic.hoverPadding(data.line, data.factor), data.exp, 0.001, data.tag);
     }
 
-    // The DEFAULT factors match GNOME on a real panel: one whole pill thickness of clearance on EVERY side,
-    // so the background comes out 3x the pill thick and the same clearance appears at the ends.
+    // The defaults were matched against GNOME on a real panel: a pill's thickness of clearance a side.
     function test_hoverDefaultsMatchGnomeProportions() {
         var line = 8;
         var height = line + 2 * Logic.hoverPadding(line, Logic.DEFAULTS.hoverThicknessFactor);
@@ -237,10 +227,9 @@ TestCase {
         compare(Logic.DEFAULTS.hoverThicknessFactor, Logic.DEFAULTS.hoverLengthFactor, "the default clearance is uniform on both axes");
     }
 
-    // --- hoverCrossExtent: grow from the strip, then cap at the cell (never inset the cell — see CLAUDE.md) ---
     function test_hoverCrossExtent_data() {
         return [
-            // Room to spare: the strip plus the clearance, NOT the whole cell.
+            // room to spare: the strip and its clearance, not the whole cell
             { tag: "ample-cell", cell: 100, cross: 10, pad: 4.5, exp: 19 },
             // Cell exactly the strip: caps rather than overflowing.
             { tag: "cell-equals-strip", cell: 10, cross: 10, pad: 4.5, exp: 10 },
@@ -254,32 +243,27 @@ TestCase {
         fuzzyCompare(Logic.hoverCrossExtent(data.cell, data.cross, data.pad), data.exp, 0.001, data.tag);
     }
 
-    // --- dotColor: resolves the dot BODY colour from three pre-resolved colours (active / inactive / occupied) ---
-    // Distinct string sentinels stand in for the colours so each branch is identifiable.
+    // Strings stand in for the colours, so each branch shows by name.
     function test_dotColor_data() {
-        var F = Logic.OCCUPANCY.Filled;
+        var B = Logic.DOT_BODY;
         return [
-            { tag: "active", active: true, occupied: false, style: F, exp: "active" },
-            { tag: "empty-inactive", active: false, occupied: false, style: F, exp: "inactive" },
-            // Filled: the occupied dot BODY takes the occupied colour.
-            { tag: "filled-occupied", active: false, occupied: true, style: F, exp: "occupied" },
-            // InnerDot / Ring: the BODY stays the inactive colour (the marker is the inner dot / the border).
-            { tag: "innerdot-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: "inactive" },
-            { tag: "ring-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: "inactive" }
+            { tag: "active", body: B.Active, exp: "active" },
+            { tag: "inactive", body: B.Inactive, exp: "inactive" },
+            { tag: "occupied", body: B.Occupied, exp: "occupied" }
         ];
     }
     function test_dotColor(data) {
-        compare(Logic.dotColor(data.active, data.occupied, data.style, "active", "inactive", "occupied"), data.exp, data.tag);
+        const colors = { active: "active", inactive: "inactive", occupied: "occupied" };
+        compare(Logic.dotColor(data.body, colors), data.exp, data.tag);
     }
 
-    // --- occupancy styles: the shape predicates + the index mapping (mirrors main.xml / the combo order) ---
+    // A stored index has to keep meaning the same style, action or look.
     function test_occupancyConstants() {
         compare(Logic.OCCUPANCY.Filled, 0, "Filled is index 0 (the default)");
         compare(Logic.OCCUPANCY.InnerDot, 1, "InnerDot is index 1");
         compare(Logic.OCCUPANCY.Ring, 2, "Ring is index 2");
     }
 
-    // Pill-click action indices mirror main.xml pillClickAction + the ConfigGeneral combo order.
     function test_pillClickConstants() {
         compare(Logic.PILL_CLICK_ACTION.None, 0, "None is index 0 (the default)");
         compare(Logic.PILL_CLICK_ACTION.ShowDesktop, 1, "ShowDesktop is index 1");
@@ -287,19 +271,17 @@ TestCase {
         compare(Logic.PILL_CLICK_ACTION.Grid, 3, "Grid is index 3");
     }
 
-    // Pager-style indices mirror main.xml dotStyle + the ConfigAppearance combo order.
     function test_dotStyleConstants() {
         compare(Logic.DOT_STYLE.Pill, 0, "Pill is index 0 (the default)");
         compare(Logic.DOT_STYLE.Ring, 1, "Ring (Filled & ring) is index 1");
     }
 
-    // isRingStyle: true only for the Filled & ring pager look (the one DOT_STYLE.Ring comparison).
     function test_isRingStyle() {
         verify(Logic.isRingStyle(Logic.DOT_STYLE.Ring), "Ring style → true");
         verify(!Logic.isRingStyle(Logic.DOT_STYLE.Pill), "Pill style → false");
     }
 
-    // ringThickness: ring outline width = round(dotSize * 0.18), floored at 1px so a tiny dot still shows a ring.
+    // A tiny dot still gets a ring a pixel wide.
     function test_ringThickness() {
         compare(Logic.ringThickness(100), 18, "100 → 18 (0.18×)");
         compare(Logic.ringThickness(16), 3, "16 → 3 (rounded)");
@@ -307,26 +289,25 @@ TestCase {
         compare(Logic.ringThickness(0), 1, "0 → 1 (min-1 clamp)");
     }
 
-    // innerDotDiameter: the InnerDot occupancy marker is a fixed fraction (0.45×) of the dot diameter
-    // (no round/floor, unlike ringThickness — it renders the centre dot directly).
+    // Unrounded, unlike ringThickness.
     function test_innerDotDiameter() {
         fuzzyCompare(Logic.innerDotDiameter(100), 45, 0.001, "100 → 45 (0.45×)");
         fuzzyCompare(Logic.innerDotDiameter(16), 7.2, 0.001, "16 → 7.2");
         fuzzyCompare(Logic.innerDotDiameter(0), 0, 0.001, "0 → 0");
     }
 
-    // ringOverlayVisible: ONLY an OCCUPIED inactive dot in the Ring occupancy style (and NOT the Filled & ring dot-style) shows the ring overlay.
     function test_ringOverlayVisible() {
-        var pill = Logic.DOT_STYLE.Pill;
-        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring, pill), "Ring + inactive + occupied → ring overlay");
-        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring, pill), "Ring + empty → no overlay");
-        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring, pill), "Ring + active → no overlay (it's the pill)");
-        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled, pill), "non-Ring style → no ring overlay");
-        // Suppressed in the Filled & ring dot-style: the body is ALREADY a ring, so the overlay would be redundant.
-        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring, Logic.DOT_STYLE.Ring), "Filled & ring dot-style → ring overlay suppressed");
+        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring), "Ring + inactive + occupied → ring overlay");
+        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring), "Ring + empty → no overlay");
+        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring), "Ring + active → no overlay (it's the pill)");
+        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled), "non-Ring style → no ring overlay");
     }
 
-    // innerDotVisible: ONLY an occupied inactive dot in the InnerDot style shows the centre dot.
+    function test_effectiveOccupancyStyle() {
+        compare(Logic.effectiveOccupancyStyle(Logic.OCCUPANCY.Ring, Logic.DOT_STYLE.Ring), Logic.OCCUPANCY.Filled,
+                "Filled & ring dot-style → Ring marker drawn as Filled");
+    }
+
     function test_innerDotVisible() {
         verify(Logic.innerDotVisible(false, true, Logic.OCCUPANCY.InnerDot), "InnerDot + inactive + occupied → centre dot");
         verify(!Logic.innerDotVisible(false, false, Logic.OCCUPANCY.InnerDot), "InnerDot + empty → no centre dot");
@@ -334,52 +315,37 @@ TestCase {
         verify(!Logic.innerDotVisible(false, true, Logic.OCCUPANCY.Ring), "non-InnerDot style → no centre dot");
     }
 
-    // dotHasRing: a dot draws the ring OUTLINE only for a non-current dot in the Filled & ring style
-    // (independent of occupancy). Always false in the Pill style and for the current dot.
     function test_dotHasRing() {
-        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, false), "Pill style → no ring outline");
-        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, true), "Pill style + active → no ring outline");
-        verify(Logic.dotHasRing(Logic.DOT_STYLE.Ring, false), "Ring style + non-current → ring outline");
-        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Ring, true), "Ring style + current → no outline (filled circle)");
+        var B = Logic.DOT_BODY;
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, B.Inactive), "Pill style → no ring outline");
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Pill, B.Active), "Pill style + active → no ring outline");
+        verify(Logic.dotHasRing(Logic.DOT_STYLE.Ring, B.Inactive), "Ring style + non-current → ring outline");
+        verify(!Logic.dotHasRing(Logic.DOT_STYLE.Ring, B.Active), "Ring style + current → no outline (filled circle)");
     }
 
-    // dotBodyIsHollow: the dot's INTERIOR is transparent ONLY in the Filled & ring dot-style for a
-    // non-current dot, and NOT when the Filled occupancy marker is filling its interior. Always false in
-    // the Pill style. (The ring OUTLINE is dotHasRing — decoupled, so occupied+Filled keeps its outline.)
     function test_dotBodyIsHollow_data() {
-        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring;
-        var F = Logic.OCCUPANCY.Filled, I = Logic.OCCUPANCY.InnerDot, R = Logic.OCCUPANCY.Ring;
+        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring, B = Logic.DOT_BODY;
         return [
-            // Pill style: never hollow, whatever the occupancy.
-            { tag: "pill-inactive", style: Pill, active: false, occupied: false, occ: F, exp: false },
-            { tag: "pill-active", style: Pill, active: true, occupied: false, occ: F, exp: false },
-            { tag: "pill-occupied-filled", style: Pill, active: false, occupied: true, occ: F, exp: false },
-            // Ring style.
-            { tag: "ring-active", style: Ring, active: true, occupied: false, occ: F, exp: false }, // current = filled circle
-            { tag: "ring-empty", style: Ring, active: false, occupied: false, occ: F, exp: true }, // hollow ring
-            { tag: "ring-occupied-filled", style: Ring, active: false, occupied: true, occ: F, exp: false }, // Filled fills the interior (keeps the outline)
-            { tag: "ring-occupied-innerdot", style: Ring, active: false, occupied: true, occ: I, exp: true }, // hollow + inner dot
-            { tag: "ring-occupied-ring", style: Ring, active: false, occupied: true, occ: R, exp: true } // hollow (overlay suppressed)
+            { tag: "pill-inactive", style: Pill, body: B.Inactive, exp: false },
+            { tag: "pill-occupied", style: Pill, body: B.Occupied, exp: false },
+            { tag: "pill-active", style: Pill, body: B.Active, exp: false },
+            { tag: "ring-inactive", style: Ring, body: B.Inactive, exp: true },
+            { tag: "ring-occupied", style: Ring, body: B.Occupied, exp: false }, // Filled fills the interior (keeps the outline)
+            { tag: "ring-active", style: Ring, body: B.Active, exp: false } // current = filled circle
         ];
     }
     function test_dotBodyIsHollow(data) {
-        compare(Logic.dotBodyIsHollow(data.style, data.active, data.occupied, data.occ), data.exp, data.tag);
+        compare(Logic.dotBodyIsHollow(data.style, data.body), data.exp, data.tag);
     }
 
-    // dotBodyFilled: the third ring body state — a ring OUTLINE plus a filled interior. True ONLY for a
-    // non-current Filled-occupied dot in the Filled & ring style (= hasRing && !bodyIsHollow). False
-    // everywhere in the Pill style, for the current dot (filled circle, no outline), and for a hollow ring.
     function test_dotBodyFilled() {
-        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring;
-        var F = Logic.OCCUPANCY.Filled, I = Logic.OCCUPANCY.InnerDot;
-        verify(Logic.dotBodyFilled(Ring, false, true, F), "Ring + non-current + occupied + Filled → ring outline + filled interior");
-        verify(!Logic.dotBodyFilled(Ring, false, false, F), "Ring + empty → hollow, not filled");
-        verify(!Logic.dotBodyFilled(Ring, false, true, I), "Ring + occupied + InnerDot → hollow (marker is an overlay)");
-        verify(!Logic.dotBodyFilled(Ring, true, true, F), "Ring + current → filled circle, but no ring outline → not 'ring filled'");
-        verify(!Logic.dotBodyFilled(Pill, false, true, F), "Pill style → never a filled ring");
+        var Pill = Logic.DOT_STYLE.Pill, Ring = Logic.DOT_STYLE.Ring, B = Logic.DOT_BODY;
+        verify(Logic.dotBodyFilled(Ring, B.Occupied), "Ring + Filled marker → ring outline + filled interior");
+        verify(!Logic.dotBodyFilled(Ring, B.Inactive), "Ring + inactive body → hollow, not filled");
+        verify(!Logic.dotBodyFilled(Ring, B.Active), "Ring + current → filled circle, but no ring outline → not 'ring filled'");
+        verify(!Logic.dotBodyFilled(Pill, B.Occupied), "Pill style → never a filled ring");
     }
 
-    // --- effectiveDuration: override vs themed default, reduce-animations always wins ---
     function test_effectiveDuration_data() {
         return [
             { tag: "auto-uses-theme", req: 0, theme: 200, exp: 200 },
@@ -395,7 +361,6 @@ TestCase {
         compare(Logic.effectiveDuration(data.req, data.theme), data.exp, data.tag);
     }
 
-    // --- gridColumns: KWin-style desktops-per-line = ceil(count / rows) -------------
     function test_gridColumns_data() {
         return [
             { tag: "empty", count: 0, rows: 2, exp: 0 },
@@ -416,7 +381,6 @@ TestCase {
         compare(Logic.gridColumns(data.count, data.rows), data.exp, data.tag);
     }
 
-    // --- chunk: row-major lines of at most `size`; transient inputs give [] ----------
     function test_chunk_data() {
         return [
             { tag: "even", arr: ["a", "b", "c", "d"], size: 2, exp: [["a", "b"], ["c", "d"]] },
@@ -434,14 +398,9 @@ TestCase {
         ];
     }
     function test_chunk(data) {
-        // JSON-compare so the nested arrays are checked by value, not identity.
         compare(JSON.stringify(Logic.chunk(data.arr, data.size)), JSON.stringify(data.exp), data.tag);
     }
 
-    // --- arraysShallowEqual: skip a `var` reassignment whose flat-primitive contents are identical -
-    // The aggregator uses this to avoid notifying on an unchanged occupancy/tooltip snapshot (a QML
-    // `var` write always fires its change signal). Element-wise strict compare; identity/null/length
-    // guarded; two empty arrays are equal. NOT recursive — nested arrays compare by reference only.
     function test_arraysShallowEqual_data() {
         var same = [true, false, true];
         var nested = [["a"]];
@@ -458,10 +417,10 @@ TestCase {
             { tag: "null-b", a: [], b: null, exp: false },
             { tag: "both-null-identity", a: null, b: null, exp: true },
             { tag: "undefined-a", a: undefined, b: [true], exp: false },
-            // strict !== compare: distinct nested arrays are unequal even with equal contents.
+            // not recursive: nested arrays with equal contents are still different arrays
             { tag: "nested-distinct-refs-unequal", a: [["a"]], b: [["a"]], exp: false },
             { tag: "nested-same-ref-equal", a: nested, b: nested, exp: true },
-            // type-strictness: 1 !== true, "1" !== 1 (no coercion).
+            // no coercion
             { tag: "no-bool-number-coercion", a: [1], b: [true], exp: false },
             { tag: "no-string-number-coercion", a: ["1"], b: [1], exp: false }
         ];
@@ -470,9 +429,6 @@ TestCase {
         compare(Logic.arraysShallowEqual(data.a, data.b), data.exp, data.tag);
     }
 
-    // --- lineExtent: one capsule + the rest dots, uniform gaps; transient -> one dot ---
-    // Two callers: the major axis passes the pill as activeExtent (a real capsule); the cross
-    // axis passes dotSize (the all-dots degenerate case, n*dot + (n-1)*gap).
     function test_lineExtent_data() {
         return [
             // major axis: one capsule (25) + the rest dots (10) with gaps (5)
@@ -483,7 +439,7 @@ TestCase {
             // a single slot is just that slot (no gaps) — capsule or dot
             { tag: "single-capsule", count: 1, dot: 10, gap: 5, active: 25, exp: 25 },
             { tag: "single-dot", count: 1, dot: 10, gap: 5, active: 10, exp: 10 },
-            // transient no-desktops: returns ONE dotSize (NOT activeExtent), so the cell holds
+            // no desktops yet: one dot, not the pill, so the cell keeps a size
             { tag: "zero-returns-dot", count: 0, dot: 10, gap: 5, active: 25, exp: 10 },
             { tag: "negative-returns-dot", count: -1, dot: 10, gap: 5, active: 25, exp: 10 },
             // gap 0 is a valid (tight) config: one capsule + the rest dots with no spacing.
@@ -495,10 +451,7 @@ TestCase {
         fuzzyCompare(Logic.lineExtent(data.count, data.dot, data.gap, data.active), data.exp, 0.001, data.tag);
     }
 
-    // --- fitDotSize: invert lineExtent so one full line fills the allocated major length ---
-    // denom = pillWidthFactor + (perLine-1)*(1+spacingFactor); fitDotSize = available / denom. The
-    // indicator clamps the result to <= naturalDotSize (and >= a floor), so "ample-room" returning
-    // more than natural is fine — the caller caps it.
+    // The denominator is pillWidthFactor + (perLine - 1) * (1 + spacingFactor); the caller clamps the result.
     function test_fitDotSize_data() {
         return [
             // exact fit: available == lineExtent(perLine 3) at dot 10 (denom 6.5 -> 65) -> back to 10
@@ -507,14 +460,13 @@ TestCase {
             { tag: "single-line", avail: 35, perLine: 1, pill: 3.5, spacing: 0.5, exp: 10 },
             // over budget (less room than natural) shrinks the dot below natural
             { tag: "over-budget-shrinks", avail: 32.5, perLine: 3, pill: 3.5, spacing: 0.5, exp: 5 },
-            // ample room returns MORE than natural (the caller caps it at naturalDotSize)
+            // ample room gives more than natural, which the caller caps
             { tag: "ample-room-exceeds-natural", avail: 130, perLine: 3, pill: 3.5, spacing: 0.5, exp: 20 },
             // wider spacing widens the denom -> smaller fit for the same width
             { tag: "wider-spacing-smaller-fit", avail: 80, perLine: 3, pill: 3.5, spacing: 1.0, exp: 80 / 7.5 },
-            // CROSS-axis usage (no capsule -> pill factor 1, count = lineCount): the exact inverse of
-            // naturalCrossThickness. Single line: denom == 1, so the fit is the whole thickness.
+            // across the lines: a pill factor of 1 and the line count. One line fits the whole thickness.
             { tag: "cross-single-line", avail: 10, perLine: 1, pill: 1, spacing: 0.5, exp: 10 },
-            // Cross, two lines: denom == 1 + (2-1)*(1+0.5) == 2.5, so 25 / 2.5 -> 10.
+            // two lines: 1 + 1 * 1.5 = 2.5, and 25 / 2.5 = 10
             { tag: "cross-two-lines", avail: 25, perLine: 2, pill: 1, spacing: 0.5, exp: 10 }
         ];
     }
@@ -522,8 +474,7 @@ TestCase {
         fuzzyCompare(Logic.fitDotSize(data.avail, data.perLine, data.pill, data.spacing), data.exp, 0.001, data.tag);
     }
 
-    // Nothing to fit -> an unbounded (non-finite) result, so the caller's min(natural, fit) keeps the
-    // natural size: a non-positive available (the pre-layout frame), no slots, or a degenerate denom.
+    // No allocation yet, no slots, or a degenerate denominator.
     function test_fitDotSizeUnbounded_data() {
         return [
             { tag: "zero-perLine", avail: 100, perLine: 0, pill: 3.5, spacing: 0.5 },
@@ -531,7 +482,7 @@ TestCase {
             { tag: "zero-available", avail: 0, perLine: 3, pill: 3.5, spacing: 0.5 },
             { tag: "negative-available", avail: -50, perLine: 3, pill: 3.5, spacing: 0.5 },
             { tag: "zero-denominator", avail: 100, perLine: 1, pill: 0, spacing: 0.5 },
-            // the denom <= 0 guard also covers a strictly NEGATIVE denominator (a negative pill factor).
+            // a negative pill factor makes the denominator negative
             { tag: "negative-denominator", avail: 100, perLine: 1, pill: -1, spacing: 0.5 }
         ];
     }
@@ -539,7 +490,6 @@ TestCase {
         verify(!isFinite(Logic.fitDotSize(data.avail, data.perLine, data.pill, data.spacing)), data.tag);
     }
 
-    // --- windowListMaximum: stock pager rule — show 4, but all 5 when exactly 5 --------
     function test_windowListMaximum_data() {
         return [
             { tag: "zero", count: 0, exp: 4 },
@@ -555,9 +505,6 @@ TestCase {
         compare(Logic.windowListMaximum(data.count), data.exp, data.tag);
     }
 
-    // --- toStringOrEmpty: null/undefined -> "", everything else through String() -------
-    // Shared by the sanitize* functions: only null/undefined map to "" — 0/false stringify
-    // ("0"/"false"), they are NOT collapsed to the empty string.
     function test_toStringOrEmpty_data() {
         return [
             { tag: "string", input: "hi", exp: "hi" },
@@ -568,7 +515,7 @@ TestCase {
             { tag: "number", input: 42, exp: "42" },
             { tag: "false", input: false, exp: "false" },
             { tag: "true", input: true, exp: "true" },
-            // only null/undefined map to ""; everything else goes through String() verbatim.
+            // 0 and false stringify rather than collapse to ""
             { tag: "negative-number", input: -1, exp: "-1" },
             { tag: "nan", input: NaN, exp: "NaN" },
             { tag: "array", input: [1, 2], exp: "1,2" },
@@ -579,9 +526,7 @@ TestCase {
         compare(Logic.toStringOrEmpty(data.input), data.exp, data.tag);
     }
 
-    // --- sanitizeHtml: entity-escape titles for the rich-text tooltip ------------------
-    // Escapes the markup-sensitive chars and the no-break space ( ) — but NOT the ordinary
-    // space (it must still wrap). Non-strings coerce to "" so the caller never throws.
+    // The no-break space ( ) is escaped too; the plain space stays, so a title still wraps.
     function test_sanitizeHtml_data() {
         return [
             { tag: "plain", input: "Firefox", exp: "Firefox" },
@@ -595,7 +540,7 @@ TestCase {
             { tag: "undefined-coerced", input: undefined, exp: "" },
             // several specials at once exercises the global regex; ordinary spaces still survive.
             { tag: "combined-multi-special", input: "<a href='x'>& ", exp: "&lt;a href=&apos;x&apos;&gt;&amp;&nbsp;" },
-            // NOT idempotent: an already-escaped entity re-escapes its & (titles are escaped exactly once).
+            // not idempotent, so a title has to be escaped exactly once
             { tag: "double-escape-not-idempotent", input: "a &amp; b", exp: "a &amp;amp; b" },
             { tag: "numeric-coerced", input: 42, exp: "42" },
             { tag: "empty-string", input: "", exp: "" }
@@ -605,9 +550,6 @@ TestCase {
         compare(Logic.sanitizeHtml(data.input), data.exp, data.tag);
     }
 
-    // --- sanitizeDesktopName: normalise a user-entered name before the setDesktopName write -----
-    // Trims, keeps internal spaces, rejects empty/whitespace-only as "" (the no-op sentinel), coerces
-    // non-strings, and caps an absurd length. (Distinct from sanitizeHtml, which escapes markup.)
     function test_sanitizeDesktopName_data() {
         return [
             { tag: "plain", input: "Web", exp: "Web" },
@@ -619,8 +561,7 @@ TestCase {
             { tag: "null-coerced", input: null, exp: "" },
             { tag: "undefined-coerced", input: undefined, exp: "" },
             { tag: "number-coerced", input: 42, exp: "42" },
-            // trim runs BEFORE the length cap: surrounding whitespace is stripped, then the 120-char
-            // body is capped to 100.
+            // trimmed before the cap, so the whitespace doesn't count toward it
             { tag: "trim-then-cap", input: "  " + "x".repeat(120) + "  ", exp: "x".repeat(100) }
         ];
     }
@@ -628,15 +569,12 @@ TestCase {
         compare(Logic.sanitizeDesktopName(data.input), data.exp, data.tag);
     }
 
-    // A 150-char name is capped at the 100-char maximum (checked by length so the test doesn't hardcode
-    // the cap string). Kept separate from the table above because it asserts length, not equality.
+    // Checked by length, so the test doesn't spell out the capped string.
     function test_sanitizeDesktopNameCapsLength() {
         var long = "x".repeat(150);
         compare(Logic.sanitizeDesktopName(long).length, 100, "over-max-truncated-to-100");
     }
 
-    // The exact cap boundary: a name of exactly the 100-char maximum is kept verbatim; one over (101)
-    // is truncated back to 100. (Length-based so it doesn't hardcode the cap string, like the test above.)
     function test_sanitizeDesktopNameBoundary() {
         var atMax = "y".repeat(100);
         compare(Logic.sanitizeDesktopName(atMax), atMax, "exactly 100 chars is kept verbatim");
@@ -644,9 +582,6 @@ TestCase {
         compare(Logic.sanitizeDesktopName(overMax).length, 100, "101 chars is capped to 100");
     }
 
-    // --- windowIsOnDesktop: per-window membership predicate (used by groupWindowsByDesktop) ----
-    // True for a real window that is onAll or whose `desktops` list holds the uuid; false for a
-    // non-window, a miss, a missing `desktops`, or a null window. Returns a strict boolean.
     function test_windowIsOnDesktop_data() {
         const win = function (opts) {
             opts = opts || {};
@@ -661,7 +596,7 @@ TestCase {
             { tag: "non-window-excluded", window: win({ isWindow: false, desktops: ["a"] }), uuid: "a", exp: false },
             { tag: "null-window", window: null, uuid: "a", exp: false },
             { tag: "undefined-window", window: undefined, uuid: "a", exp: false },
-            // isWindow entirely missing (a raw object, not via win()) is falsy → excluded, even with onAll.
+            // a raw object without isWindow is excluded, even on every desktop
             { tag: "isWindow-missing", window: { onAll: true, desktops: ["a"] }, uuid: "a", exp: false },
             // an empty desktops array is a miss (indexOf → -1), distinct from a missing desktops list.
             { tag: "empty-desktops-array", window: win({ desktops: [] }), uuid: "a", exp: false }
@@ -671,11 +606,6 @@ TestCase {
         compare(Logic.windowIsOnDesktop(data.window, data.uuid), data.exp, data.tag);
     }
 
-    // --- windowOccupiesDesktop: per-window OCCUPANCY predicate (used by computeDesktopOccupancy) -----
-    // Deliberately DIFFERENT from windowIsOnDesktop (the tooltip membership above): for dynamic-workspace
-    // occupancy an on-all-desktops window does NOT count (it would pin every desktop, so none could ever be
-    // empty) and a skipPager window does NOT count, while a MINIMIZED window DOES (it still occupies its
-    // desktop). Real window only; a null/undefined window or missing `desktops` is false. Strict boolean.
     function test_windowOccupiesDesktop_data() {
         const occ = function (opts) {
             opts = opts || {};
@@ -686,8 +616,7 @@ TestCase {
             };
         };
         return [
-            // null/undefined ELEMENT guard — the one branch computeDesktopOccupancy can't reach (it only
-            // nulls the whole array, which short-circuits before this predicate is ever called).
+            // a null entry, which computeDesktopOccupancy's tests can't reach
             { tag: "null-window", window: null, uuid: "a", exp: false },
             { tag: "undefined-window", window: undefined, uuid: "a", exp: false },
             // a real window on its desktop occupies it; a miss / empty / missing list does not.
@@ -697,14 +626,14 @@ TestCase {
             { tag: "empty-desktops-array", window: occ({ desktops: [] }), uuid: "a", exp: false },
             // non-window (launcher/panel) never occupies, even with a matching desktops list.
             { tag: "non-window-excluded", window: occ({ isWindow: false, desktops: ["a"] }), uuid: "a", exp: false },
-            // KEY divergence from windowIsOnDesktop: on-all is EXCLUDED here (would pin every desktop).
+            // unlike windowIsOnDesktop, a window on every desktop doesn't count
             { tag: "on-all-excluded", window: occ({ onAll: true, desktops: ["a"] }), uuid: "a", exp: false },
             { tag: "on-all-excluded-no-desktops", window: occ({ onAll: true }), uuid: "a", exp: false },
             // skipPager (hidden from the pager) is excluded too.
             { tag: "skip-pager-excluded", window: occ({ skipPager: true, desktops: ["a"] }), uuid: "a", exp: false },
-            // KEY inclusion: a MINIMIZED window still occupies its desktop (no minimized check by design).
+            // a minimised window still counts
             { tag: "minimized-still-counts", window: occ({ minimized: true, desktops: ["a"] }), uuid: "a", exp: true },
-            // isWindow entirely missing (a raw object) is falsy → excluded, even with a matching list.
+            // a raw object without isWindow is excluded, even with a matching list
             { tag: "isWindow-missing", window: { desktops: ["a"] }, uuid: "a", exp: false }
         ];
     }
@@ -714,10 +643,6 @@ TestCase {
         compare(typeof result, "boolean", data.tag + " (strict boolean)");
     }
 
-    // --- groupWindowsByDesktop: per-desktop visible/minimized title lists --------------
-    // Index-aligned with desktopIds. A window belongs to a desktop when it is a real window AND
-    // (it is on all desktops OR its `desktops` list holds that id); minimized windows bucket apart;
-    // model order is preserved; transient null/empty inputs degrade safely.
     function test_groupWindowsByDesktop_data() {
         const w = function (title, desktops, opts) {
             opts = opts || {};
@@ -754,13 +679,13 @@ TestCase {
                 tag: "order-preserved", windows: [w("A", ["a"]), w("B", ["a"]), w("C", ["a"], { minimized: true })], ids: ["a"],
                 exp: [{ visible: ["A", "B"], minimized: ["C"] }]
             },
-            // undefined ids (distinct from null) and an empty windows ARRAY (distinct from null windows).
+            // undefined ids, and an empty windows array rather than null
             { tag: "undefined-ids", windows: [w("A", ["a"])], ids: undefined, exp: [] },
             {
                 tag: "empty-windows-array", windows: [], ids: ["a", "b"],
                 exp: [{ visible: [], minimized: [] }, { visible: [], minimized: [] }]
             },
-            // an onAll AND minimized window lands in the minimized bucket of EVERY desktop.
+            // minimised and on every desktop: in every desktop's minimised list
             {
                 tag: "on-all-and-minimized", windows: [w("M", [], { onAll: true, minimized: true })], ids: ["a", "b"],
                 exp: [{ visible: [], minimized: ["M"] }, { visible: [], minimized: ["M"] }]
@@ -770,8 +695,7 @@ TestCase {
                 tag: "window-on-multiple-desktops", windows: [w("Multi", ["a", "b"])], ids: ["a", "b", "c"],
                 exp: [{ visible: ["Multi"], minimized: [] }, { visible: ["Multi"], minimized: [] }, { visible: [], minimized: [] }]
             },
-            // titles are kept RAW: a title-less window pushes undefined (the i18n "Untitled" fallback is
-            // main.qml's job). JSON-compare renders undefined as null on both sides, so this pins the shape.
+            // a missing title stays undefined for the aggregator's translated fallback; JSON shows it as null
             {
                 tag: "missing-title", windows: [w(undefined, ["a"])], ids: ["a"],
                 exp: [{ visible: [undefined], minimized: [] }]
@@ -779,13 +703,9 @@ TestCase {
         ];
     }
     function test_groupWindowsByDesktop(data) {
-        // JSON-compare so the nested {visible, minimized} arrays are checked by value, not identity.
         compare(JSON.stringify(Logic.groupWindowsByDesktop(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
-    // --- computeDesktopOccupancy: per-desktop "has a window" boolean[] for dynamic workspaces -------
-    // Index-aligned with desktopIds. A desktop is occupied by a REAL window that is NOT on-all and NOT
-    // skipPager; minimized windows DO count (unlike a tooltip, an on-all window does NOT pin a desktop).
     function test_computeDesktopOccupancy_data() {
         const occ = function (desktops, opts) {
             opts = opts || {};
@@ -818,10 +738,6 @@ TestCase {
         compare(JSON.stringify(Logic.computeDesktopOccupancy(data.windows, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
-    // --- windowOccupiesDesktopOnScreen: per-screen occupancy (Plasma 6.7 per-output desktops) -------
-    // windowOccupiesDesktop AND the window's OUTPUT origin (x,y) matches the pager's. Origin-only match
-    // tolerates per-output scaling (different size, same top-left). NEVER drops a window: an unknown target
-    // rect or an unknown own screen counts everywhere (degrades to global). The desktop exclusions still win.
     function test_windowOccupiesDesktopOnScreen_data() {
         const A = { x: 0, y: 0, width: 1920, height: 1080 };       // monitor 1
         const B = { x: 1920, y: 0, width: 1920, height: 1080 };    // monitor 2 (different origin)
@@ -835,15 +751,15 @@ TestCase {
             };
         };
         return [
-            // on the desktop AND on this output → occupies; on another output → does not.
+            // on the desktop and on this output → occupies; on another output → does not
             { tag: "same-screen-occupies", window: occ(["a"], A), uuid: "a", rect: A, exp: true },
             { tag: "other-screen-excluded", window: occ(["a"], B), uuid: "a", rect: A, exp: false },
             // origin matches but size differs (fractional/per-output scaling) → still this screen.
             { tag: "origin-match-different-size", window: occ(["a"], A), uuid: "a", rect: Ahidpi, exp: true },
-            // unknown TARGET rect (pager not yet placed) → counts everywhere (global fallback).
+            // the pager's rect unknown until it's placed → counts everywhere
             { tag: "null-target-rect-global", window: occ(["a"], B), uuid: "a", rect: null, exp: true },
             { tag: "zero-target-rect-global", window: occ(["a"], B), uuid: "a", rect: { x: 0, y: 0, width: 0, height: 0 }, exp: true },
-            // unknown OWN screen (e.g. a window with no geometry) → counts everywhere (never dropped).
+            // unknown own screen (a window with no geometry) → counts everywhere
             { tag: "null-own-screen-counts", window: occ(["a"], null), uuid: "a", rect: A, exp: true },
             { tag: "zero-own-screen-counts", window: occ(["a"], { x: 5, y: 5, width: 0, height: 0 }), uuid: "a", rect: A, exp: true },
             // the desktop predicate still gates: a miss / exclusion is false even on the matching screen.
@@ -861,9 +777,6 @@ TestCase {
         compare(typeof result, "boolean", data.tag + " (strict boolean)");
     }
 
-    // --- computeDesktopOccupancyForScreen: per-screen per-desktop boolean[] ---------------------------
-    // Index-aligned with desktopIds, counting only windows on the pager's output. An unknown screenRect
-    // returns the IDENTICAL array to computeDesktopOccupancy (single-monitor / pre-placement == global).
     function test_computeDesktopOccupancyForScreen_data() {
         const A = { x: 0, y: 0, width: 1920, height: 1080 };
         const B = { x: 1920, y: 0, width: 1920, height: 1080 };
@@ -889,8 +802,7 @@ TestCase {
         compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(data.windows, data.ids, data.rect)), JSON.stringify(data.exp), data.tag);
     }
 
-    // The degradation contract pinned exactly: an unknown screenRect (null or zero-size) returns the SAME
-    // array computeDesktopOccupancy would (so single-monitor and pre-placement frames are byte-for-byte global).
+    // Before the panel is placed, the answer has to be exactly the global one.
     function test_computeDesktopOccupancyForScreenDegradesToGlobal() {
         const A = { x: 0, y: 0, width: 1920, height: 1080 };
         const B = { x: 1920, y: 0, width: 1920, height: 1080 };
@@ -904,10 +816,7 @@ TestCase {
         compare(JSON.stringify(Logic.computeDesktopOccupancyForScreen(windows, ids, { x: 0, y: 0, width: 0, height: 0 })), global, "zero screenRect == global");
     }
 
-    // --- windowIsOnActivity: current-activity membership (TasksModel's filterByActivity rule) -------
-    // Shown when the window's Activities list names the activity, holds the null UUID, or is empty/missing
-    // (on every activity). An unknown current activity filters nothing; a null window passes through (the
-    // desktop predicates downstream reject it).
+    // A null window passes here; the desktop predicates reject it later.
     function test_windowIsOnActivity_data() {
         const act = function (activities) {
             return { isWindow: true, activities: activities };
@@ -928,7 +837,6 @@ TestCase {
         compare(Logic.windowIsOnActivity(data.window, data.activity), data.exp, data.tag);
     }
 
-    // windowsOnActivity keeps model order and drops only the other-activity windows; null → [].
     function test_windowsOnActivity() {
         const windows = [
             { title: "a1", activities: ["A"] },
@@ -941,10 +849,7 @@ TestCase {
         compare(JSON.stringify(Logic.windowsOnActivity(null, "A")), "[]", "null windows");
     }
 
-    // --- reduceWindowSnapshot: which reduction sees which windows (#35) ------------------------------
-    // The desktop set is global across activities, so the dynamic-workspace occupancy reads EVERY activity
-    // (and screen); the tooltip groups and the occupied-dot indicator read only the CURRENT activity. An off
-    // consumer's output is [].
+    // #35: which reduction counts which windows.
     function test_reduceWindowSnapshot_data() {
         const A = { x: 0, y: 0, width: 1920, height: 1080 };
         const B = { x: 1920, y: 0, width: 1920, height: 1080 };
@@ -995,8 +900,7 @@ TestCase {
         compare(JSON.stringify(r.screenOccupancy), JSON.stringify(data.screenOccupancy), data.tag + " screenOccupancy");
     }
 
-    // #35 through the plan: in activity B the desktops activity A uses must survive. The current-activity view
-    // (what the controller used to get) would trim d4, then d3 — moving A's window onto d2.
+    // #35 through the plan: counting only activity B removed d4, then d3, moving activity A's window to d2.
     function test_dynamicPlanKeepsOtherActivitiesDesktops() {
         const win = function (desktops, activities) {
             return { isWindow: true, onAll: false, skipPager: false, minimized: false, desktops: desktops, activities: activities, screen: null };
@@ -1009,9 +913,6 @@ TestCase {
             "the current-activity view alone would trim (the #35 bug)");
     }
 
-    // --- dynamicWorkspacePlan: the single add/remove/no-op per cycle (GNOME-style) ------------------
-    // One action per call; reactive re-triggering converges to exactly one trailing empty. Only the
-    // TRAILING run is managed (empty middles are left alone); transient/length-mismatch frames are no-ops.
     function test_dynamicWorkspacePlan_data() {
         return [
             // guards: absent arrays, empty set, or an occupancy snapshot that lags the desktop set.
@@ -1027,10 +928,10 @@ TestCase {
             { tag: "no-trailing-empty-add", occ: [false, true], ids: ["a", "b"], exp: { kind: "add" } },
             // exactly one trailing empty is the fixpoint -> no-op.
             { tag: "one-trailing-empty-noop", occ: [true, false], ids: ["a", "b"], exp: null },
-            // >=2 trailing empties -> trim the LAST one (re-trigger trims the rest).
+            // >=2 trailing empties -> remove the last; the next round removes the rest
             { tag: "two-trailing-trim-last", occ: [true, false, false], ids: ["a", "b", "c"], exp: { kind: "remove", uuid: "c" } },
             { tag: "all-empty-trim-last", occ: [false, false], ids: ["a", "b"], exp: { kind: "remove", uuid: "b" } },
-            // an empty MIDDLE desktop is left alone — only the trailing run is managed.
+            // an empty desktop in the middle is left alone
             { tag: "empty-middle-left-alone", occ: [false, true, false], ids: ["a", "b", "c"], exp: null },
             // a leading empty + a 2-deep trailing run still just trims the tail (not the middle).
             { tag: "leading-empty-trims-tail", occ: [false, true, false, false], ids: ["a", "b", "c", "d"], exp: { kind: "remove", uuid: "d" } }
@@ -1040,10 +941,6 @@ TestCase {
         compare(JSON.stringify(Logic.dynamicWorkspacePlan(data.occ, data.ids)), JSON.stringify(data.exp), data.tag);
     }
 
-    // --- formatDynamicDesktopName: user-configurable base + " " + number, never empty ---------------
-    // A configured prefix wins; a blank prefix falls back to the i18n default passed in (main.qml's
-    // "Desktop"); an all-blank case uses the literal "Desktop" so the name is never empty (KWin drops
-    // createDesktop with an empty name). The prefix is sanitized (trim, cap 100) like a rename.
     function test_formatDynamicDesktopName_data() {
         return [
             { tag: "custom-prefix", prefix: "Workspace", number: 3, fallback: "Desktop", exp: "Workspace 3" },
@@ -1052,7 +949,7 @@ TestCase {
             { tag: "prefix-trimmed", prefix: "  Web  ", number: 4, fallback: "Desktop", exp: "Web 4" },
             // a localized fallback (non-English main.qml i18n) is honoured when the prefix is blank.
             { tag: "localized-fallback", prefix: "", number: 2, fallback: "Bureau", exp: "Bureau 2" },
-            // all-blank (prefix AND fallback) still yields a non-empty name via the literal last resort.
+            // with both blank, the literal "Desktop" keeps the name from being empty
             { tag: "all-blank-last-resort", prefix: "", number: 1, fallback: "", exp: "Desktop 1" }
         ];
     }
@@ -1065,28 +962,21 @@ TestCase {
         compare(Logic.formatDynamicDesktopName(longPrefix, 7, "Desktop"), new Array(101).join("a") + " 7", "prefix capped at 100, then ' 7'");
     }
 
-    // --- electDynamicWriter: the single global writer among pager instances (multi-monitor) ----------
-    // registry maps coordinator token -> enabled. The writer is the lowest-token ENABLED instance, or -1
-    // when none is enabled. Keys are strings (object keys) — the function coerces them to Number.
     function test_electDynamicWriter_data() {
         return [
-            { tag: "null", reg: null, exp: -1 },
-            { tag: "empty", reg: {}, exp: -1 },
-            { tag: "none-enabled", reg: { "1": false, "2": false }, exp: -1 },
-            { tag: "one-enabled", reg: { "1": true }, exp: 1 },
-            { tag: "lowest-enabled-wins", reg: { "1": true, "2": true }, exp: 1 },
-            { tag: "skip-disabled-lower", reg: { "1": false, "2": true }, exp: 2 },
-            { tag: "numeric-min-not-insertion", reg: { "2": true, "1": true }, exp: 1 },
-            { tag: "mixed", reg: { "3": false, "1": false, "2": true, "4": true }, exp: 2 }
+            { tag: "null", tokens: null, exp: -1 },
+            { tag: "empty", tokens: [], exp: -1 },
+            { tag: "one", tokens: ["1"], exp: 1 },
+            { tag: "lowest-wins", tokens: ["1", "2"], exp: 1 },
+            { tag: "numeric-min-not-insertion", tokens: ["2", "1"], exp: 1 },
+            { tag: "mixed", tokens: ["3", "1", "2", "4"], exp: 1 }
         ];
     }
     function test_electDynamicWriter(data) {
-        compare(Logic.electDynamicWriter(data.reg), data.exp, data.tag);
+        compare(Logic.electDynamicWriter(data.tokens), data.exp, data.tag);
     }
 
-    // dataChangeAffectsRoles: rebuild the tooltip only when a role the rebuild READS changed (skips the
-    // IsActive focus churn etc.). An EMPTY/null roles list is Qt's "all changed" → rebuild. The role ints
-    // are synthetic here (main.qml supplies the real taskmanager enum ints).
+    // Made-up role numbers; the aggregator passes the real TasksModel ones.
     function test_dataChangeAffectsRoles_data() {
         var relevant = [0, 5, 6, 7, 8];          // e.g. DisplayRole(0) + the four taskmanager roles read
         return [
@@ -1098,7 +988,7 @@ TestCase {
             // a change limited to roles rebuild() never reads (e.g. IsActive on focus) is skipped.
             { tag: "only-irrelevant-skips", changed: [3], relevant: relevant, exp: false },
             { tag: "all-irrelevant-skips", changed: [3, 4, 9], relevant: relevant, exp: false },
-            // a relevant role present ANYWHERE in the list (even last) still rebuilds.
+            // a relevant role anywhere in the list, even last
             { tag: "mixed-rebuilds", changed: [3, 6], relevant: relevant, exp: true },
             { tag: "relevant-last-rebuilds", changed: [3, 4, 8], relevant: relevant, exp: true },
             // an empty relevant set: nothing is relevant, so only the empty-"all" case still rebuilds.
@@ -1110,8 +1000,6 @@ TestCase {
         compare(Logic.dataChangeAffectsRoles(data.changed, data.relevant), data.exp, data.tag);
     }
 
-    // DEFAULTS: the single source of truth for the QML-side config defaults. Every value mirrors a
-    // main.xml <default> and is referenced by main.qml's `?? Logic.DEFAULTS.X`, so drift fails loudly.
     function test_defaults_data() {
         return [
             { tag: "enableScroll", key: "enableScroll", exp: true },
@@ -1131,38 +1019,36 @@ TestCase {
             { tag: "matchDesktopGrid", key: "matchDesktopGrid", exp: false },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
-            { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
-            { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 3.5 },
+            { tag: "spacingFactor", key: "spacingFactor", exp: 0.75 },
+            { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 4.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
             { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },
             { tag: "showHoverBackground", key: "showHoverBackground", exp: true },
             { tag: "hoverBackgroundOpacity", key: "hoverBackgroundOpacity", exp: 0.12 },
             { tag: "hoverLengthFactor", key: "hoverLengthFactor", exp: 1.0 },
             { tag: "hoverThicknessFactor", key: "hoverThicknessFactor", exp: 1.0 },
-            { tag: "showOccupancy", key: "showOccupancy", exp: false },
+            { tag: "showOccupancy", key: "showOccupancy", exp: true },
             { tag: "occupiedOpacity", key: "occupiedOpacity", exp: 0.7 },
-            { tag: "occupancyStyle", key: "occupancyStyle", exp: 0 },
+            { tag: "occupancyStyle", key: "occupancyStyle", exp: 2 },
             { tag: "followThemeColors", key: "followThemeColors", exp: true },
             { tag: "activeColor", key: "activeColor", exp: "#3daee9" },
             { tag: "inactiveColor", key: "inactiveColor", exp: "#eff0f1" },
             { tag: "occupiedColor", key: "occupiedColor", exp: "#3daee9" },
-            { tag: "hoverBackgroundColor", key: "hoverBackgroundColor", exp: "#eff0f1" },
-            { tag: "wheelNotchDelta", key: "wheelNotchDelta", exp: 120 }
+            { tag: "hoverBackgroundColor", key: "hoverBackgroundColor", exp: "#eff0f1" }
         ];
     }
     function test_defaults(data) {
         compare(Logic.DEFAULTS[data.key], data.exp, data.tag);
     }
 
-    // DEFAULTS is shared (.pragma library) and must stay immutable. Object.freeze makes the write a no-op
-    // (silent, or a TypeError under "use strict"); tolerate either and assert the value stays put.
+    // Every pager shares DEFAULTS. A write to a frozen object is ignored, or throws under "use strict".
     function test_defaultsAreFrozen() {
         verify(Object.isFrozen(Logic.DEFAULTS), "Logic.DEFAULTS must be frozen");
         try { Logic.DEFAULTS.dotSize = 999; } catch (e) { /* strict-mode TypeError is expected */ }
         compare(Logic.DEFAULTS.dotSize, 0, "a frozen DEFAULTS ignores writes");
     }
 
-    // The exact key SET is pinned (test_defaults checks only values). A new key must be added here too.
+    // An equality, so a key that goes missing fails here too.
     function test_defaultsKeySet() {
         var keys = Object.keys(Logic.DEFAULTS).sort();
         var expected = ["activeColor", "animationDuration", "dotSize", "dotStyle", "dynamicNamePrefix",
@@ -1172,28 +1058,27 @@ TestCase {
                         "inactiveOpacity", "invertScroll", "matchDesktopGrid", "occupancyStyle", "occupiedColor", "occupiedOpacity",
                         "pillClickAction", "pillClickAnywhere", "pillSize", "pillWidthFactor", "scrollWrap",
                         "showHoverBackground", "showOccupancy", "showTooltips",
-                        "showWindowList", "singleLine", "spacingFactor", "wheelNotchDelta"].sort();
-        compare(keys.length, 34, "DEFAULTS has exactly 34 keys");
+                        "showWindowList", "singleLine", "spacingFactor"].sort();
+        compare(keys.length, 33, "DEFAULTS has exactly 33 keys");
         compare(JSON.stringify(keys), JSON.stringify(expected), "the exact DEFAULTS key set is pinned");
     }
 
-    // CROSS-CHECK the KConfigXT schema against the JS mirror: every main.xml <default> must equal
-    // Logic.DEFAULTS[name] (the two are hand-synced — KConfigXT can't read a JS literal). Nothing else
-    // verified they agree. wheelNotchDelta is the one DEFAULTS key with no main.xml entry.
+    // The schema and its mirror are kept equal by hand, and nothing else checks them.
     function test_mainXmlDefaultsMatchLogicDefaults() {
-        // Relative URL — XMLHttpRequest resolves it against this test file's location (no Qt.resolvedUrl).
+        // Resolved against this test file.
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "../../package/contents/config/main.xml", false);
         xhr.send();
         var xml = xhr.responseText;
         verify(xml && xml.length > 0, "main.xml is readable");
+        // A commented-out entry isn't in the schema, so it mustn't be counted as one.
+        var schema = xml.replace(/<!--[\s\S]*?-->/g, "");
 
-        // Capture each entry's name + type + <default> body; non-greedy so each <entry> pairs with its
-        // OWN following <default> (an empty <default></default> yields "").
+        // Non-greedy, so each entry pairs with its own <default>; an empty one gives "".
         var re = /<entry\s+name="([^"]+)"\s+type="([^"]+)"\s*>[\s\S]*?<default>([\s\S]*?)<\/default>/g;
         var seen = 0;
         var m;
-        while ((m = re.exec(xml)) !== null) {
+        while ((m = re.exec(schema)) !== null) {
             var name = m[1], type = m[2], raw = m[3];
             ++seen;
             verify(Logic.DEFAULTS.hasOwnProperty(name), "main.xml entry '" + name + "' exists in Logic.DEFAULTS");
@@ -1206,11 +1091,11 @@ TestCase {
                 compare(parseInt(raw, 10), expected, name + " (Int) default matches");
                 break;
             case "Double":
-                // Tolerate a float ULP between the parsed schema literal and the JS literal.
+                // parsed and literal floats can differ by a rounding error
                 verify(Math.abs(parseFloat(raw) - expected) <= 1e-9, name + " (Double) default matches");
                 break;
             case "Color":
-                // QColor hex strings; compare case-insensitively (#3daee9 vs #3DAEE9).
+                // hex colours, in either case
                 compare(raw.toLowerCase(), String(expected).toLowerCase(), name + " (Color) default matches");
                 break;
             case "String":
@@ -1220,16 +1105,14 @@ TestCase {
                 verify(false, "unhandled main.xml entry type '" + type + "' for '" + name + "'");
             }
         }
-        // Every schema entry was parsed (a regex miss would silently skip a key) — all of DEFAULTS but wheelNotchDelta.
-        compare(seen, Object.keys(Logic.DEFAULTS).length - 1, "every main.xml entry was checked (all but wheelNotchDelta)");
+        // A pattern that missed an entry would skip it in silence.
+        compare(seen, Object.keys(Logic.DEFAULTS).length, "every main.xml entry was checked");
     }
 
-    // KWin DBus call SHAPES: pin the silently-failing strings/types. Each *Spec builds the exact
-    // { service, path, iface, member, args:[{t,v}] } main.qml dispatches, or null when a guard trips. A
-    // wrong string/type is DROPPED by KWin with no error (CLAUDE.md) — so JSON-compare pins it by value.
+    // KWin drops a call with a wrong string or type without an error, so each spec is pinned by value.
     function test_switchSpec_data() {
         return [
-            // desktopIds/currentDesktop can be transiently empty (robustness.md) -> guarded to null.
+            // the ids can be empty for a frame
             { tag: "empty-uuid-null", uuid: "", exp: null },
             { tag: "undefined-uuid-null", uuid: undefined, exp: null },
             {
@@ -1237,7 +1120,7 @@ TestCase {
                 exp: {
                     service: "org.kde.KWin", path: "/VirtualDesktopManager",
                     iface: "org.freedesktop.DBus.Properties", member: "Set",
-                    // the Set(ssv) shape: iface name + "current" + a VARIANT of the plain uuid.
+                    // Set(ssv): the interface, "current", and a variant of the plain uuid
                     args: [{ t: "s", v: "org.kde.KWin.VirtualDesktopManager" }, { t: "s", v: "current" }, { t: "v", v: "uuid-a" }]
                 }
             }
@@ -1256,7 +1139,7 @@ TestCase {
         compare(JSON.stringify(Logic.addSpec(3, "New Desktop")), JSON.stringify(exp), "createDesktop(uint32 position, string name)");
     }
     function test_addSpecCoercesArgs() {
-        // a transient-undefined count must reach uint32 as a real integer (position|0); the name is stringified.
+        // a count not there yet still reaches the uint32 as an integer, and the name as a string
         compare(Logic.addSpec(undefined, "X").args[0].v, 0, "undefined position coerces to 0");
         compare(Logic.addSpec(2.9, "X").args[0].v, 2, "fractional position truncates via |0");
         compare(Logic.addSpec(0, 42).args[1].v, "42", "name is stringified");
@@ -1265,7 +1148,7 @@ TestCase {
     function test_removeSpec_data() {
         return [
             { tag: "empty-uuid-null", uuid: "", count: 3, exp: null },
-            // never-remove-last (reuses canRemoveDesktop): a single (or zero) desktop is guarded to null.
+            // the last desktop stays
             { tag: "last-desktop-null", uuid: "uuid-a", count: 1, exp: null },
             { tag: "zero-count-null", uuid: "uuid-a", count: 0, exp: null },
             {
@@ -1285,7 +1168,7 @@ TestCase {
     function test_renameSpec_data() {
         return [
             { tag: "empty-uuid-null", uuid: "", name: "Web", exp: null },
-            // sanitizeDesktopName rejects empty/whitespace -> null (a blank rename is a tested no-op).
+            // a blank name renames nothing
             { tag: "empty-name-null", uuid: "uuid-a", name: "", exp: null },
             { tag: "whitespace-name-null", uuid: "uuid-a", name: "   ", exp: null },
             {
@@ -1302,12 +1185,11 @@ TestCase {
         compare(JSON.stringify(Logic.renameSpec(data.uuid, data.name)), JSON.stringify(data.exp), data.tag);
     }
     function test_renameSpecCapsLength() {
-        // sanitizeDesktopName caps at 100 chars; the spec must carry the capped name.
+        // the spec carries the capped name
         var longName = new Array(150).join("a");   // 149 'a's
         compare(Logic.renameSpec("uuid-a", longName).args[1].v.length, 100, "renameSpec caps the name at 100 chars");
     }
 
-    // invokeShortcutSpec: the kglobalaccel invokeShortcut(string) shape (null for a falsy name).
     function test_invokeShortcutSpec_data() {
         return [
             { tag: "empty-name-null", name: "", exp: null },
@@ -1326,8 +1208,6 @@ TestCase {
         compare(JSON.stringify(Logic.invokeShortcutSpec(data.name)), JSON.stringify(data.exp), data.tag);
     }
 
-    // pillClickSpec: the pill-click action -> KWin shortcut spec. None / unknown -> null (safe no-op); the
-    // active actions toggle KWin shortcuts by their exact unique names ("Grid" -> "Grid View").
     function test_pillClickSpec_data() {
         return [
             { tag: "None-null", action: Logic.PILL_CLICK_ACTION.None, exp: null },
@@ -1362,19 +1242,16 @@ TestCase {
         compare(JSON.stringify(Logic.pillClickSpec(data.action)), JSON.stringify(data.exp), data.tag);
     }
 
-    // --- pillClickAnywhereActive: the enlarged click target needs BOTH the toggle and a real action ---
-    // Without the action half, the shipped default (toggle on, action Nothing) would make the whole widget
-    // swallow left clicks to dispatch a null spec.
+    // The shipped default is the toggle on and the action Nothing, which mustn't swallow clicks.
     function test_pillClickAnywhereActive_data() {
         return [
             { tag: "on-with-action", anywhere: true, action: Logic.PILL_CLICK_ACTION.Overview, exp: true },
             { tag: "on-but-no-action", anywhere: true, action: Logic.PILL_CLICK_ACTION.None, exp: false },
             { tag: "off-with-action", anywhere: false, action: Logic.PILL_CLICK_ACTION.ShowDesktop, exp: false },
             { tag: "off-and-no-action", anywhere: false, action: Logic.PILL_CLICK_ACTION.None, exp: false },
-            // An unknown stored index still dispatches null, but it is not None — the target stays live, and
-            // pillClickSpec's default branch keeps the click a safe no-op.
+            // an unknown index isn't None, so the target stays on; pillClickSpec makes the click do nothing
             { tag: "unknown-action", anywhere: true, action: 99, exp: true },
-            // A transiently-undefined config read must not read as enabled.
+            // a setting that reads back undefined for a frame
             { tag: "undefined-toggle", anywhere: undefined, action: Logic.PILL_CLICK_ACTION.Grid, exp: false }
         ];
     }

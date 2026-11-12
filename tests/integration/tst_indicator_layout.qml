@@ -1,39 +1,33 @@
 /*
- * Plasma Gnome Pager — tst_indicator_layout.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Layout: Layout.* advertising, vertical form factor, the multi-row grid, metric/pill sizing, and
- * scale-to-fit.
- * Derives from the shared IndicatorTestCase (tests/shared/) for the fixtures: the component
- * factory, the VirtualDesktopInfo doubles, the switchRequested spy, and the dot-tree locators.
+ * A built WorkspaceIndicator on VdiMock, sized by hand as a panel would size it: the hints it
+ * advertises, the grid and its orientation, the sizes of dots and pill, and shrinking to fit.
  */
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import "../shared"
-import "../../package/contents/ui/logic.js" as Logic
-import "../shared/elements.js" as Elements
+import "../../package/contents/ui/logic.mjs" as Logic
+import "../shared/elements.mjs" as Elements
 
 IndicatorTestCase {
     id: layoutCase
     name: "IndicatorLayout"
 
-    // panel sizing: advertising only implicitWidth collapsed the applet to a square cell in-shell (dots
-    // overflowed). The indicator must expose its content width through Layout.* hints.
+    // With only an implicit width, the shell gave the applet a square cell and the dots overflowed it.
     function test_advertisesWidthViaLayout() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator.implicitWidth > 0, "indicator has a positive content width");
         compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth advertises the natural content width");
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "maximumWidth pins the natural width (a pager does not stretch past it)");
-        // scale-to-fit: the MINIMUM drops to the floor (one line at minDotSize) so the panel can compress us.
+        // A minimum at the floor lets the panel squeeze the strip.
         verify(indicator.minDotSize < indicator.naturalDotSize, "the legible floor dot is smaller than natural");
         verify(indicator.Layout.minimumWidth < indicator.implicitWidth, "minimumWidth drops below natural so the panel can compress us");
         fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorStripLength, 0.5, "minimumWidth is the floor (strip at the minimum legible dot)");
     }
 
-    // hover background: the cell is otherwise EXACTLY the strip, so the background asks for a little room at
-    // each end of the major axis — else the outer dots would sit flush against its stadium caps.
+    // Without the room, the outer dots would sit flush against the background's rounded ends.
     function test_hoverBackgroundPadsMajorAxis() {
         const padded = makeIndicator(makeMock(ids, currentUuid));
         const bare = makeIndicator(makeMock(ids, currentUuid), { showHoverBackground: false });
@@ -44,8 +38,7 @@ IndicatorTestCase {
         fuzzyCompare(padded.implicitHeight, bare.implicitHeight + 2 * padded.hoverCrossPadding, 0.5, "and by the (smaller) cross padding above and below");
     }
 
-    // GNOME's proportions, the point of the whole feature: a whole pill thickness of clearance on every side,
-    // so the background comes out 3x the pill thick. The cell must be tall enough to actually show it.
+    // The defaults put a pill's thickness of clearance on each side, as GNOME does.
     function test_hoverBackgroundMatchesGnomeProportions() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 80 });
         const bg = hoverBackgroundOf(indicator);
@@ -53,15 +46,13 @@ IndicatorTestCase {
         verify(bg.height > indicator.crossThickness + 1, "which is strictly taller than the strip it sits behind");
     }
 
-    // The padding is a nice-to-have, not a floor: minimum stays the bare floor, so a cramped panel compresses
-    // the padding away BEFORE the dots start scaling down.
+    // A cramped panel squeezes out the padding before the dots shrink.
     function test_hoverBackgroundPaddingNotInMinimum() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorStripLength, 0.5, "minimumWidth is still the bare floor");
         verify(indicator.Layout.minimumWidth < indicator.implicitWidth - 2 * indicator.hoverPadding + 0.5, "the floor sits below even the unpadded natural length");
     }
 
-    // Turning the background off restores the pre-feature geometry exactly (hoverPadding collapses to 0).
     function test_hoverBackgroundOffKeepsBareHints() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { showHoverBackground: false });
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "implicitWidth is the bare strip length");
@@ -71,7 +62,6 @@ IndicatorTestCase {
         fuzzyCompare(indicator.hoverCrossExtent, indicator.crossThickness, 0.5, "so the (hidden) background reports the bare strip thickness");
     }
 
-    // The background spans the whole cell along the major axis and insets on the cross axis, with stadium ends.
     function test_hoverBackgroundFillsCellStadium() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         const bg = hoverBackgroundOf(indicator);
@@ -84,7 +74,6 @@ IndicatorTestCase {
         fuzzyCompare(c.y, indicator.height / 2, 0.5, "centred vertically");
     }
 
-    // Vertical panel: the axes swap — the background runs DOWN the cell and insets on the width.
     function test_hoverBackgroundStadiumVertical() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true, width: 50, height: 200 });
         const bg = hoverBackgroundOf(indicator);
@@ -93,7 +82,6 @@ IndicatorTestCase {
         fuzzyCompare(bg.radius, Math.min(bg.width, bg.height) / 2, 0.5, "stadium ends");
     }
 
-    // The two clearance factors are user settings, so the geometry must track them live on both axes.
     function test_hoverClearanceFactorsDriveGeometry() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 300, height: 160 });
         const bg = hoverBackgroundOf(indicator);
@@ -108,7 +96,6 @@ IndicatorTestCase {
         tryVerify(() => indicator.implicitWidth > baseWidth + 1, 2000, "raising the length factor widens the advertised cell");
     }
 
-    // Zeroing both factors collapses the background onto the strip — the tightest look, still valid geometry.
     function test_hoverClearanceZeroHugsTheStrip() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             width: 300, height: 160, hoverLengthFactor: 0, hoverThicknessFactor: 0
@@ -118,17 +105,14 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength, 0.5, "and the cell is the bare strip length");
     }
 
-    // A panel too thin for the full padding caps the background at the cell rather than overflowing it
-    // (robustness.md: never draw past the allocation).
     function test_hoverBackgroundNeverOverflowsThinPanel() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200 });
-        indicator.height = indicator.crossThickness;   // panel exactly as thick as the strip: no room to pad
+        indicator.height = indicator.crossThickness;   // no room to pad
         const bg = hoverBackgroundOf(indicator);
         tryCompare(bg, "height", indicator.height, 2000, "the background caps at the cell");
         verify(bg.height <= indicator.height + 0.5, "and never draws past it");
     }
 
-    // A panel with room to spare gets the full GNOME padding, not the whole thickness edge-to-edge.
     function test_hoverBackgroundDoesNotFillAnOversizedPanel() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 120 });
         const bg = hoverBackgroundOf(indicator);
@@ -136,12 +120,9 @@ IndicatorTestCase {
         fuzzyCompare(bg.height, indicator.crossThickness + 2 * Logic.hoverPadding(indicator.lineThickness, indicator.hoverThicknessFactor), 0.5, "strip + padding");
     }
 
-    // The no-binding-loop invariant, which today only NAMING protects: the hint-side padding reads the NATURAL
-    // sizes, its hoverCrossPaddingEffective twin the rendered ones. Feeding the effective one into
-    // paddedCrossThickness would close the loop implicitHeight → availableCross → dotSize → lineThickness →
-    // implicitHeight. Height is left unset on purpose, so implicitHeight really does drive the cell (that is
-    // the edge the loop travels), and the strip is squeezed until scale-to-fit bites — the ONLY condition
-    // under which the two paddings differ, so a roomy cell would make every check below vacuous.
+    // Only a name keeps the hint-side padding off the rendered sizes, which would loop back through the
+    // allocation. Height stays unset so implicitHeight drives the cell, and the strip is squeezed because
+    // the two paddings differ only once the dots shrink: with room, every check here would pass vacuously.
     function test_hoverHintsAreGeometryIndependent() {
         const many = manyIds(12);
         const indicator = makeIndicator(makeMock(many, many[0]), { width: 600 });
@@ -165,10 +146,7 @@ IndicatorTestCase {
         compare(indicator.Layout.maximumWidth, hint.maximumWidth, "as does the advertised maximum");
     }
 
-    // vertical form factor: a side panel becomes a single COLUMN (dots stack along Y, the capsule grows
-    // TALL, the pinned/free Layout axes swap). These mirror the horizontal geometry/sizing onto Y/height.
-
-    // The dots stack top-to-bottom (strictly increasing Y), all in one column (≈ equal X).
+    // vertical panel
     function test_verticalStacksDots() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         const dots = dotsByIndex(indicator);
@@ -182,7 +160,6 @@ IndicatorTestCase {
         }
     }
 
-    // Uniform spacing along Y: the vertical gap between EVERY adjacent pair equals the strip spacing.
     function test_verticalUniformSpacing() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });   // middle is the capsule
         const dots = dotsByIndex(indicator);
@@ -193,7 +170,6 @@ IndicatorTestCase {
         }
     }
 
-    // The active element grows TALL to pillWidth along the major (Y) axis; inactive stay dots.
     function test_verticalCapsuleGrowsTall() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         for (let i = 0; i < ids.length; i++) {
@@ -204,25 +180,20 @@ IndicatorTestCase {
         }
     }
 
-    // Vertical sizing: the HEIGHT axis is pinned to the strip length, the WIDTH axis left free so the
-    // panel stretches to its thickness. Mirror of test_advertisesWidthViaLayout.
     function test_verticalAdvertisesHeightViaLayout() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         verify(indicator.implicitHeight > 0, "indicator has a positive content height");
         compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "preferredHeight advertises the natural content length");
         compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "maximumHeight pins the natural length (a pager does not stretch past it)");
-        // scale-to-fit: the MAJOR (height) minimum drops to the floor so a short panel compresses the column.
         verify(indicator.Layout.minimumHeight < indicator.implicitHeight, "minimumHeight drops below natural so the panel can compress us");
         fuzzyCompare(indicator.Layout.minimumHeight, indicator.floorStripLength, 0.5, "minimumHeight is the floor (column at the minimum legible dot)");
 
         compare(indicator.Layout.preferredWidth, indicator.implicitWidth, "preferredWidth is one dot thick");
         const maxW = indicator.Layout.maximumWidth;
         verify(maxW < 0 || maxW > indicator.implicitWidth, "width axis is free (max unconstrained), so the panel fills the thickness");
-        // Cross (width) MINIMUM drops to floorCrossThickness too, so an ultra-thin side panel can compress it.
         fuzzyCompare(indicator.Layout.minimumWidth, indicator.floorCrossThickness, 0.5, "cross (width) min is the floor");
     }
 
-    // The cross axis is one dot thick.
     function test_verticalImplicitCrossAxis() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true });
         fuzzyCompare(indicator.implicitWidth, indicator.dotSize + 2 * indicator.hoverCrossPadding, 0.5, "vertical strip is one dot wide");
@@ -230,7 +201,6 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitHeight, steady + 2 * indicator.hoverPadding, 0.5, "vertical strip length is the steady-state formula");
     }
 
-    // Switching morphs the capsule along the height: the new current grows tall, the old shrinks to a dot.
     function test_verticalMorphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi, { vertical: true });
@@ -244,7 +214,6 @@ IndicatorTestCase {
         }, 2000, "capsule morphs tall onto the newly current element; the old shrinks to a dot");
     }
 
-    // The advertised length holds the whole column, so the end elements never clip past the edges.
     function test_verticalNoClipAtEnds() {
         const many = [ids[0], ids[1], ids[2], "uuid-d", "uuid-e", "uuid-f"];
 
@@ -260,10 +229,7 @@ IndicatorTestCase {
         verify(lastBottom <= atLast.height + 0.5, "last element does not clip past the bottom edge");
     }
 
-    // multi-row grid (mirrors KWin's desktopLayoutRows): >1 row splits the desktops into that many LINES,
-    // each an independent single-line reflow strip. Driven live by desktopLayoutRows; defaults to 1.
-
-    // rows=2 over 4 desktops → 2 lines of 2; the indicator exposes perLine/lineCount.
+    // grid
     function test_gridMirrorsKWinRows() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
         compare(indicator.perLine, 2, "4 desktops / 2 rows → 2 per line");
@@ -271,7 +237,6 @@ IndicatorTestCase {
         compare(collectDots(indicator).length, 4, "all four dots present");
     }
 
-    // ceil rounding: 5 desktops / 2 rows → 3 per line, 2 lines (last line short with 2).
     function test_gridUnevenLastLine() {
         const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0], [], 2));
         compare(indicator.perLine, 3, "5 desktops / 2 rows → 3 per line");
@@ -279,27 +244,23 @@ IndicatorTestCase {
         compare(collectDots(indicator).length, 5, "all five dots present");
     }
 
-    // Default / 1 row stays a single line.
     function test_gridDefaultsToSingleLine() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0]));   // no rows → 1
         compare(indicator.perLine, 4, "single line holds all desktops");
         compare(indicator.lineCount, 1, "exactly one line by default");
     }
 
-    // Changing KWin's row count re-lays out reactively (no cache; mirrors System Settings live).
     function test_gridReactiveToRows() {
         const vdi = makeMock(fourIds, fourIds[0]);   // 1 row
         const indicator = makeIndicator(vdi);
         compare(indicator.lineCount, 1, "starts single-line");
 
-        vdi.desktopLayoutRows = 2;   // user raises "Rows" in System Settings
+        vdi.desktopLayoutRows = 2;   // as from System Settings
 
         tryCompare(indicator, "lineCount", 2, 2000, "grid re-lays out to two lines");
         compare(indicator.perLine, 2, "two per line after the change");
     }
 
-    // Horizontal panel, 2 rows: dots split into two vertically-stacked lines (the second below the
-    // first); within a line the dots share a row (equal y).
     function test_gridStacksRowsHorizontally() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
         const dots = dotsByIndex(indicator);   // global order: [0,1] line 0, [2,3] line 1
@@ -310,33 +271,25 @@ IndicatorTestCase {
         verify(y2 > y0 + 0.5, "line 1 sits below line 0");
     }
 
-    // 2-D sizing: the major (width) axis is pinned to one line's length; the cross (height) axis
-    // preferreds both lines, but its minimum drops to the floor (cross scale-to-fit) and its maximum is
-    // left free to fill the panel thickness.
     function test_gridSizingTwoRows() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2));
         const major = Logic.lineExtent(indicator.perLine, indicator.dotSize, indicator.dotSpacing, indicator.pillWidth);
-        // Cross thickness has no capsule (every line is one dot thick) → activeExtent == dotSize.
         const cross = Logic.lineExtent(indicator.lineCount, indicator.dotSize, indicator.dotSpacing, indicator.dotSize);
         fuzzyCompare(indicator.implicitWidth, major + 2 * indicator.hoverPadding, 0.5, "width is one line long");
         fuzzyCompare(indicator.implicitHeight, cross + 2 * indicator.hoverCrossPadding, 0.5, "height carries both lines");
         compare(indicator.Layout.maximumWidth, indicator.implicitWidth, "major (width) axis is pinned");
-        // Cross (height) MIN now drops to floorCrossThickness so a thin panel can compress the thickness
-        // and the dots cross-fit instead of overflowing it (was pinned to the natural thickness pre-fit).
         verify(indicator.Layout.minimumHeight < indicator.implicitHeight, "cross (height) min drops below natural so the panel can compress us");
         fuzzyCompare(indicator.Layout.minimumHeight, indicator.floorCrossThickness, 0.5, "cross (height) min is the floor (both lines at the min legible dot)");
         const maxH = indicator.Layout.maximumHeight;
         verify(maxH < 0 || maxH > indicator.implicitHeight, "cross axis max is free (fills panel thickness)");
     }
 
-    // The active capsule still morphs when the current desktop lives in the second line.
     function test_gridActiveCapsuleInSecondLine() {
-        const indicator = makeIndicator(makeMock(fourIds, fourIds[3], [], 2));   // current is in line 1
+        const indicator = makeIndicator(makeMock(fourIds, fourIds[3], [], 2));
         fuzzyCompare(dotByUuid(indicator, fourIds[3]).width, indicator.pillWidth, 0.5, "second-line current is the capsule");
         fuzzyCompare(dotByUuid(indicator, fourIds[0]).width, indicator.dotSize, 0.5, "a first-line inactive is a dot");
     }
 
-    // Names are index-aligned across the whole flat desktop list, not reset per line.
     function test_gridNamesMapAcrossLines() {
         const names = ["One", "Two", "Three", "Four"];
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], names, 2));
@@ -344,8 +297,6 @@ IndicatorTestCase {
             compare(dotByUuid(indicator, fourIds[i]).desktopName, names[i], "dot " + i + " keeps its global name");
     }
 
-    // Vertical panel, 2 rows: the grid transposes — lines sit side by side (different x), dots
-    // stack within each line (increasing y), so the longer per-line extent runs down the panel.
     function test_gridVerticalTranspose() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true });
         compare(indicator.perLine, 2, "2 dots per line");
@@ -358,10 +309,7 @@ IndicatorTestCase {
         verify(p2.x > p0.x + 0.5, "the second line sits beside the first (transposed)");
     }
 
-    // --- matchDesktopGrid: lay the grid out in KWin orientation on a vertical panel (issue #23) -----------
-
-    // gridVertical (the effective grid orientation) is the panel `vertical` UNLESS matchDesktopGrid un-transposes
-    // it. The toggle is inert on a horizontal panel and applies to every row count on a vertical one.
+    // matchDesktopGrid and singleLine (#23)
     function test_gridVerticalResolution() {
         const transpose = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true });
         compare(transpose.gridVertical, true, "vertical panel, toggle off → transpose");
@@ -372,8 +320,7 @@ IndicatorTestCase {
         const horizontal = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { matchDesktopGrid: true });
         compare(horizontal.gridVertical, false, "horizontal panel: the toggle has no effect");
 
-        // singleLine sets the line COUNT, not the direction — gridVertical still keys off matchDesktopGrid only
-        // (orthogonal). So singleLine alone is a vertical strip, but singleLine + matchDesktopGrid is horizontal.
+        // singleLine sets how many lines there are, never which way they run.
         const single = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true });
         compare(single.gridVertical, true, "single line alone, vertical panel → vertical strip (down the panel)");
         const both = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
@@ -382,8 +329,6 @@ IndicatorTestCase {
         compare(singleHoriz.gridVertical, false, "single line on a horizontal panel → horizontal strip");
     }
 
-    // Vertical panel, 2 rows, toggle ON: the grid is NOT transposed — it lays out exactly like a horizontal
-    // panel (lines stack along Y, dots within a line share a row). The inverse of test_gridVerticalTranspose.
     function test_matchDesktopGridFaithfulMultiRow() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, matchDesktopGrid: true });
         compare(indicator.perLine, 2, "2 dots per line");
@@ -396,10 +341,8 @@ IndicatorTestCase {
         verify(y2 > y0 + 0.5, "line 1 sits below line 0 (rows run top-to-bottom, like KWin)");
     }
 
-    // The exact issue-#23 scenario: 2 desktops with KWin Rows=2 on a vertical panel. With the toggle ON the
-    // two dots stack vertically (one column) to match the desktop layout, instead of sitting side by side.
-    // current is a transient/unknown uuid so neither dot is the wider capsule — both are equal-size dots,
-    // making the single-column assertion exact no matter how the lines align.
+    // The reporter's setup: two desktops in two rows on a vertical panel. No current desktop, so neither
+    // dot is the wider pill and the one-column check is exact.
     function test_matchDesktopGridReporterCase() {
         const indicator = makeIndicator(makeMock(["uuid-a", "uuid-b"], staleUuid, [], 2), { vertical: true, matchDesktopGrid: true });
         compare(indicator.perLine, 1, "2 desktops / 2 rows → 1 per line");
@@ -411,7 +354,6 @@ IndicatorTestCase {
         fuzzyCompare(p1.x, p0.x, 0.5, "both desktops share one column (a vertical stack, not side by side)");
     }
 
-    // A horizontal panel already mirrors KWin's grid, so the toggle is a no-op there: same layout as toggle off.
     function test_matchDesktopGridIgnoredHorizontal() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { matchDesktopGrid: true });
         const dots = dotsByIndex(indicator);
@@ -422,28 +364,23 @@ IndicatorTestCase {
         verify(y2 > y0 + 0.5, "line 1 below line 0 (unchanged by the toggle)");
     }
 
-    // --- singleLine (option C): collapse the KWin grid into ONE strip following the panel (issue #23) ----------
-
-    // singleLine ignores desktopLayoutRows: every desktop lands in one line, whatever KWin's row count is.
     function test_singleLineCollapsesGridToOneLine() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { singleLine: true });
         compare(indicator.perLine, 4, "all 4 desktops on one line");
         compare(indicator.lineCount, 1, "exactly one line (KWin's 2 rows are ignored)");
     }
 
-    // The reporter's actual want (issue #23): on a VERTICAL panel, singleLine gives a single vertical strip with a
-    // VERTICAL (tall) pill — the normal 1-row look — NOT matchDesktopGrid's vertical stack with a horizontal pill.
+    // What the reporter wanted: one strip down a vertical panel with a tall pill, rather than
+    // matchDesktopGrid's column with a wide one.
     function test_singleLineVerticalStripHasVerticalPill() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true });
         compare(indicator.lineCount, 1, "one line on a vertical panel");
         const dots = dotsByIndex(indicator);
         verify(dots[1].mapToItem(indicator, 0, 0).y > dots[0].mapToItem(indicator, 0, 0).y + 0.5, "desktops stack down the panel");
-        const active = dots[0];   // current = fourIds[0]
+        const active = dots[0];
         verify(active.height > active.width + 0.5, "the active desktop is a vertical (tall) pill, not a horizontal one");
     }
 
-    // singleLine + matchDesktopGrid COMPOSE (they are orthogonal): one line laid HORIZONTALLY across a vertical
-    // panel — a single horizontal row with a horizontal pill. matchDesktopGrid sets the direction, singleLine the count.
     function test_singleLineHorizontalRowOnVerticalPanel() {
         const indicator = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), { vertical: true, singleLine: true, matchDesktopGrid: true });
         compare(indicator.lineCount, 1, "one line (grid collapsed)");
@@ -453,13 +390,10 @@ IndicatorTestCase {
         verify(dots[0].width > dots[0].height + 0.5, "the active desktop is a horizontal pill");
     }
 
-    // Multi-row "breathing" fix: the strip is pinned to the conserved (capsule-bearing) extent, so its footprint
-    // — and so the dots — do NOT depend on whether/where the capsule is. A cross-row morph therefore can't
-    // resize+recenter the strip and drag the dots. Deterministic proxy: the leftmost dot's absolute position is
-    // identical with a capsule present (valid current) vs. transiently absent (stale current). Before the fix the
-    // content-sized strip is narrower with no capsule, so its centred dots sit further right (test fails).
+    // A strip sized by its content drifted the dots during a switch between rows. With no pill a content
+    // sized strip is narrower, so its first dot moves; the morph test watches the same drift live.
     function test_multiRowStripPinnedRegardlessOfCapsule() {
-        const opts = { width: 400, height: 200, dotSizeRequest: 16, pillWidthFactor: 4 };   // big Δ, ample room
+        const opts = { width: 400, height: 200, dotSizeRequest: 16, pillWidthFactor: 4 };   // a long pill, room to spare
         const withCapsule = makeIndicator(makeMock(fourIds, fourIds[0], [], 2), opts);
         const noCapsule = makeIndicator(makeMock(fourIds, staleUuid, [], 2), opts);
         const xCapsule = dotsByIndex(withCapsule)[0].mapToItem(withCapsule, 0, 0).x;
@@ -467,9 +401,7 @@ IndicatorTestCase {
         fuzzyCompare(xNoCapsule, xCapsule, 0.5, "the strip (and so the dots) keep their position whether or not a capsule is present");
     }
 
-    // per-dot tooltip data: the indicator feeds each dot its name and the flag.
-
-    // Metrics reach the derived sizes and every dot.
+    // sizes
     function test_metricsFlowThrough() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), {
             dotSizeRequest: 20,
@@ -484,19 +416,17 @@ IndicatorTestCase {
 
         const dot = dotByUuid(indicator, ids[0]);
         fuzzyCompare(dot.dotSize, 20, 0.5, "dot gets the resolved dotSize");
-        fuzzyCompare(dot.pillWidthFactor, 3, 0.5, "dot gets pillWidthFactor");
+        fuzzyCompare(dot.pillWidth, 60, 0.5, "dot gets the resolved pillWidth");
         fuzzyCompare(dot.inactiveOpacity, 0.3, 0.001, "dot gets inactiveOpacity");
         fuzzyCompare(dot.hoverOpacity, 0.9, 0.001, "dot gets hoverOpacity");
     }
 
-    // The dotSize sentinel: 0 (the default request) → the HiDPI themed size, never 0.
     function test_dotSizeSentinelDefault() {
-        const indicator = makeIndicator(makeMock(ids, currentUuid));   // no dotSizeRequest → 0
+        const indicator = makeIndicator(makeMock(ids, currentUuid));
         compare(indicator.dotSizeRequest, 0, "request defaults to the 0 sentinel");
         fuzzyCompare(indicator.dotSize, Kirigami.Units.iconSizes.small / 2, 0.5, "0 resolves to the themed default");
     }
 
-    // The pillSize sentinel: 0 (default) → "match dots", so the pill tracks the dot size (ratio 1).
     function test_autoPillTracksDotSize() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 20, pillWidthFactor: 3 });
         compare(indicator.pillSizeRequest, 0, "pill request defaults to the 0 (match-dots) sentinel");
@@ -505,8 +435,7 @@ IndicatorTestCase {
         fuzzyCompare(indicator.pillWidth, 60, 0.5, "pillWidth = dotSize * pillWidthFactor when the pill tracks the dots");
     }
 
-    // Independent sizing: small dots under a thick pill keep their own size; pill length is
-    // pillSize * pillWidthFactor. Ample allocation so scale-to-fit does not interfere.
+    // Room to spare, so shrinking to fit stays out of it.
     function test_independentThickerPill() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24, pillWidthFactor: 3 });
         indicator.width = indicator.naturalStripLength * 2;
@@ -524,8 +453,6 @@ IndicatorTestCase {
         fuzzyCompare(inactiveDot.width, 8, 0.5, "inactive dot stays a small dot on the major axis");
     }
 
-    // A pill thicker than the dots raises the advertised CROSS thickness to the pill, so the panel
-    // allocates room for it.
     function test_pillThicknessAdvertisedOnCrossAxis() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24 });
         fuzzyCompare(indicator.naturalCrossThickness, 24, 0.5, "cross thickness is the thicker pill, not the dot");
@@ -533,33 +460,28 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength + 2 * indicator.hoverPadding, 0.5, "major axis still advertises the strip length");
     }
 
-    // Independent pill + dot shrink in LOCKSTEP under scale-to-fit: the configured pill:dot ratio holds.
     function test_pillScalesWithFitShrink() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 16, pillSizeRequest: 32, pillWidthFactor: 3 });
         const ratio = indicator.pillThicknessRatio;   // 32 / 16 == 2
         fuzzyCompare(ratio, 2, 0.001, "configured ratio is pill/dot");
-        indicator.width = indicator.naturalStripLength * 0.5;   // force a major-axis shrink (stays above the floor)
+        indicator.width = indicator.naturalStripLength * 0.5;   // still above the floor
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "dot shrank below natural");
         fuzzyCompare(indicator.pillSize / indicator.dotSize, ratio, 0.01, "pill thickness keeps the configured ratio while shrinking");
         fuzzyCompare(indicator.pillWidth, indicator.pillSize * indicator.pillWidthFactor, 0.5, "pillWidth tracks the shrunk pill thickness");
     }
 
-    // Filled & ring style: NO pill. The indicator neutralizes the pill params, so the current dot is the
-    // SAME size as the inactive dots (a filled circle, not a wider capsule) — a uniform row. The configured
-    // pill knobs (pillSizeRequest / pillWidthFactor) are ignored in this style.
+    // The ring style ignores the pill settings, so they're set here to prove it.
     function test_filledRingStyleNoPill() {
         const indicator = makeIndicator(makeMock(ids, currentUuid),
             { dotStyle: Logic.DOT_STYLE.Ring, dotSizeRequest: 16, pillSizeRequest: 40, pillWidthFactor: 4 });
-        indicator.width = indicator.naturalStripLength * 2;    // ample allocation: no scale-to-fit
+        indicator.width = indicator.naturalStripLength * 2;
         indicator.height = indicator.naturalCrossThickness * 2;
 
-        // The pill is neutralized: ratio 1, the active extent collapses to the dot size.
         fuzzyCompare(indicator.effPillWidthFactor, 1, 0.001, "ring style neutralizes pillWidthFactor to 1");
         compare(indicator.effPillSizeRequest, 0, "ring style neutralizes pillSizeRequest to 0 (match dots)");
         fuzzyCompare(indicator.pillThicknessRatio, 1, 0.001, "pill thickness ratio is 1 (no thick pill)");
         fuzzyCompare(indicator.pillWidth, indicator.dotSize, 0.5, "the active extent equals the dot size (no pill)");
 
-        // Every dot is the same size — the current one is no wider/taller than the rest.
         const activeDot = dotByUuid(indicator, currentUuid);
         const inactiveDot = dotByUuid(indicator, ids[0]);
         fuzzyCompare(activeDot.width, inactiveDot.width, 0.5, "active dot is no wider than an inactive one (no pill)");
@@ -567,80 +489,72 @@ IndicatorTestCase {
         fuzzyCompare(activeDot.width, indicator.dotSize, 0.5, "every dot is dot-sized on the major axis");
     }
 
-    // desktopRows clamp guard: the indicator clamps a transient 0/undefined desktopLayoutRows to a single
-    // line. makeMock's `|| 1` default hides a literal 0, so set it post-construction.
+    // Set after construction, since makeMock's `|| 1` would turn a 0 into 1.
     function test_gridRowsClampGuard() {
-        const vdi = makeMock(fourIds, fourIds[0]);   // defaults to 1 row
+        const vdi = makeMock(fourIds, fourIds[0]);
         const indicator = makeIndicator(vdi);
-        vdi.desktopLayoutRows = 0;                   // transient/invalid value from KWin
+        vdi.desktopLayoutRows = 0;
 
         compare(indicator.desktopRows, 1, "a 0 row count clamps to a single line");
         compare(indicator.lineCount, 1, "everything stays on one line");
         compare(indicator.perLine, fourIds.length, "the single line holds all desktops");
     }
 
-    // A narrow allocation shrinks the dots below natural so the line still fits instead of overflowing.
-    // Setting indicator.width directly replaces the implicitWidth binding — how the panel constrains us.
+    // shrinking to fit
+
+    // Setting width directly, as the panel does, replaces the implicitWidth binding.
     function test_scaleDotsShrinkOnNarrowWidth() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
-        indicator.width = indicator.naturalStripLength * 0.6;   // panel grants 60% of the natural length
+        indicator.width = indicator.naturalStripLength * 0.6;
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "effective dot shrank below natural");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
         fuzzyCompare(dotByUuid(indicator, sixIds[1]).dotSize, indicator.dotSize, 0.5, "each dot uses the effective size");
-        // tryVerify: the rendered dot widths morph (Behavior on width), so wait for the reflow to settle.
+        // The widths animate there.
         tryVerify(() => lastElementFits(indicator, "x"), 2000, "the shrunken line fits the allocated width");
     }
 
-    // With ample room the size is unchanged: effective == natural, the look is byte-for-byte as today.
     function test_scaleDotsUnchangedWhenAmple() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
-        indicator.width = indicator.naturalStripLength * 2;     // plenty of room
+        indicator.width = indicator.naturalStripLength * 2;
         fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.5, "no shrink when there is room");
         fuzzyCompare(dotByUuid(indicator, sixIds[0]).width, indicator.pillWidth, 0.5, "capsule at the natural pill width");
     }
 
-    // Vertical transpose: a short allocated HEIGHT is the major axis, so the dots shrink there too.
     function test_scaleDotsShrinkOnShortHeightVertical() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]), { vertical: true });
         indicator.height = indicator.naturalStripLength * 0.6;
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "vertical effective dot shrank");
-        // tryVerify: the rendered dot heights morph (Behavior on height), so wait for the reflow to settle.
+        // The heights animate there.
         tryVerify(() => lastElementFits(indicator, "y"), 2000, "the shrunken column fits the allocated height");
     }
 
-    // CROSS-axis scale-to-fit: a 4-row grid on a THIN horizontal panel constrains only the cross (height)
-    // thickness, so the dots shrink to fit the stacked lines. Setting height to f × naturalCrossThickness
-    // yields dotSize f × naturalDotSize (the cross fit is the exact inverse), so f == 0.6 stays above the floor.
+    // Four rows on a thin panel. The cross fit is the exact inverse of the stacked lines, so 0.6 of their
+    // natural thickness gives dots 0.6 of their natural size, still above the floor.
     function test_scaleDotsShrinkOnThinCrossMultiRow() {
         const big = manyIds(12);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4));   // 4 lines of 3
-        indicator.height = indicator.naturalCrossThickness * 0.6;        // panel thinner than the 4 stacked lines need
+        indicator.height = indicator.naturalCrossThickness * 0.6;
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "cross-fit shrank the dot below natural");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
-        // wait for the reflow to settle; the last line sits in the bottom row, so its bottom must fit.
         tryVerify(() => lastElementFits(indicator, "y"), 2000, "the shrunken grid fits the allocated cross thickness");
     }
 
-    // With ample thickness the multi-row grid is unchanged: the cross fit exceeds natural, so keep natural.
     function test_scaleDotsCrossUnchangedWhenAmpleThickness() {
         const big = manyIds(12);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4));
-        indicator.height = indicator.naturalCrossThickness * 2;          // plenty of cross room
+        indicator.height = indicator.naturalCrossThickness * 2;
         fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.5, "no shrink when the thickness is ample");
     }
 
-    // Vertical transpose of the cross-fit: on a side panel the cross axis is WIDTH, so a thin one shrinks
-    // the dots to fit the width.
     function test_scaleDotsShrinkOnThinCrossVertical() {
         const big = manyIds(12);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4), { vertical: true });
-        indicator.width = indicator.naturalCrossThickness * 0.6;         // side panel thinner than the stacked lines need
+        indicator.width = indicator.naturalCrossThickness * 0.6;
         tryVerify(() => indicator.dotSize < indicator.naturalDotSize - 0.5, 2000, "cross-fit shrank the dot below natural (vertical)");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "but never below the legible floor");
         tryVerify(() => lastElementFits(indicator, "x"), 2000, "the shrunken grid fits the allocated cross thickness (width)");
     }
 
-    // Many desktops across a mirrored KWin grid (4 rows): all dots render, split into the right lines.
     function test_manyDesktopsMultiRowGrid() {
         const big = manyIds(20);
         const indicator = makeIndicator(makeMock(big, big[0], [], 4));
@@ -650,29 +564,25 @@ IndicatorTestCase {
         compare(indicator.lineCount, 4, "4 grid lines");
     }
 
-    // An EXTREME narrow allocation (0.3×, below the floor) clamps the effective dot exactly at minDotSize —
-    // no further (overflow accepted over illegible dots).
+    // Below the floor the strip overflows rather than draw dots too small to read.
     function test_scaleClampsAtFloorOnExtremeNarrow() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]));
-        indicator.width = indicator.naturalStripLength * 0.3;   // far below the legible floor
+        indicator.width = indicator.naturalStripLength * 0.3;
         tryVerify(() => Math.abs(indicator.dotSize - indicator.minDotSize) < 0.001, 2000,
                   "the effective dot clamps exactly at the legible floor");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "never shrinks past the floor");
     }
 
-    // The clamp NEVER scales UP: a configured dot smaller than the floor makes minDotSize == naturalDotSize
-    // (minDotSize clamps DOWN to natural), so even an enormous allocation keeps the tiny natural size —
-    // scale-to-fit only ever shrinks. Guards the Math.min(naturalDotSize, …) on minDotSize.
+    // A configured dot smaller than the floor mustn't grow to it, however much room there is.
     function test_scaleNeverEnlargesTinyConfiguredDot() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 2 });
         fuzzyCompare(indicator.naturalDotSize, 2, 0.001, "a tiny request is the natural size");
         fuzzyCompare(indicator.minDotSize, 2, 0.001, "minDotSize clamps to natural (never above it)");
-        indicator.width = indicator.naturalStripLength * 4;     // an enormous allocation
+        indicator.width = indicator.naturalStripLength * 4;
         fuzzyCompare(indicator.dotSize, indicator.naturalDotSize, 0.001, "huge room never scales the dot UP past natural");
     }
 
-    // Cross-axis centring: an inactive dot must sit centred against a thicker pill, not top-aligned
-    // (the line is as thick as the capsule). Compares the dots' cross-axis centre lines.
+    // The positioner's default alignment put the dots at the top of a line made thick by the pill.
     function test_inactiveDotCentredAgainstThickPillHorizontal() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { dotSizeRequest: 8, pillSizeRequest: 24 });
         indicator.width = indicator.naturalStripLength * 2;
@@ -684,7 +594,6 @@ IndicatorTestCase {
         fuzzyCompare(inactiveCentreY, activeCentreY, 0.5, "inactive dot is cross-centred against the thicker pill");
     }
 
-    // Vertical-strip transpose of the centring fix: the cross axis is X, so an inactive dot centres on X.
     function test_inactiveDotCentredAgainstThickPillVertical() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { vertical: true, dotSizeRequest: 8, pillSizeRequest: 24 });
         indicator.height = indicator.naturalStripLength * 2;
@@ -696,12 +605,10 @@ IndicatorTestCase {
         fuzzyCompare(inactiveCentreX, activeCentreX, 0.5, "inactive dot is cross-centred against the thicker pill (vertical)");
     }
 
-    // Floor (extreme narrow) with a thick pill: the dot clamps at minDotSize and the pill at its
-    // proportional floor minDotSize * ratio — neither shrinks further, and the lockstep ratio holds.
     function test_pillFloorAtExtremeNarrow() {
         const indicator = makeIndicator(makeMock(sixIds, sixIds[0]), { dotSizeRequest: 16, pillSizeRequest: 32 });
-        const ratio = indicator.pillThicknessRatio;   // 2
-        indicator.width = indicator.naturalStripLength * 0.2;   // far below the floor's strip length
+        const ratio = indicator.pillThicknessRatio;
+        indicator.width = indicator.naturalStripLength * 0.2;
         tryVerify(() => Math.abs(indicator.dotSize - indicator.minDotSize) < 0.001, 2000,
                   "the effective dot clamps exactly at the legible floor");
         verify(indicator.dotSize >= indicator.minDotSize - 0.001, "dot never shrinks past the floor");
@@ -709,9 +616,7 @@ IndicatorTestCase {
         verify(indicator.pillSize >= indicator.minDotSize * ratio - 0.01, "pill never shrinks past its floor");
     }
 
-    // multi-row: lines are sized independently (the documented trade-off). 5 desktops / 2 rows → [3, 2];
-    // each line is its own reflow strip, so the capsule line is WIDER than the short trailing line (not
-    // forced to a common column width). The strip's natural width is the wider line.
+    // The price of every row keeping the reflow look: rows don't share column widths.
     function test_gridLinesSizedIndependently() {
         const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0], [], 2));
         compare(indicator.perLine, 3, "3 per line");
@@ -723,29 +628,23 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.naturalStripLength + 2 * indicator.hoverPadding, 0.5, "the strip width is the wider (full) line");
     }
 
-    // runtime form-factor flip (horizontal <-> vertical on a LIVE indicator): toggling `vertical` on a
-    // running strip (a panel re-docked to a side edge) swaps the major/cross axes — the capsule's long axis
-    // flips width->height and the Layout hints swap with it. Ample room (400x400) so sizes don't shrink.
+    // A panel moved to a side edge while running. Ample room, so nothing shrinks.
     function test_runtimeFormFactorFlip() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 400, height: 400 });
         const cap = dotByUuid(indicator, currentUuid);
         fuzzyCompare(cap.width, indicator.pillWidth, 0.5, "horizontal: the capsule's long axis is width");
         fuzzyCompare(cap.height, indicator.pillSize, 0.5, "horizontal: the capsule's cross axis is the pill thickness");
 
-        indicator.vertical = true;   // the widget's panel moved to a side edge
+        indicator.vertical = true;
 
         tryVerify(function () {
             return Math.abs(cap.height - indicator.pillWidth) <= 0.5
                 && Math.abs(cap.width - indicator.pillSize) <= 0.5;
         }, 2000, "after the flip the capsule's long axis becomes height; the cross axis becomes width");
 
-        // The Layout hints swap with the orientation: the major axis is now the vertical one.
         compare(indicator.Layout.preferredHeight, indicator.implicitHeight, "major (height) preferred now pins the strip length");
         compare(indicator.Layout.maximumHeight, indicator.implicitHeight, "major (height) maximum pins the natural length");
         const maxW = indicator.Layout.maximumWidth;
         verify(maxW < 0 || maxW > indicator.implicitWidth, "cross (width) axis is now free to fill the panel thickness");
     }
-
-    // reactive behaviour-flag toggling (enableScroll / invertScroll / scrollWrap): flip each on a running
-    // indicator and assert the scroll behaviour changes mid-session (the index math is unit-tested).
 }
