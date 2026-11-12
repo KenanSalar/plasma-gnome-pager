@@ -45,12 +45,13 @@ Item {
     readonly property color resolvedActive: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.activeColor
     readonly property color resolvedInactive: dot.followThemeColors ? Kirigami.Theme.textColor : dot.inactiveColor
     readonly property color resolvedOccupied: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.occupiedColor
-    readonly property int body: Logic.dotBody(dot.active, dot.occupied, dot.occupancyStyle)
+    readonly property int effectiveOccupancyStyle: Logic.effectiveOccupancyStyle(dot.occupancyStyle, dot.dotStyle)
+    readonly property int body: Logic.dotBody(dot.active, dot.occupied, dot.effectiveOccupancyStyle)
     readonly property var bodyColors: ({ active: dot.resolvedActive, inactive: dot.resolvedInactive, occupied: dot.resolvedOccupied })
     // Grouped once here, so the opacity binding, which re-runs on every hover, allocates nothing.
     readonly property var bodyOpacities: ({ inactive: dot.inactiveOpacity, hover: dot.hoverOpacity, occupied: dot.occupiedOpacity })
-    readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.occupancyStyle)
-    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle, dot.dotStyle)
+    readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.effectiveOccupancyStyle)
+    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.effectiveOccupancyStyle)
 
     readonly property bool ringStyle: Logic.isRingStyle(dot.dotStyle)
     readonly property bool hasRing: Logic.dotHasRing(dot.dotStyle, dot.body)

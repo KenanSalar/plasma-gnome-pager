@@ -297,13 +297,15 @@ TestCase {
     }
 
     function test_ringOverlayVisible() {
-        var pill = Logic.DOT_STYLE.Pill;
-        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring, pill), "Ring + inactive + occupied → ring overlay");
-        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring, pill), "Ring + empty → no overlay");
-        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring, pill), "Ring + active → no overlay (it's the pill)");
-        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled, pill), "non-Ring style → no ring overlay");
-        // In the ring style the body already is one.
-        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring, Logic.DOT_STYLE.Ring), "Filled & ring dot-style → ring overlay suppressed");
+        verify(Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Ring), "Ring + inactive + occupied → ring overlay");
+        verify(!Logic.ringOverlayVisible(false, false, Logic.OCCUPANCY.Ring), "Ring + empty → no overlay");
+        verify(!Logic.ringOverlayVisible(true, true, Logic.OCCUPANCY.Ring), "Ring + active → no overlay (it's the pill)");
+        verify(!Logic.ringOverlayVisible(false, true, Logic.OCCUPANCY.Filled), "non-Ring style → no ring overlay");
+    }
+
+    function test_effectiveOccupancyStyle() {
+        compare(Logic.effectiveOccupancyStyle(Logic.OCCUPANCY.Ring, Logic.DOT_STYLE.Ring), Logic.OCCUPANCY.Filled,
+                "Filled & ring dot-style → Ring marker drawn as Filled");
     }
 
     function test_innerDotVisible() {

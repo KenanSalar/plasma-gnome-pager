@@ -182,9 +182,15 @@ export function dotBodyFilled(dotStyle, body) {
     return isRingStyle(dotStyle) && body === DOT_BODY.Occupied;
 }
 
-/** Whether an occupied, non-current dot shows the `Ring` marker; in the ring style the body already is one. */
-export function ringOverlayVisible(active, occupied, style, dotStyle) {
-    return style === OCCUPANCY.Ring && !active && occupied && !isRingStyle(dotStyle);
+/** The marker a dot draws: `Ring` reads as `Filled` in the ring style, whose dots already are rings. */
+export function effectiveOccupancyStyle(occupancyStyle, dotStyle) {
+    if (isRingStyle(dotStyle) && occupancyStyle === OCCUPANCY.Ring) return OCCUPANCY.Filled;
+    return occupancyStyle;
+}
+
+/** Whether an occupied, non-current dot shows the `Ring` marker. */
+export function ringOverlayVisible(active, occupied, style) {
+    return style === OCCUPANCY.Ring && !active && occupied;
 }
 
 export function innerDotVisible(active, occupied, style) {

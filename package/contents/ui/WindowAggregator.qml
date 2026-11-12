@@ -124,8 +124,8 @@ Item {
         }
     }
 
-    // One rebuild for a burst of signals, on a timer that dies with the aggregator: a Qt.callLater queued
-    // as the loader unloads it would still run, into the destroyed object.
+    // One rebuild for a burst of signals. Unloading clears this context before deleting the item: a
+    // pending Qt.callLater still runs and can't call the item's functions, while this handler doesn't.
     Timer {
         id: rebuildTimer
         interval: 0

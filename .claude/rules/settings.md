@@ -27,9 +27,10 @@ paths:
   `Kirigami.FormData.label`**, since the heading names it. Kirigami centres a section heading over
   both columns by design.
 - **A dependent control greys out with `enabled:` and keeps its value**, so turning its parent back
-  on restores it. The one exception: picking "Filled & ring" moves a stored "Hollow ring" occupancy
-  style to "Filled" and disables that item.
+  on restores it.
 - **A setting the page greys out is gated the same way at runtime**, as
-  `Logic.pillClickAnywhereActive` is for the whole-widget click target.
+  `Logic.pillClickAnywhereActive` is for the whole-widget click target and
+  `Logic.effectiveOccupancyStyle` for "Hollow ring" in "Filled & ring", whose combo shows the
+  resolved style through `displayText`.
 - **The pages are checked only in the shell**, the dialog needing `org.kde.plasma.configuration`;
   the four shared controls are Kirigami-only and unit-tested by `tests/unit/tst_config*.qml`.

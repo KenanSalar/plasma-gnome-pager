@@ -320,9 +320,10 @@ TestCase {
         const ring = makeDot({ dotStyle: Logic.DOT_STYLE.Ring, occupied: true,
                                occupancyStyle: Logic.OCCUPANCY.Ring, active: false });
         verify(ring.hasRing, "Ring occupancy keeps the ring outline");
-        verify(ring.bodyIsHollow, "Ring occupancy keeps a hollow interior");
-        verify(!ring.showRing, "the Ring occupancy overlay is suppressed in the Filled & ring style");
-        compare(TreeWalk.collect(ring, Elements.isCircle).filter(c => c.visible).length, 1, "only the ring body (no overlay)");
+        verify(ring.ringFilled, "Ring occupancy is drawn as Filled in the Filled & ring style, whose dots already are rings");
+        verify(!ring.bodyIsHollow, "Ring occupancy fills the ring interior");
+        verify(!ring.showRing, "no Ring overlay on top of a ring");
+        compare(TreeWalk.collect(ring, Elements.isCircle).filter(c => c.visible).length, 1, "only the filled ring body (no overlay)");
     }
 
     // tooltip

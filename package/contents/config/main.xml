@@ -131,7 +131,8 @@
             <default>0.7</default>
         </entry>
         <!-- How an occupied dot is marked, an index into Logic.OCCUPANCY and the combo: 0 = Filled (the
-             whole dot), 1 = Inner dot, 2 = Hollow ring. Each uses occupiedOpacity and the occupied colour. -->
+             whole dot), 1 = Inner dot, 2 = Hollow ring, drawn as Filled in the Filled & ring style. Each
+             uses occupiedOpacity and the occupied colour. -->
         <entry name="occupancyStyle" type="Int">
             <default>2</default>
         </entry>

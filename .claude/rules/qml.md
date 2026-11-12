@@ -68,7 +68,7 @@ cost of the always-on widget, `code-style.md` the comment format.
 - **`visible: false` keeps an item's cost; a `Loader` drops it.** A subtree most configurations
   never show goes behind one, as the window model and the occupancy overlay do.
 - **Work a component behind a `Loader` defers goes on a child `Timer`, never `Qt.callLater`**, as
-  `WindowAggregator.scheduleRebuild` does: the timer goes with the component when it unloads.
+  `WindowAggregator.scheduleRebuild` does; the comment on its timer says why.
 
 ## Tooling
 
