@@ -118,7 +118,7 @@ here: they follow **System Settings → Virtual Desktops**, so the pager always 
 | **Layout** | | |
 | Show all desktops in a single line | Off | Ignores KWin's grid rows. |
 | Match the virtual-desktop grid layout | Off | On a vertical panel, lays the dots out across the panel in KWin's grid order instead of down it. With a single line, that makes one horizontal row. |
-| Spacing | 0.50× dot | The gap between neighbouring dots, the pill included, as a multiple of the dot size. |
+| Spacing | 0.75× dot | The gap between neighbouring dots, the pill included, as a multiple of the dot size. |
 | **Dots** | | |
 | Dot size | Default | Default follows Plasma's icon sizes, so it scales with the display. |
 | Inactive opacity | 45% | |

@@ -91,7 +91,7 @@
         </entry>
         <!-- Uniform gap between elements, as a multiple of the dot size (GNOME-tight at 0.5). -->
         <entry name="spacingFactor" type="Double">
-            <default>0.5</default>
+            <default>0.75</default>
         </entry>
         <!-- Active-capsule length, as a multiple of the pill thickness (its aspect ratio). -->
         <entry name="pillWidthFactor" type="Double">

@@ -25,7 +25,7 @@ export var DEFAULTS = Object.freeze({
     matchDesktopGrid: false,
     dotSize: 0,
     pillSize: 0,
-    spacingFactor: 0.5,
+    spacingFactor: 0.75,
     pillWidthFactor: 4.5,
     inactiveOpacity: 0.45,
     hoverOpacity: 0.8,

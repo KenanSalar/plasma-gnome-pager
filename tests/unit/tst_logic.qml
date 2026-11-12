@@ -1019,7 +1019,7 @@ TestCase {
             { tag: "matchDesktopGrid", key: "matchDesktopGrid", exp: false },
             { tag: "dotSize", key: "dotSize", exp: 0 },
             { tag: "pillSize", key: "pillSize", exp: 0 },
-            { tag: "spacingFactor", key: "spacingFactor", exp: 0.5 },
+            { tag: "spacingFactor", key: "spacingFactor", exp: 0.75 },
             { tag: "pillWidthFactor", key: "pillWidthFactor", exp: 4.5 },
             { tag: "inactiveOpacity", key: "inactiveOpacity", exp: 0.45 },
             { tag: "hoverOpacity", key: "hoverOpacity", exp: 0.8 },

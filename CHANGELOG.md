@@ -22,6 +22,8 @@ Notable changes to Plasma Gnome Pager, newest first. Versions up to 1.8.2 are de
 - **A longer pill by default.** The current desktop's pill is now 4.5 times as long as it is
   thick, up from 3.5. If you picked another Pill length, yours stays; set it to 3.5 for the old
   look.
+- **Wider spacing by default.** The gap between neighbouring dots is now 0.75 of a dot, up from
+  0.50. If you picked another Spacing, yours stays; set it to 0.50 for the old look.
 - **Occupied desktops are marked by default.** A desktop with open windows now gets a hollow ring
   around its dot out of the box, where before the markers were off. In the Filled & ring style,
   whose dots are already rings, the ring fills in instead. If you had the markers on with the
