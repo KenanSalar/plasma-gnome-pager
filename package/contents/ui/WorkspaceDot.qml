@@ -1,119 +1,103 @@
 /*
- * Plasma Gnome Pager — WorkspaceDot.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * One workspace element (GNOME-style REFLOW model): the element IS the workspace, no overlay. Inactive =
- * dim circle; active = a wider highlighted capsule (the pill). Colour, sizing, and the morph arrive as
- * properties from the indicator (Kirigami-derived defaults so a dot renders standalone and headless).
+ * One desktop: a dim dot that grows into the highlighted pill while its desktop is current. Sizes,
+ * colours and the animation switch come from WorkspaceIndicator; the Kirigami defaults let a dot
+ * render on its own in a test.
  */
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.core as PlasmaCore        // ToolTipArea
+import org.kde.plasma.core as PlasmaCore
 
 import "logic.js" as Logic
 
 Item {
     id: dot
 
-    // Inputs supplied by WorkspaceIndicator's Repeater delegate (with sane defaults).
     property bool active: false
-    property int dotStyle: Logic.DEFAULTS.dotStyle   // overall look (Logic.DOT_STYLE); Ring → non-current dots are hollow rings
+    property int dotStyle: Logic.DEFAULTS.dotStyle
     property real dotSize: Kirigami.Units.iconSizes.small / 2
-    property real pillSize: Kirigami.Units.iconSizes.small / 2  // active-pill thickness, sized independently of the dot
-    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor   // capsule length / pill thickness
+    property real pillSize: Kirigami.Units.iconSizes.small / 2
+    property real pillWidthFactor: Logic.DEFAULTS.pillWidthFactor
     readonly property real pillWidth: dot.pillSize * dot.pillWidthFactor
     property real inactiveOpacity: Logic.DEFAULTS.inactiveOpacity
     property real hoverOpacity: Logic.DEFAULTS.hoverOpacity
-    property bool occupied: false                              // this desktop holds windows (showOccupancy feature; always false when off)
-    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity   // opacity of the occupied marker (all styles)
-    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle      // how an occupied dot is marked (Logic.OCCUPANCY)
-    property string desktopName: ""                            // tooltip mainText
+    property bool occupied: false
+    property real occupiedOpacity: Logic.DEFAULTS.occupiedOpacity
+    property int occupancyStyle: Logic.DEFAULTS.occupancyStyle
+    property string desktopName: ""
     property bool showTooltips: Logic.DEFAULTS.showTooltips
-    property string tooltipText: ""                            // tooltip subText: HTML window list, pre-formatted by main.qml (empty = name-only)
-    // Colours follow the scheme when followThemeColors (default), else the custom activeColor/inactiveColor/occupiedColor.
+    property string tooltipText: ""   // the window list as rich text; empty shows the name alone
     property bool followThemeColors: Logic.DEFAULTS.followThemeColors
     property color activeColor: Kirigami.Theme.highlightColor
     property color inactiveColor: Kirigami.Theme.textColor
-    property color occupiedColor: Kirigami.Theme.highlightColor   // occupied marker (custom; theme accent when following the scheme)
-    property int animationDuration: Logic.DEFAULTS.animationDuration  // ms; 0 = follow theme (resolved by effectiveDuration)
-    property bool vertical: false   // major axis: false = horizontal panel (widen), true = vertical (grow tall)
-    property bool animate: false    // morph gate, latched by the indicator after first valid placement (no grow-in on reload)
+    property color occupiedColor: Kirigami.Theme.highlightColor
+    property int animationDuration: Logic.DEFAULTS.animationDuration
+    property bool vertical: false   // the pill grows down rather than across
+    property bool animate: false    // false until the indicator's first placement, so a reload doesn't animate
 
-    // Extent along the MAJOR (strip) axis and the CROSS axis: capsule when active, dot otherwise.
     readonly property real longExtent: dot.active ? dot.pillWidth : dot.dotSize
     readonly property real crossExtent: dot.active ? dot.pillSize : dot.dotSize
 
-    // Resolved colours: the theme accent/text when following the scheme, else the custom config colours.
+    // Reading Kirigami.Theme here, not through the colour inputs, re-evaluates on a scheme change.
     readonly property color resolvedActive: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.activeColor
     readonly property color resolvedInactive: dot.followThemeColors ? Kirigami.Theme.textColor : dot.inactiveColor
     readonly property color resolvedOccupied: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.occupiedColor
-    // Occupied-indicator overlay flags (showOccupancy on) — both drawn ON TOP of the normal dim dot.
-    readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.occupancyStyle) // InnerDot style: occupied → centre dot
-    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle, dot.dotStyle)  // Ring occupancy overlay (suppressed in the Filled & ring look)
+    readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.occupancyStyle)
+    readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle, dot.dotStyle)
 
-    // "Filled & ring" style. The ring OUTLINE (hasRing) is decoupled from the INTERIOR (bodyIsHollow): a
-    // non-current dot always draws the ring border, and its interior is transparent UNLESS the Filled
-    // occupancy marker fills it (ringFilled → ring + filled background). Both false in the Pill style.
     readonly property bool ringStyle: Logic.isRingStyle(dot.dotStyle)
     readonly property bool hasRing: Logic.dotHasRing(dot.dotStyle, dot.active)
     readonly property bool bodyIsHollow: Logic.dotBodyIsHollow(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)
-    readonly property bool ringFilled: Logic.dotBodyFilled(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)   // occupied + Filled: ring outline + filled interior
-    // Filled-occupied ring interior: the occupied colour with its own alpha baked in (so the ring outline stays opaque). Only meaningful when ringFilled.
+    readonly property bool ringFilled: Logic.dotBodyFilled(dot.dotStyle, dot.active, dot.occupied, dot.occupancyStyle)
+    // The occupied opacity goes into the fill, so the ring's border stays opaque.
     readonly property color filledBodyColor: Qt.rgba(dot.resolvedOccupied.r, dot.resolvedOccupied.g, dot.resolvedOccupied.b, dot.occupiedOpacity)
 
-    // Morph duration: configured value, else themed default, 0 when "reduce animations" is on. One source for the Behaviors below.
     readonly property int effectiveDuration: Logic.effectiveDuration(dot.animationDuration, Kirigami.Units.longDuration)
     readonly property bool morphEnabled: dot.animate && dot.effectiveDuration > 0
 
     readonly property alias hovered: mouseArea.containsMouse
-    signal activated   // emitted on click; the indicator turns it into a switch request
+    signal activated   // a click or an assistive technology's press
 
-    // Accessibility: announced to Orca etc. as a button named after the desktop, checkable/checked
-    // mirroring `active` so an AT can tell WHICH dot is current; press routes through activated() like a click.
+    // Every dot is the same kind of button to a screen reader, so the checked state tells the current one apart.
     Accessible.role: Accessible.Button
     Accessible.name: dot.desktopName
     Accessible.checkable: true
     Accessible.checked: dot.active
     Accessible.onPressAction: dot.activated()
 
-    // Footprint tracks the (possibly animating) capsule on both axes so the strip reflows smoothly.
+    // Follows the animating capsule, so the line reflows through the morph.
     implicitWidth: capsule.width
     implicitHeight: capsule.height
 
-    // Per-dot tooltip (wrapping the content is canonical). Gated by showTooltips + a non-empty name (no empty tooltips while names lag ids).
+    // A tooltip per dot: one around the whole strip showed over the pill and broke the applet's sizing.
     PlasmaCore.ToolTipArea {
         id: tooltip
         anchors.fill: parent
         active: dot.showTooltips && dot.desktopName !== ""
         mainText: dot.desktopName
         subText: dot.tooltipText
-        textFormat: Text.RichText   // window list is an HTML <ul>, like the stock pager
+        textFormat: Text.RichText
 
-        // The dot/capsule. radius is min(width,height)/2 — orientation-agnostic stadium ends. Size
-        // bindings are independent ternaries (no own/parent geometry), so no loop with implicitWidth/Height.
+        // Each size is a ternary over inputs, never its own or the parent's geometry, so it can't loop
+        // with implicitWidth.
         Rectangle {
             id: capsule
             width: dot.vertical ? dot.crossExtent : dot.longExtent
             height: dot.vertical ? dot.longExtent : dot.crossExtent
             radius: Math.min(capsule.width, capsule.height) / 2
             anchors.centerIn: parent
-            // The dot body. Pill style: the active capsule, a Filled-occupied dot, or the dim dot (dotColor).
-            // "Filled & ring" style: a hollow interior (transparent), OR a Filled-occupied interior (occupied
-            // colour at occupiedOpacity, baked into the fill so the ring border below stays crisp), else dotColor.
             color: dot.bodyIsHollow ? "transparent"
                  : dot.ringFilled ? dot.filledBodyColor
                  : Logic.dotColor(dot.active, dot.occupied, dot.occupancyStyle, dot.resolvedActive, dot.resolvedInactive, dot.resolvedOccupied)
-            // Ring outline: drawn for every non-current dot in the Filled & ring style (in the dim/inactive colour), independent of the fill.
             border.width: dot.hasRing ? Logic.ringThickness(dot.dotSize) : 0
             border.color: dot.resolvedInactive
-            // In the Filled & ring style the body is full opacity (crisp rings; the occupied fill carries its own alpha above); the Pill style uses the dim/hover/occupied logic.
+            // The ring style draws at full opacity for crisp rings; its occupied fill carries its own.
             opacity: dot.ringStyle ? 1.0 : Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.occupied, dot.occupancyStyle, dot.inactiveOpacity, dot.hoverOpacity, dot.occupiedOpacity)
 
-            // Morph, gated by morphEnabled. The major axis always morphs; the cross axis too when pillSize != dotSize (so width and/or height fire).
             Behavior on width {
                 enabled: dot.morphEnabled
                 NumberAnimation {
@@ -134,7 +118,6 @@ Item {
                     duration: dot.effectiveDuration
                 }
             }
-            // Ring⇄fill: the border grows/shrinks as a dot switches between hollow-ring and filled in the "Filled & ring" style.
             Behavior on border.width {
                 enabled: dot.morphEnabled
                 NumberAnimation {
@@ -150,10 +133,8 @@ Item {
             }
         }
 
-        // Occupied-dot overlay (InnerDot / Ring styles), drawn ON TOP of the dim dot. Behind a Loader so when
-        // occupancy is off (the default) NEITHER Rectangle exists — the dot then carries no extra scene-graph
-        // nodes. Only the style in use is built (showInnerDot/showRing are mutually exclusive, both false when
-        // active or Filled). A sibling of the capsule (its own opacity); centred on the CAPSULE for exact placement.
+        // Behind a Loader, so with the markers off, the default, no dot builds either one. A sibling of the
+        // capsule rather than its child, to keep an opacity of its own.
         Loader {
             id: occupancyOverlay
             anchors.centerIn: capsule
@@ -161,7 +142,6 @@ Item {
             sourceComponent: dot.showRing ? ringComponent : innerDotComponent
         }
 
-        // InnerDot style: a small occupied-colour dot in the dot's centre. Uses the occupied-opacity slider, like the other styles.
         Component {
             id: innerDotComponent
             Rectangle {
@@ -173,7 +153,6 @@ Item {
             }
         }
 
-        // Ring style: a hollow occupied-colour ring at the dot's rim (the dim dot stays visible behind it). Uses the occupied-opacity slider, like the other styles.
         Component {
             id: ringComponent
             Rectangle {
@@ -187,8 +166,7 @@ Item {
             }
         }
 
-        // Click/hover target. acceptedButtons stays LeftButton (default) so a right-click falls
-        // through to the applet's context menu.
+        // The left button only, so a right-click reaches the applet's context menu.
         MouseArea {
             id: mouseArea
             anchors.fill: parent

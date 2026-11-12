@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Plasma Gnome Pager — configuration schema (KConfigXT)
-
   SPDX-FileCopyrightText: 2026 Kenan Salar
   SPDX-License-Identifier: GPL-3.0-or-later
 
-  Each <entry name="X"> becomes plasmoid.configuration.X, read live in main.qml (with a `?? <default>`
-  guard) and passed down as a plain value. Three keys use a `0 = auto` sentinel — their natural default is
-  theme/HiDPI-derived, which a fixed KConfigXT literal can't hold, so it's resolved in the widget: dotSize,
-  pillSize (→ match the dots), animationDuration (→ Kirigami.Units.longDuration). See CLAUDE.md "Config flow".
+  The settings schema, each entry's comment its one documented meaning; Logic.DEFAULTS mirrors the
+  defaults. A default the theme or the display scale decides is 0 = auto, resolved in the widget, as a
+  KConfigXT default can only be a fixed literal.
 -->
 <kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -29,8 +26,8 @@
         <entry name="invertScroll" type="Bool">
             <default>false</default>
         </entry>
-        <!-- What clicking the ALREADY-CURRENT desktop does. Index mirrors Logic.PILL_CLICK_ACTION + the combo
-             order: 0 = None, 1 = Show Desktop, 2 = Overview, 3 = Grid. Clicking an inactive dot still switches. -->
+        <!-- What clicking the current desktop does, an index into Logic.PILL_CLICK_ACTION and the combo:
+             0 = None, 1 = Show Desktop, 2 = Overview, 3 = Grid. Clicking another desktop still switches. -->
         <entry name="pillClickAction" type="Int">
             <default>0</default>
         </entry>
@@ -70,20 +67,17 @@
     </group>
 
     <group name="Appearance">
-        <!-- Overall pager look. Index mirrors Logic.DOT_STYLE + the combo order:
-             0 = Sliding pill (GNOME reflow), 1 = Filled & ring (no pill; current = filled dot, others = hollow rings). -->
+        <!-- The overall look, an index into Logic.DOT_STYLE and the combo: 0 = Sliding pill,
+             1 = Filled & ring (no pill; the current desktop a filled dot, the others hollow rings). -->
         <entry name="dotStyle" type="Int">
             <default>0</default>
         </entry>
-        <!-- Ignore KWin's virtual-desktop grid rows and lay every desktop out in ONE line. Off = honour the grid
-             (mirror "Rows" from System Settings). Orthogonal to matchDesktopGrid (which sets the direction): single
-             line alone is a vertical strip on a vertical panel; single line + matchDesktopGrid is one horizontal row. -->
+        <!-- Lay every desktop out in one line, ignoring the grid rows set in System Settings. -->
         <entry name="singleLine" type="Bool">
             <default>false</default>
         </entry>
-        <!-- Vertical panels: run the layout ACROSS the panel instead of down it — for a multi-row grid this mirrors
-             KWin's orientation (rows top-to-bottom); with singleLine it makes the one line horizontal. Off = the
-             GNOME-reflow look (run down the panel). No effect on a horizontal panel (already runs across). -->
+        <!-- On a vertical panel, run the lines across it rather than down: a grid keeps KWin's orientation,
+             and with singleLine the one line is horizontal. No effect on a horizontal panel. -->
         <entry name="matchDesktopGrid" type="Bool">
             <default>false</default>
         </entry>
@@ -119,12 +113,12 @@
         <entry name="hoverBackgroundOpacity" type="Double">
             <default>0.12</default>
         </entry>
-        <!-- Extra background length at EACH end of the strip, as a multiple of the pill thickness. -->
+        <!-- Extra background length at each end of the strip, as a multiple of the pill thickness. -->
         <entry name="hoverLengthFactor" type="Double">
             <default>1.0</default>
         </entry>
-        <!-- Extra background thickness on EACH side of the strip, likewise a multiple of the pill thickness
-             (1.0 makes the background 3x the pill thick, matching GNOME). Capped at the panel thickness. -->
+        <!-- Extra background thickness on each side of the strip, likewise a multiple of the pill thickness,
+             capped at the panel's. 1.0 makes the background three pills thick, which matches GNOME. -->
         <entry name="hoverThicknessFactor" type="Double">
             <default>1.0</default>
         </entry>
@@ -136,8 +130,8 @@
         <entry name="occupiedOpacity" type="Double">
             <default>0.7</default>
         </entry>
-        <!-- How an occupied dot is marked (showOccupancy on). Index mirrors Logic.OCCUPANCY + the combo order:
-             0 = Filled (whole dot), 1 = Inner dot, 2 = Hollow ring. All use occupiedOpacity + the occupied colour. -->
+        <!-- How an occupied dot is marked, an index into Logic.OCCUPANCY and the combo: 0 = Filled (the
+             whole dot), 1 = Inner dot, 2 = Hollow ring. Each uses occupiedOpacity and the occupied colour. -->
         <entry name="occupancyStyle" type="Int">
             <default>0</default>
         </entry>

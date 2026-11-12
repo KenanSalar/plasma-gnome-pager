@@ -1,14 +1,8 @@
 /*
- * Plasma Gnome Pager — tst_configpercentslider.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * UNIT test for ConfigPercentSlider — the ConfigSlider preset behind the four 0..1 opacity keys. It adds
- * no logic of its own, so this pins exactly what the four call sites stopped repeating: the range, the
- * 1% step, and the percentage read-out. Pure QtQuick/QQC2/Kirigami, so it loads headless like its base.
- *
- * Run with `make check-unit` (or `make check`), which sets QT_QPA_PLATFORM=offscreen.
+ * ConfigPercentSlider, built on its own: the range, step and read-out every opacity row shares.
  */
 import QtQuick
 import QtTest
@@ -31,7 +25,6 @@ TestCase {
         return createTemporaryObject(percentComponent, testCase, props || {});
     }
 
-    // The full opacity range at 1% granularity — the four opacity rows now share ONE definition of it.
     function test_rangeAndStepArePreset() {
         const cps = makePercentSlider({ label: "Inactive opacity:" });
         compare(cps.from, 0.0, "starts fully transparent");
@@ -39,7 +32,6 @@ TestCase {
         fuzzyCompare(cps.stepSize, 0.01, 0.0001, "1% increments (drag or arrow keys)");
     }
 
-    // The read-out the preset exists for: a 0..1 fraction shown as a whole percentage.
     function test_formatsAsWholePercent() {
         const cps = makePercentSlider({ label: "Hover opacity:" });
         compare(cps.format(0), "0%", "the low end");
@@ -48,7 +40,6 @@ TestCase {
         compare(cps.format(0.125), "13%", "rounds to a whole percent rather than showing a fraction");
     }
 
-    // The read-out is live — the inherited ConfigSlider machinery still drives it through the preset.
     function test_valueLabelTracksTheValue() {
         const cps = makePercentSlider({ label: "Occupied opacity:", value: 0.7 });
         var valueLabel = null;

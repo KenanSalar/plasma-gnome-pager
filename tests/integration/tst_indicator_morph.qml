@@ -1,13 +1,9 @@
 /*
- * Plasma Gnome Pager — tst_indicator_morph.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Reflow / morph: dot↔capsule mapping, the active-element capsule invariants, switch/add/remove,
- * and the animate latch.
- * Derives from the shared IndicatorTestCase (tests/shared/) for the fixtures: the component
- * factory, the VirtualDesktopInfo doubles, the switchRequested spy, and the dot-tree locators.
+ * A built WorkspaceIndicator on VdiMock: which dot is the pill as the desktops change by any means,
+ * and the morph between them.
  */
 import "../shared"
 import "../../package/contents/ui/logic.js" as Logic
@@ -17,21 +13,18 @@ IndicatorTestCase {
     id: morphCase
     name: "IndicatorMorph"
 
-    // One dot per desktop UUID in the source.
     function test_dotCountMatchesDesktops() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         verify(indicator, "indicator created");
         compare(collectDots(indicator).length, ids.length);
     }
 
-    // robustness.md: a null source (transient) must yield an empty strip, never an error or stray dot.
     function test_nullSourceProducesNoDots() {
         const indicator = makeIndicator(null);
         verify(indicator, "indicator created");
         compare(collectDots(indicator).length, 0);
     }
 
-    // Exactly the dot whose UUID equals currentDesktop is active.
     function test_activeMapping() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator);
@@ -44,13 +37,12 @@ IndicatorTestCase {
         compare(activeCount, 1, "exactly one dot is active");
     }
 
-    // Clicking a dot must forward switchRequested(uuid) up to main.qml unchanged.
     function test_clickForwardsUuid() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         switchSpy.target = indicator;
         switchSpy.clear();
 
-        // Pick an inactive dot (ids[0]) so a stale/no-op binding couldn't accidentally pass.
+        // An inactive dot, so a binding that never updates can't pass by accident.
         const dots = collectDots(indicator);
         let target = null;
         for (let i = 0; i < dots.length; i++)
@@ -58,20 +50,16 @@ IndicatorTestCase {
                 target = dots[i];
         verify(target, "found the first dot");
 
-        target.activated();   // signals are callable — emits without flaky headless mouse sim
+        target.activated();
         compare(switchSpy.count, 1, "switchRequested fired once");
         compare(switchSpy.signalArguments[0][0], ids[0], "forwarded the clicked UUID");
     }
 
-    // The reflow capsule (the active element morphs to a pill)
-
-    // activeIndex maps currentDesktop to its position in desktopIds.
     function test_activeIndexMapping() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         compare(indicator.activeIndex, 1, "middle desktop (uuid-b) is index 1");
     }
 
-    // The active element is the wide capsule (pillWidth); every inactive element is a dot.
     function test_activeElementIsCapsuleInactiveAreDots() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         for (let i = 0; i < ids.length; i++) {
@@ -81,7 +69,6 @@ IndicatorTestCase {
         }
     }
 
-    // Exactly one element is the capsule; the rest are dots.
     function test_exactlyOneCapsule() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         const dots = collectDots(indicator);
@@ -95,7 +82,7 @@ IndicatorTestCase {
         compare(plain, ids.length - 1, "all other elements are dots");
     }
 
-    // robustness.md: a null source yields no elements, and the cell falls back to one dot wide (not 0).
+    // A cell of width 0 would vanish from the panel.
     function test_nullSourceNoCapsule() {
         const indicator = makeIndicator(null);
         compare(indicator.activeIndex, -1, "no active index without a source");
@@ -103,8 +90,7 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.dotSize + 2 * indicator.hoverPadding, 0.5, "cell falls back to one dot wide");
     }
 
-    // robustness.md: currentDesktop not (yet) in desktopIds → no capsule, and the advertised width stays
-    // at the steady-state value so the panel cell does NOT jitter while the active element is unknown.
+    // The current desktop missing from the list, as during an add or remove; the cell mustn't jump.
     function test_transientStaleNoCapsuleWidthStable() {
         const indicator = makeIndicator(makeMock(ids, staleUuid));
         compare(indicator.activeIndex, -1, "stale currentDesktop maps to -1");
@@ -115,8 +101,6 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, steady + 2 * indicator.hoverPadding, 0.5, "cell stays at the steady-state width");
     }
 
-    // Uniform spacing: the gap between EVERY adjacent pair (dot-dot and capsule-dot) equals the Row
-    // spacing (the GNOME look; positive gaps also prove no overlap).
     function test_uniformSpacing() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));   // middle is the capsule
         const dots = dotsByIndex(indicator);
@@ -127,23 +111,20 @@ IndicatorTestCase {
         }
     }
 
-    // Reactivity: the "bind, don't cache" contract. The indicator reads desktop state live, so a change
-    // by ANY means (modelled by mutating the mock) must update the UI — these fail if a binding is cached.
+    // A change made outside the widget, by keyboard or another pager, arrives as the mock changing.
 
-    // Switching the current desktop moves the `active` flag to the new dot (and only it).
     function test_switchUpdatesActiveDot() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
         verify(dotByUuid(indicator, ids[0]).active, "first dot active initially");
         verify(!dotByUuid(indicator, ids[2]).active, "third dot inactive initially");
 
-        vdi.currentDesktop = ids[2];   // e.g. a keyboard switch reported by VirtualDesktopInfo
+        vdi.currentDesktop = ids[2];
 
         compare(dotByUuid(indicator, ids[0]).active, false, "old dot deactivates");
         compare(dotByUuid(indicator, ids[2]).active, true, "new dot activates");
     }
 
-    // Switching morphs the capsule: the new current grows to pillWidth, the old shrinks to dotSize.
     function test_morphOnSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
@@ -157,7 +138,6 @@ IndicatorTestCase {
         }, 2000, "capsule morphs onto the newly current element; the old shrinks to a dot");
     }
 
-    // Adding a desktop (desktopIds grows) adds a dot reactively; the current index is kept.
     function test_addDesktopAddsDot() {
         const vdi = makeMock([ids[0], ids[1]], ids[0]);
         const indicator = makeIndicator(vdi);
@@ -171,7 +151,6 @@ IndicatorTestCase {
         compare(indicator.activeIndex, 0, "current desktop's index is unchanged by an append");
     }
 
-    // Removing a desktop drops a dot; the capsule re-tracks the still-current desktop at its new index.
     function test_removeDesktopRemovesDot() {
         const vdi = makeMock(ids, ids[2]);   // current is the last desktop
         const indicator = makeIndicator(vdi);
@@ -188,28 +167,19 @@ IndicatorTestCase {
         }, 2000, "the surviving current desktop is the capsule");
     }
 
-    // Plasma 6.7: per-screen current desktop. Each output can show a different current; the indicator
-    // resolves the current FOR ITS screen (currentDesktopByScreenName, falling back to global). These
-    // prove the active dot reflects this screen, another screen's switch doesn't move this pill, and this
-    // screen's own switch is reactive.
-
-    // Created with a valid current desktop: the latch is already set (Component.onCompleted).
     function test_animateLatchedOnValidStart() {
         const indicator = makeIndicator(makeMock(ids, currentUuid));
         compare(indicator.animate, true, "morph latched on a valid initial placement");
     }
 
-    // No active element, then a source arrives: the latch enables via the onActiveIndexChanged +
-    // Qt.callLater deferral (first placement still instant).
     function test_animateDefersFromInvalidStart() {
-        const indicator = makeIndicator(null);   // no source → activeIndex -1
+        const indicator = makeIndicator(null);
         compare(indicator.animate, false, "morph disabled while there is no active element");
 
-        indicator.virtualDesktopInfo = makeMock(ids, currentUuid);   // source populates a frame later
+        indicator.virtualDesktopInfo = makeMock(ids, currentUuid);   // as if a frame late
         tryCompare(indicator, "animate", true, 2000, "morph enables once a valid element first appears");
     }
 
-    // Once latched true, a transient loss of the active element must NOT reset the latch to false.
     function test_animateIsOneWayLatch() {
         const vdi = makeMock(ids, currentUuid);
         const indicator = makeIndicator(vdi);
@@ -221,14 +191,12 @@ IndicatorTestCase {
         compare(indicator.animate, true, "animate never returns to false");
     }
 
-    // First placement is instant: created at the LAST desktop, that element is a capsule on frame 0.
     function test_firstPlacementIsImmediate() {
         const indicator = makeIndicator(makeMock(ids, ids[2]));
         fuzzyCompare(dotByUuid(indicator, ids[2]).width, indicator.pillWidth, 0.5,
                      "active element is already a capsule on first placement");
     }
 
-    // activeIndex edge cases (data-driven): -1 for every transient/invalid state, the element index otherwise.
     function test_activeIndex_data() {
         return [
             { tag: "empty-ids", desktops: [], current: "uuid-x", expected: -1 },
@@ -243,9 +211,7 @@ IndicatorTestCase {
         compare(indicator.activeIndex, data.expected, data.tag);
     }
 
-    // geometry edge cases
-
-    // The advertised width holds the whole strip, so the end elements never clip past the edges.
+    // geometry
     function test_noClipAtEnds() {
         const many = [ids[0], ids[1], ids[2], "uuid-d", "uuid-e", "uuid-f"];
 
@@ -261,7 +227,6 @@ IndicatorTestCase {
         verify(lastRight <= atLast.width + 0.5, "last element does not clip past the right edge");
     }
 
-    // A single desktop: one element, active, rendered as the capsule; the cell is one pill wide.
     function test_singleDesktop() {
         const indicator = makeIndicator(makeMock(["uuid-solo"], "uuid-solo"));
         compare(collectDots(indicator).length, 1, "exactly one element");
@@ -270,8 +235,7 @@ IndicatorTestCase {
         fuzzyCompare(indicator.implicitWidth, indicator.pillWidth + 2 * indicator.hoverPadding, 0.5, "cell is one capsule wide");
     }
 
-    // Clicking the active capsule raises activeClicked (the pill-click action), NOT a switch — and the
-    // whole capsule is the hit area. Real synthesized click (the e2e variant of the input-suite signal test).
+    // A real click this time, which also proves the whole pill takes it.
     function test_clickActiveCapsuleEmitsActiveClicked() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { width: 200, height: 50 });
         switchSpy.target = indicator;
@@ -287,12 +251,6 @@ IndicatorTestCase {
         compare(switchSpy.count, 0, "and does NOT switch (you are already on it)");
     }
 
-    // scroll-to-switch: the indicator forwards a wheel step as switchRequested(uuid); the index math is
-    // unit-tested in tst_logic, so here we assert the wiring (direction, enable/wrap flags, clamped no-ops,
-    // sub-notch accumulation). Wheel DOWN → next desktop; wheel UP → previous.
-
-    // The animate latch gates each dot's morph: the latch + configured duration resolve into each dot's
-    // morphEnabled (animate && effectiveDuration > 0). Wiring check.
     function test_morphGateFlowsThroughToDots() {
         const indicator = makeIndicator(makeMock(ids, currentUuid), { animationDuration: 200 });
         compare(indicator.animate, true, "latch is on for a valid initial placement");
@@ -302,7 +260,7 @@ IndicatorTestCase {
                     "dot " + i + " morph gate matches latch && duration");
     }
 
-    // robustness.md: an empty desktopIds ARRAY (vs a null source) must yield no dots and a one-dot cell.
+    // An empty list rather than a missing source.
     function test_emptyDesktopIdsArrayProducesNoDots() {
         const indicator = makeIndicator(makeMock([], ""));
         compare(collectDots(indicator).length, 0, "an empty desktopIds array yields no dots");
@@ -312,7 +270,6 @@ IndicatorTestCase {
         verify(isFinite(indicator.dotSize) && indicator.dotSize > 0, "effective dot size stays finite/positive (no NaN)");
     }
 
-    // Many desktops on a single line: every dot renders and the natural strip grows linearly.
     function test_manyDesktopsRenderAllDots() {
         const big = manyIds(20);
         const indicator = makeIndicator(makeMock(big, big[0]));
@@ -323,14 +280,12 @@ IndicatorTestCase {
         fuzzyCompare(indicator.naturalStripLength, expected, 0.5, "natural strip length matches the formula for 20 desktops");
     }
 
-    // Rapid back-to-back switches (a burst fired mid-morph) must converge to one capsule on the final
-    // target and never throw (the one-way latch + idempotent recompute settle deterministically).
     function test_rapidSwitchingConvergesToOneCapsule() {
         const indicator = makeIndicator(makeMock(fiveIds, fiveIds[0]), { animationDuration: 200 });
         const vdi = indicator.virtualDesktopInfo;
         for (let n = 0; n < 12; n++)
-            vdi.currentDesktop = fiveIds[n % fiveIds.length];   // storm of changes, no settle between
-        vdi.currentDesktop = fiveIds[3];                        // final target
+            vdi.currentDesktop = fiveIds[n % fiveIds.length];   // no time to settle in between
+        vdi.currentDesktop = fiveIds[3];
         tryCompare(indicator, "activeIndex", 3, 2000, "activeIndex converges to the final target");
         tryVerify(() => {
             const dots = collectDots(indicator);
@@ -344,56 +299,47 @@ IndicatorTestCase {
                   2000, "the final desktop morphs to the capsule width");
     }
 
-    // scale-to-fit: the floor clamp and the no-scale-up guarantee. These pin the two ends of
-    // `dotSize = max(minDotSize, min(naturalDotSize, fitDotSize))`.
-
-    // The advertised width is a position-independent FORMULA (a switch trades one growing element for a
-    // shrinking one), so it must NOT change across a switch — the panel cell never jitters.
+    // The panel cell mustn't jump on a switch.
     function test_implicitWidthConservedAcrossSwitch() {
         const vdi = makeMock(ids, ids[0]);
         const indicator = makeIndicator(vdi);
         const before = indicator.implicitWidth;
         verify(before > 0, "has a positive content width");
 
-        vdi.currentDesktop = ids[2];   // move the capsule to the far end
+        vdi.currentDesktop = ids[2];
         tryCompare(indicator, "activeIndex", 2, 2000, "the switch registered");
         fuzzyCompare(indicator.implicitWidth, before, 0.5, "advertised width is conserved across the switch");
     }
 
-    // Multi-row "breathing" fix, observed DURING the morph: a cross-row switch animates the capsule from line 0
-    // to line 1; a non-morphing dot in the gaining line must hold its position the whole time. Reference dot[3]
-    // is the leftmost of line 1 — never a capsule here (current goes 0 → 5) and left of the growing dot[5], so it
-    // never reflows; its only possible motion source is the strip resizing+recentering. Before the fix the strip
-    // dips by Δ/2 at the morph midpoint and the dot drifts ~Δ/4; after the fix the pinned strip never moves.
+    // A strip sized by its content shrank halfway through a switch between rows and dragged every dot as
+    // it re-centred. Dot 3 never morphs and sits left of the growing dot 5, so only the strip can move it.
     function test_crossRowMorphDoesNotDriftOtherDots() {
         const vdi = makeMock(sixIds, sixIds[0], [], 2);   // 2 rows → lines [0,1,2],[3,4,5]
         const indicator = makeIndicator(vdi, { animationDuration: 600, width: 400, height: 200, dotSizeRequest: 16, pillWidthFactor: 4 });
-        const ref = dotsByIndex(indicator)[3];            // leftmost of line 1 (cached; not destroyed by the switch)
+        const ref = dotsByIndex(indicator)[3];            // a switch doesn't destroy it, so it can be held
         const before = ref.mapToItem(indicator, 0, 0).x;
 
-        vdi.currentDesktop = sixIds[5];                   // cross-row switch: capsule line 0 → line 1
+        vdi.currentDesktop = sixIds[5];
         let maxDrift = 0;
-        for (let i = 0; i < 8; i++) {                     // sample ~400ms of the 600ms morph, incl. the f≈0.5 dip
+        for (let i = 0; i < 8; i++) {                     // through the middle of the morph, where the dip was
             wait(50);
             maxDrift = Math.max(maxDrift, Math.abs(ref.mapToItem(indicator, 0, 0).x - before));
         }
         verify(maxDrift <= 0.75, "a non-morphing dot stays put during a cross-row morph (max drift " + maxDrift.toFixed(2) + " px)");
     }
 
-    // robustness.md: a populated → empty → populated round-trip. No dots while empty, the size stays
-    // finite, the one-way latch survives, and exactly one capsule returns on repopulation.
     function test_transientEmptyIdsThenRepopulate() {
         const vdi = makeMock(ids, currentUuid);
         const indicator = makeIndicator(vdi);
         compare(collectDots(indicator).length, 3, "three dots at start");
         compare(indicator.animate, true, "latched at a valid start");
 
-        vdi.desktopIds = [];   // transient empty frame
+        vdi.desktopIds = [];
         compare(collectDots(indicator).length, 0, "no dots while ids are empty");
         verify(isFinite(indicator.dotSize) && indicator.dotSize > 0, "dot size stays finite/positive on the empty frame");
         compare(indicator.animate, true, "the one-way latch survives the empty frame");
 
-        vdi.desktopIds = ids;   // ids come back
+        vdi.desktopIds = ids;
         tryVerify(() => collectDots(indicator).length === 3, 2000, "dots return when ids repopulate");
         tryVerify(() => Elements.countCapsules(collectDots(indicator), indicator.pillWidth) === 1,
                   2000, "exactly one capsule after repopulation");

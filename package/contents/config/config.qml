@@ -1,11 +1,9 @@
 /*
- * Plasma Gnome Pager — config.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The settings dialog's category list. ConfigCategory.source resolves relative to contents/ui/, so the
- * pages live in contents/ui/config/ while this file + main.xml live in contents/config/ (plasmoid.md).
+ * The settings dialog's pages. ConfigCategory.source resolves against contents/ui/, which is why the
+ * pages live in contents/ui/config/ and not beside this file.
  */
 import org.kde.plasma.configuration
 

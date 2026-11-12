@@ -1,12 +1,10 @@
 /*
- * Plasma Gnome Pager — ConfigSlider.qml (reusable config-page control)
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * A FormLayout row of a Slider + a right-hand value read-out. One `format` closure (value → string) drives
- * BOTH the read-out AND its reserved width (widest of from/to) so the label can't reflow mid-drag. The
- * track is a FIXED width (NOT fillWidth) so sliders match across both pages; the value label absorbs slack.
+ * A slider row with its value read out on the right. format gives both the read-out and the width kept
+ * for it, the wider of the two ends, so the row doesn't reflow while dragging. The track has a fixed
+ * length, so sliders match across pages whose label columns differ.
  */
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -23,29 +21,26 @@ RowLayout {
     property alias to: slider.to
     property alias stepSize: slider.stepSize
     property alias snapMode: slider.snapMode
-    property string label: ""              // the row's Kirigami.FormData label
-    property var format: (v) => String(v)  // value → read-out string (drives text AND reserved width)
+    property string label: ""
+    property var format: (v) => String(v)
 
-    // Fixed track length, the shared field-column metric so every row's field column lines up.
     readonly property int trackWidth: Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS
 
     Kirigami.FormData.label: root.label
 
     QQC2.Slider {
         id: slider
-        // Fixed track length (NOT fillWidth): a fillWidth track would stretch wider on the Behavior page's long labels. min == preferred so it can't shrink.
         Layout.preferredWidth: root.trackWidth
         Layout.minimumWidth: root.trackWidth
-        snapMode: QQC2.Slider.SnapAlways   // clean increments even when dragged (override via alias)
+        snapMode: QQC2.Slider.SnapAlways
     }
 
     QQC2.Label {
         id: valueLabel
         text: root.format(slider.value)
         horizontalAlignment: Text.AlignRight
-        // fillWidth so extra column width is absorbed here — the right-aligned read-out pins to the column edge and the slider keeps its length.
+        // Takes the column's slack, so the track keeps its length.
         Layout.fillWidth: true
-        // Reserve the widest the read-out can get (+ buffer) so the cell never resizes mid-drag.
         Layout.minimumWidth: Math.max(valueMetricsFrom.advanceWidth, valueMetricsTo.advanceWidth) + Kirigami.Units.smallSpacing
         Layout.preferredWidth: Layout.minimumWidth
 

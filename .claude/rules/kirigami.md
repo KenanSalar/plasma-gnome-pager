@@ -1,64 +1,24 @@
-# Kirigami (Units, Theme, Components) Best Practices
+---
+paths:
+  - "**/*.qml"
+---
 
-In Plasma 6, sizing, theming, and several stock items moved from `PlasmaCore` to **Kirigami**.
-Using the old `PlasmaCore.*` equivalents breaks on Plasma 6 (see `robustness.md`).
+# Kirigami
 
-```qml
-import org.kde.kirigami as Kirigami
-```
+Plasma 6 moved units and theme from `PlasmaCore` to Kirigami (`import org.kde.kirigami as Kirigami`).
 
-## Units (HiDPI — never hardcode pixels)
-
-- `Kirigami.Units.gridUnit` — base metric (~ one line of text). Size things in multiples of it.
-- `Kirigami.Units.smallSpacing` / `largeSpacing` — standard gaps (use for dot spacing/margins).
-- `Kirigami.Units.iconSizes.{small,smallMedium,medium,large,...}` — themed icon dimensions.
-- `Kirigami.Units.{shortDuration,longDuration}` — standard animation durations; bind animation
-  times to these so motion matches the rest of Plasma. Respect the user's "reduce animations"
-  setting via `Kirigami.Units.longDuration === 0` (it goes to 0 when animations are off — guard
-  divisions).
-- These already account for the device pixel ratio — do **not** multiply by a DPR yourself.
-  Replaces Plasma 5's `PlasmaCore.Units` and manual `devicePixelRatio` math.
-
-## Theme (colors)
-
-- `Kirigami.Theme.textColor`, `highlightColor`, `backgroundColor`, `disabledTextColor`,
-  `highlightedTextColor`, `positiveTextColor`, etc. Replaces `PlasmaCore.Theme` /
-  `PlasmaCore.ColorScope`.
-- For the GNOME look: inactive dots = `Kirigami.Theme.textColor` at reduced opacity; the active
-  pill = `Kirigami.Theme.highlightColor`. Binding to the theme means the widget follows the
-  user's color scheme automatically.
-- **Color set**: choose the palette context with
-  `Kirigami.Theme.colorSet = Kirigami.Theme.{View,Window,Button,Complementary,Header}` and
-  `Kirigami.Theme.inherit = false` to pin it. Panel widgets typically want the default; only
-  override if colors look wrong against the panel.
-- When "follow theme" is off in config, fall back to the user's `activeColor`/`inactiveColor`
-  config entries instead of the theme bindings.
-
-## Icons
-
-- `Kirigami.Icon { source: "user-desktop" }` — themed icon by name; replaces
-  `PlasmaCore.IconItem`. Size with `Kirigami.Units.iconSizes.*`. Source can be an icon name,
-  a file path, or a URL.
-
-## Config forms
-
-- Build settings pages with `Kirigami.FormLayout` + `QtQuick.Controls as QQC2` controls
-  (CheckBox, SpinBox, ComboBox, etc.). Label rows with
-  `Kirigami.FormData.label: i18n("…:")`. Do **not** use `PlasmaComponents` controls on config
-  pages. Full pattern in `plasmoid.md`.
-- For a color picker on a config page, use a `QQC2`/Kirigami color control bound to a
-  `cfg_<key>` of `type="Color"`.
-
-## Headings & text
-
-- `Kirigami.Heading { level: 1..5 }` replaces `PlasmaExtras.Heading`. For body text inside the
-  applet prefer `PlasmaComponents3.Label` (panel-themed); on config pages use `QQC2.Label`.
-
-## Pitfalls
-
-- **Hardcoded pixel sizes** don't scale on HiDPI/fractional-scaling and look wrong next to
-  native widgets — always go through `Kirigami.Units`.
-- **Hardcoded colors** ignore the color scheme — bind to `Kirigami.Theme` unless the user
-  explicitly opted into custom colors.
-- **Dividing by a duration** that can be 0 (animations disabled) — guard
-  `Kirigami.Units.longDuration` before using it as a divisor or rate.
+- **Sizes come from `Kirigami.Units`**: `gridUnit` for layout, `smallSpacing` and `largeSpacing`
+  for gaps, `iconSizes.small` for the default dot (half of it) and the legibility floor (a
+  quarter). They already include the device pixel ratio, so never multiply by it.
+- **Durations come from `Kirigami.Units.longDuration`**, which is `0` while the user has
+  animations reduced; `CLAUDE.md` says how a duration is resolved.
+- **Colours come from `Kirigami.Theme`**: `highlightColor` for the pill and the occupied marker,
+  `textColor` for the dots and the hover background. A custom colour applies only with
+  `followThemeColors` off, and the binding keeps reading `Kirigami.Theme` either way so a scheme
+  change re-evaluates it.
+- **Settings pages are `Kirigami.FormLayout` with `QQC2` controls**, each row labelled through
+  `Kirigami.FormData.label`; `PlasmaComponents3` is for inside the applet.
+- **`Kirigami.Dialog` and its subclasses need `applicationWindow()`**, which a plasmoid lacks;
+  `CLAUDE.md` names the replacement.
+- **Offscreen, `Kirigami.Theme.smallFont` resolves to the default font**, so a test can't tell the
+  two apart.

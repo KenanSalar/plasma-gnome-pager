@@ -1,15 +1,9 @@
 /*
- * Plasma Gnome Pager — tests/shared/VdiMock.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Shared test double for TaskManager.VirtualDesktopInfo. Duck-typed: exposes exactly the members
- * WorkspaceIndicator reads (.desktopIds/.currentDesktop/.desktopNames/.desktopLayoutRows + the Plasma 6.7
- * per-screen API + the Plasma 6.5 desktopPositionsChanged). Defaults model one desktop set with the
- * per-screen feature OFF (every screen == the global currentDesktop), so screen-agnostic tests stay valid;
- * per-screen tests set `perScreenCurrent` and emit `currentDesktopForScreenChanged`, and reorder tests call
- * `reorder(order)`. In tests/shared/ as the ONE canonical mock (not a tst_*.qml).
+ * The stand-in for TaskManager.VirtualDesktopInfo, duck-typed to the members the code reads. By default
+ * every screen shows the global current desktop, so a test that ignores screens needs nothing more.
  */
 import QtQuick
 
@@ -17,18 +11,17 @@ QtObject {
     property var desktopIds: []
     property string currentDesktop: ""
     property var desktopNames: []
-    property int desktopLayoutRows: 1   // KWin's row count; 1 = single line (default)
+    property int desktopLayoutRows: 1
 
-    // Maps a screen name -> its current desktop UUID; an absent screen falls back to the global
-    // currentDesktop. Empty by default (the per-screen feature OFF).
+    // Screen name to current desktop; a screen missing from it shows the global one.
     property var perScreenCurrent: ({})
     signal currentDesktopForScreenChanged(string screenName)
     function currentDesktopByScreenName(name) {
         return perScreenCurrent[name] !== undefined ? perScreenCurrent[name] : currentDesktop;
     }
 
-    // What libtaskmanager does when KWin moves a desktop: re-sort both lists IN PLACE, so neither
-    // desktopIdsChanged nor desktopNamesChanged fires, then emit only desktopPositionsChanged.
+    // As libtaskmanager does when KWin moves a desktop: both lists re-sorted in place, so neither of
+    // their changed signals fires, then desktopPositionsChanged alone.
     signal desktopPositionsChanged()
     function reorder(order) {
         const names = order.map(id => desktopNames[desktopIds.indexOf(id)]);

@@ -1,14 +1,9 @@
 /*
- * Plasma Gnome Pager — tst_configslider.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * UNIT test for ConfigSlider — the reusable config-page control (Slider + a right-hand value read-out).
- * Unlike the config PAGES (e2e-only — they need i18n/ColorButton), ConfigSlider is pure QtQuick/QQC2/
- * Kirigami, so it loads headless. Guards its contract: the alias bind-points, SnapAlways default, the
- * `format` closure, and — its reason to exist — the RESERVED read-out width (widest of format(from)/(to))
- * so the track never jitters mid-drag. Run with `make check-unit` (offscreen).
+ * ConfigSlider, built on its own: the aliases the dialog binds, the format, and the read-out width
+ * reserved so the row doesn't reflow mid-drag.
  */
 import QtQuick
 import QtTest
@@ -30,17 +25,15 @@ TestCase {
         Config.ConfigSlider {}
     }
 
-    // TextMetrics to independently reproduce the reserved-width formula (same font + format text).
+    // To measure the expected width apart from the component.
     TextMetrics { id: metricsFrom }
     TextMetrics { id: metricsTo }
 
-    // The single point that instantiates the component under test (auto-cleaned).
     function makeSlider(props) {
         return createTemporaryObject(sliderComponent, testCase, props || {});
     }
 
-    // ConfigSlider is a RowLayout whose two visual children are the inner Slider and the value Label.
-    // Duck-type them off `children` rather than relying on declaration order.
+    // Found by what each part carries, not by declaration order.
     function partsOf(cs) {
         var parts = { slider: null, valueLabel: null };
         for (var i = 0; i < cs.children.length; i++) {
@@ -53,7 +46,6 @@ TestCase {
         return parts;
     }
 
-    // SnapAlways is the component default (overridable via the alias).
     function test_defaultSnapModeIsSnapAlways() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 1 });
         const slider = partsOf(cs).slider;
@@ -61,8 +53,7 @@ TestCase {
         compare(slider.snapMode, QQC2.Slider.SnapAlways, "snapMode defaults to SnapAlways");
     }
 
-    // The dialog two-way binds via `property alias cfg_<key>: <id>.value` (+ from/to/stepSize/snapMode),
-    // so each alias must reach the inner Slider. On-grid values so SnapAlways is a no-op.
+    // The dialog binds each cfg_<key> through these aliases.
     function test_aliasesRoundTrip() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 10, snapMode: QQC2.Slider.NoSnap });
         const slider = partsOf(cs).slider;
@@ -72,12 +63,11 @@ TestCase {
         compare(slider.stepSize, 10, "stepSize alias reaches the slider");
         compare(slider.snapMode, QQC2.Slider.NoSnap, "snapMode alias overrides the default");
 
-        cs.value = 30;   // on-grid
+        cs.value = 30;   // on the grid, so no snap could move it
         compare(slider.value, 30, "value alias writes through to the slider");
         compare(cs.value, 30, "value alias reads back from the slider");
     }
 
-    // The default format is identity-to-string; the read-out shows the (stringified) value.
     function test_defaultFormatRendersValueAsString() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 1 });
         const valueLabel = partsOf(cs).valueLabel;
@@ -86,7 +76,6 @@ TestCase {
         compare(valueLabel.text, "42", "default format renders String(value)");
     }
 
-    // One `format` closure drives the live read-out; it updates as the value changes.
     function test_formatDrivesReadout() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 5, format: (v) => v + "%" });
         const valueLabel = partsOf(cs).valueLabel;
@@ -97,11 +86,9 @@ TestCase {
         compare(valueLabel.text, "80%", "read-out re-applies the format when value changes");
     }
 
-    // The reason to exist: the read-out width is RESERVED for the widest of format(from)/format(to) +
-    // smallSpacing, so the row never reflows while dragging. At the implicit size its rendered width IS the
-    // reserved width, so reproduce the formula independently and compare (the Layout.* hints aren't readable).
+    // At its implicit size the label's width is the reserved one; the Layout hints can't be read from here.
     function test_reservedWidthMatchesWidestExtreme() {
-        // "Default" (at from=0) is wider than "64 px" (at to), exercising the max() over the extremes.
+        // "Default" at from is wider than "64 px" at to, so the max has to pick from.
         const fmt = (v) => v === 0 ? "Default" : v + " px";
         const cs = makeSlider({ from: 0, to: 64, stepSize: 1, format: fmt });
         const valueLabel = partsOf(cs).valueLabel;
@@ -117,8 +104,6 @@ TestCase {
             "read-out width is reserved for the widest of format(from)/format(to) + smallSpacing");
     }
 
-    // The reserved width depends only on from/to, so it stays constant as the value sweeps the range (the
-    // anti-jitter invariant) even though the displayed strings differ in width ("0%" vs "100%").
     function test_reservedWidthStableAcrossValue() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 1, format: (v) => Math.round(v) + "%" });
         const valueLabel = partsOf(cs).valueLabel;
@@ -132,8 +117,6 @@ TestCase {
             "reserved read-out width is unchanged as the value sweeps from..to (no mid-drag jitter)");
     }
 
-    // The fixed track length (NOT fillWidth) so sliders match across both pages: it renders at trackWidth,
-    // the SHARED field-column metric ConfigPageBase and ConfigHint measure against too.
     function test_trackWidthIsFixedGridMetric() {
         const cs = makeSlider({ from: 0, to: 100, stepSize: 1 });
         const slider = partsOf(cs).slider;
@@ -144,7 +127,6 @@ TestCase {
             "slider renders at the fixed track width (not fill-width)");
     }
 
-    // The `label` property is the row's FormData label; it round-trips on the public surface.
     function test_labelPropertyRoundTrips() {
         const cs = makeSlider({ label: "Dot size:" });
         compare(cs.label, "Dot size:", "label property holds the supplied string");

@@ -1,12 +1,10 @@
 /*
- * Plasma Gnome Pager — RenameDialog.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Rename prompt — a panel-native PlasmaCore.Dialog (top-level Window), declared directly. NOT
- * Kirigami.PromptDialog, whose base parents to applicationWindow().overlay (undefined in a plasmoid → it
- * would clip to the thin panel). View only: the parent owns visualParent/location and the DBus write.
+ * The rename prompt, a top-level PlasmaCore.Dialog. Kirigami.PromptDialog would parent itself to
+ * applicationWindow().overlay, which a plasmoid lacks, and clip to the panel. The parent places it and
+ * makes the write.
  */
 pragma ComponentBehavior: Bound
 
@@ -26,9 +24,8 @@ PlasmaCore.Dialog {
     signal accepted(string uuid, string name)
 
     visible: false
-    hideOnWindowDeactivate: true            // click-away cancels
+    hideOnWindowDeactivate: true            // clicking away cancels
 
-    // Prefill with the current name, select-all and focus for immediate typing.
     function openFor(uuid, currentName) {
         renameDialog.targetUuid = uuid;
         renameField.text = currentName;
@@ -37,7 +34,7 @@ PlasmaCore.Dialog {
         renameField.forceActiveFocus();
     }
 
-    // Sanitize then emit. An empty/whitespace name (sanitize → "") keeps the prompt open; the parent re-sanitizes, so the write stays guarded.
+    // A blank name keeps the prompt open.
     function commit() {
         const clean = Logic.sanitizeDesktopName(renameField.text);
         if (clean === "") {

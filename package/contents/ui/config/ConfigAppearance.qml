@@ -1,16 +1,10 @@
 /*
- * Plasma Gnome Pager — ConfigAppearance.qml (Appearance settings page)
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The Appearance page, built on ConfigPageBase. Rows are grouped under ConfigSection headings; the first
- * control of a group carries no label of its own, since the heading names the group. Ratios use
- * ConfigSlider; dotSize/pillSize are integer sliders where 0 reads "Default"/"Match dots" (the 0 = auto
- * sentinel). Colours use ColorButton, lazy-loaded with the dialog so the import never affects the
- * always-on widget. Each `cfg_<key>` MUST match main.xml.
+ * The Appearance settings page.
  */
-pragma ComponentBehavior: Bound   // the occupancyStyle delegate references outer ids (occupancyStyle/root)
+pragma ComponentBehavior: Bound   // the occupancy combo's delegate reads outer ids
 
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -43,7 +37,7 @@ ConfigPageBase {
     property alias cfg_occupiedColor: occupiedColor.color
     property alias cfg_hoverBackgroundColor: hoverBackgroundColor.color
 
-    // Injected by the config dialog from the main.xml defaults; read by the Defaults handler below.
+    // The dialog sets these from main.xml.
     property int cfg_dotStyleDefault
     property bool cfg_singleLineDefault
     property bool cfg_matchDesktopGridDefault
@@ -66,8 +60,6 @@ ConfigPageBase {
     property color cfg_occupiedColorDefault
     property color cfg_hoverBackgroundColorDefault
 
-    // This page's keys + compare kind; ConfigPageBase binds isModified + the Defaults reset off it
-    // (reals within epsilon, colours via Qt.colorEqual).
     configKeys: [
         { n: "dotStyle", t: "int" },
         { n: "singleLine", t: "bool" },
@@ -92,23 +84,19 @@ ConfigPageBase {
         { n: "hoverBackgroundColor", t: "color" }
     ]
 
-    // Which pager style is selected, by the dotStyle combo index (order matches Logic.DOT_STYLE / main.xml:
-    // 0 = Sliding pill, 1 = Filled & ring). The pill knobs only apply to Sliding pill; Filled & ring disables
-    // the redundant Hollow ring occupancy marker. Named once here so the index checks aren't repeated below.
+    // In Logic.DOT_STYLE's order.
     readonly property bool pillStyle: dotStyle.currentIndex === 0
     readonly property bool ringStyle: dotStyle.currentIndex === 1
 
     Kirigami.FormLayout {
-        // The headline setting: it picks which of the groups below even apply, so it leads the page
-        // ungrouped, under the page's own title.
+        // It decides which of the groups below apply, so it leads the page on its own.
         QQC2.ComboBox {
             id: dotStyle
             Kirigami.FormData.label: i18n("Pager style:")
-            // Order MUST match Logic.DOT_STYLE / main.xml dotStyle (currentIndex is stored as the index).
+            // The index is the stored value, in Logic.DOT_STYLE's order.
             model: [i18n("Sliding pill"), i18n("Filled & ring")]
-            Layout.preferredWidth: root.fieldWidth   // match the other field widths (ConfigPageBase.fieldWidth)
-            // Filled & ring disables the Hollow ring occupancy marker (index 2) — the dot is already a ring —
-            // so migrate a previously-chosen Hollow ring to Filled (0) when the user switches to it.
+            Layout.preferredWidth: root.fieldWidth
+            // A ring-style dot is already a ring, so a stored Hollow ring (2) marker becomes Filled (0).
             onActivated: {
                 if (root.ringStyle && occupancyStyle.currentIndex === 2)
                     occupancyStyle.currentIndex = 0;
@@ -123,17 +111,14 @@ ConfigPageBase {
             text: i18n("Show all desktops in a single line")
         }
         ConfigHint {
-            // Hint: ignore the KWin grid entirely and lay everything out as one strip following the panel.
             text: i18n("Ignore the grid rows from System Settings and lay every desktop out in one strip along the panel (a single vertical strip on a vertical panel).")
         }
         QQC2.CheckBox {
             id: matchDesktopGrid
             text: i18n("Match the virtual-desktop grid layout")
-            // Orthogonal to "single line": this sets the direction (across vs. down), so it composes — single
-            // line + match grid gives a single HORIZONTAL row. Hence no longer greyed while single line is on.
+            // Not greyed under a single line: with it, this turns that line across the panel.
         }
         ConfigHint {
-            // Hint: this only matters on a vertical panel (a horizontal panel already mirrors the grid).
             text: i18n("Arrange the dots like the desktop grid in System Settings (rows top to bottom) instead of running them down the panel. No effect on horizontal panels.")
         }
         ConfigSlider {
@@ -154,7 +139,6 @@ ConfigPageBase {
             from: 0
             to: 64
             stepSize: 1
-            // 0 = auto: the widget falls back to the HiDPI-aware themed size.
             format: v => v === 0 ? i18n("Default") : i18np("%1 px", "%1 px", Math.round(v))
         }
         ConfigPercentSlider {
@@ -171,23 +155,21 @@ ConfigPageBase {
         }
         ConfigSlider {
             id: pillSize
-            // "Thickness" (not "size") disambiguates from "Pill length:" below — the pill's two axes (also avoids an msgmerge fuzzy collision).
+            // "Thickness" sets it apart from "Pill length:", and keeps msgmerge from fuzzy-matching the two.
             label: i18n("Pill thickness:")
-            enabled: root.pillStyle   // the pill only exists in the Sliding pill style
+            enabled: root.pillStyle
             from: 0
             to: 64
             stepSize: 1
-            // 0 = auto: the pill thickness matches the (effective) dot size, so the pill tracks the dots.
             format: v => v === 0 ? i18n("Match dots") : i18np("%1 px", "%1 px", Math.round(v))
         }
         ConfigSlider {
             id: pillWidthFactor
             label: i18n("Pill length:")
-            enabled: root.pillStyle   // the pill only exists in the Sliding pill style
+            enabled: root.pillStyle
             from: 1.0
             to: 10.0
             stepSize: 0.1
-            // Length as a multiple of the PILL thickness (its aspect ratio), not the dot size.
             format: v => i18n("%1× pill", v.toFixed(1))
         }
 
@@ -210,7 +192,6 @@ ConfigPageBase {
             from: 0.0
             to: 3.0
             stepSize: 0.05
-            // Clearance added at EACH end of the strip, as a multiple of the pill thickness (like "Pill length:").
             format: v => i18n("%1× pill", v.toFixed(2))
         }
         ConfigSlider {
@@ -220,11 +201,9 @@ ConfigPageBase {
             from: 0.0
             to: 3.0
             stepSize: 0.05
-            // Clearance added on EACH side across the strip; capped at the panel thickness at render time.
             format: v => i18n("%1× pill", v.toFixed(2))
         }
         ConfigHint {
-            // The two sliders are per-SIDE clearance, and the thickness one is what a taller panel needs raising.
             text: i18n("Space the background leaves around the dots, at each end and on each side. Raise the thickness on a tall panel; it never grows past the panel.")
         }
 
@@ -239,11 +218,10 @@ ConfigPageBase {
             id: occupancyStyle
             Kirigami.FormData.label: i18n("Indicator style:")
             enabled: showOccupancy.checked
-            Layout.preferredWidth: root.fieldWidth   // match the other field widths (ConfigPageBase.fieldWidth)
-            // Order MUST match Logic.OCCUPANCY / main.xml occupancyStyle (currentIndex is stored as the index).
+            Layout.preferredWidth: root.fieldWidth
+            // The index is the stored value, in Logic.OCCUPANCY's order.
             model: [i18n("Filled"), i18n("Inner dot"), i18n("Hollow ring")]
-            // "Hollow ring" (index 2) is redundant in the Filled & ring pager style — the dot is ALREADY a
-            // hollow ring — so disable that item there (selection blocked; a stored value is suppressed at runtime).
+            // A ring-style dot is already a ring, so Hollow ring (2) can't be picked there.
             delegate: QQC2.ItemDelegate {
                 id: occStyleItem
                 required property int index
@@ -257,7 +235,7 @@ ConfigPageBase {
         ConfigPercentSlider {
             id: occupiedOpacity
             label: i18n("Occupied opacity:")
-            enabled: showOccupancy.checked   // every indicator style uses the occupied-marker opacity
+            enabled: showOccupancy.checked
         }
 
         ConfigSection {
@@ -270,7 +248,7 @@ ConfigPageBase {
         KQuickControls.ColorButton {
             id: activeColor
             Kirigami.FormData.label: i18n("Active desktop:")
-            enabled: !followThemeColors.checked   // custom colours apply only when not following the theme
+            enabled: !followThemeColors.checked
             showAlphaChannel: false
         }
         KQuickControls.ColorButton {
@@ -282,16 +260,15 @@ ConfigPageBase {
         KQuickControls.ColorButton {
             id: occupiedColor
             Kirigami.FormData.label: i18n("Occupied desktop:")
-            // Greyed with the rest of the occupancy block too — the marker's style and opacity already are.
             enabled: !followThemeColors.checked && showOccupancy.checked
             showAlphaChannel: false
         }
         KQuickControls.ColorButton {
             id: hoverBackgroundColor
-            // Named for the effect, not the section: every other row here is "<what> desktop:", and repeating
-            // the "Hover background" heading as a row label would read as a stray duplicate of it.
+            // Named for the effect: the other rows read "<what> desktop:", and "Hover background" would
+            // repeat the section's heading.
             Kirigami.FormData.label: i18n("Hover highlight:")
-            // Alpha comes from the opacity slider above, not the colour, so the two knobs stay independent.
+            // The opacity slider sets the alpha, so the two stay independent.
             enabled: !followThemeColors.checked && showHoverBackground.checked
             showAlphaChannel: false
         }

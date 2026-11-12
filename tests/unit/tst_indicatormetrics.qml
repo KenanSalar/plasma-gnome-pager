@@ -1,17 +1,9 @@
 /*
- * Plasma Gnome Pager — tst_indicatormetrics.qml
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * UNIT test for IndicatorMetrics in isolation — the dot-strip sizing engine extracted from
- * WorkspaceIndicator. It is a pure QtObject (only Kirigami.Units + logic.js), so it loads headless.
- * Asserts the NATURAL/floor/EFFECTIVE size contract: the natural extents reproduce Logic.lineExtent;
- * effective == natural when there is room; the dot shrinks (scale-to-fit) on a narrow major OR thin
- * cross allocation, floored at minDotSize; and the pill scales in lockstep with the dot. Expected
- * values come from the pure logic.js formulas (not literals), so they stay HiDPI/theme-independent.
- *
- * Run with `make check-unit` (or `make check`), which sets QT_QPA_PLATFORM=offscreen.
+ * IndicatorMetrics on its own, with hand-set allocations. Expected sizes come from the logic.js
+ * formulas rather than literals, so they hold at any scale and theme.
  */
 import QtQuick
 import QtTest
@@ -32,7 +24,6 @@ TestCase {
         return createTemporaryObject(metricsComponent, testCase, props || {});
     }
 
-    // naturalDotSize: a positive request is used verbatim; 0 falls back to the themed half-icon.
     function test_naturalDotSizeRequestVsAuto() {
         const m = makeMetrics({ dotSizeRequest: 20 });
         compare(m.naturalDotSize, 20, "positive dotSizeRequest is the natural size");
@@ -40,7 +31,6 @@ TestCase {
         compare(auto.naturalDotSize, Kirigami.Units.iconSizes.small / 2, "0 = auto = themed half-icon");
     }
 
-    // pillThicknessRatio: 1 when the pill is auto (matches the dot); naturalPillSize/naturalDotSize otherwise.
     function test_pillThicknessRatio() {
         const auto = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 0 });
         compare(auto.naturalPillSize, 10, "auto pill thickness == the dot size");
@@ -50,7 +40,7 @@ TestCase {
         compare(thick.pillThicknessRatio, 3, "ratio = pill / dot");
     }
 
-    // minDotSize: the themed floor, clamped <= naturalDotSize (a tiny configured dot never scales UP).
+    // A configured dot smaller than the floor must not grow to it.
     function test_minDotSizeClampedToNatural() {
         const tiny = makeMetrics({ dotSizeRequest: 2 });
         compare(tiny.minDotSize, 2, "minDotSize clamps to natural for a tiny configured dot");
@@ -58,7 +48,6 @@ TestCase {
         compare(big.minDotSize, Kirigami.Units.iconSizes.small / 4, "minDotSize is the themed floor for a large dot");
     }
 
-    // Natural extents reproduce the pure lineExtent formula (capsule length = pill thickness * widthFactor).
     function test_naturalStripLengthMatchesFormula() {
         const m = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         const expected = Logic.lineExtent(4, 10, 10 * 0.5, 10 * 3);   // naturalPillSize == 10 (auto)
@@ -67,11 +56,10 @@ TestCase {
 
     function test_naturalCrossThicknessMatchesFormula() {
         const m = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 30, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 2, lineCount: 3 });
-        const expected = Logic.lineExtent(3, 10, 10 * 0.5, Math.max(10, 30));   // pill-bearing line is max(dot, pill)
+        const expected = Logic.lineExtent(3, 10, 10 * 0.5, Math.max(10, 30));   // the pill's line is the thicker
         fuzzyCompare(m.naturalCrossThickness, expected, 0.001, "naturalCrossThickness stacks lineCount lines, pill-bearing line max(dot,pill)");
     }
 
-    // Room available on both axes → effective == natural, byte-for-byte (the common case).
     function test_effectiveEqualsNaturalWhenAmple() {
         const m = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         m.availableMajor = m.naturalStripLength * 2;     // plenty of room
@@ -82,8 +70,6 @@ TestCase {
         fuzzyCompare(m.pillWidth, m.pillSize * 3, 0.001, "pillWidth = pillSize * pillWidthFactor");
     }
 
-    // A narrow MAJOR allocation shrinks the dot to fit (majorFit binds), still capped at natural and floored,
-    // and a full line at the effective size exactly fills the allocation (the inverse of lineExtent).
     function test_shrinkOnNarrowMajor() {
         const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         m.availableCross = m.naturalCrossThickness * 2;       // cross unconstrained
@@ -94,7 +80,6 @@ TestCase {
             "the shrunk line exactly fills the narrow major allocation");
     }
 
-    // A thin CROSS allocation (multi-row grid on a thin panel) shrinks the dot too (crossFit binds).
     function test_shrinkOnThinCross() {
         const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 2, lineCount: 3 });
         m.availableMajor = m.naturalStripLength * 2;          // major unconstrained
@@ -102,7 +87,6 @@ TestCase {
         verify(m.dotSize < m.naturalDotSize, "dotSize shrinks on a thin cross axis (multi-row grid)");
     }
 
-    // The pill scales in lockstep with the dot under shrink, so the configured dot:pill proportion holds.
     function test_pillScalesInLockstep() {
         const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 48, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         m.availableCross = m.naturalCrossThickness * 2;
@@ -112,7 +96,6 @@ TestCase {
         fuzzyCompare(m.pillSize, m.dotSize * m.pillThicknessRatio, 0.001, "pillSize = dotSize * ratio (lockstep)");
     }
 
-    // At an extreme-narrow allocation the dot (and the pill) clamp at the floor, never shrinking further.
     function test_floorAtExtremeNarrow() {
         const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 32, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         m.availableCross = m.naturalCrossThickness * 2;
@@ -121,18 +104,16 @@ TestCase {
         fuzzyCompare(m.pillSize, m.minDotSize * m.pillThicknessRatio, 0.001, "pillSize floors in lockstep");
     }
 
-    // Before layout (no allocation) the fits are +Infinity, so effective == natural (no premature shrink).
+    // Before the first layout there is no allocation, which mustn't read as a tiny one.
     function test_unboundedBeforeLayout() {
         const m = makeMetrics({ dotSizeRequest: 10, perLine: 4, lineCount: 1 });
         // availableMajor/Cross default 0 → fitDotSize +Infinity → min keeps natural
         compare(m.dotSize, m.naturalDotSize, "no allocation yet → effective == natural (no premature shrink)");
     }
 
-    // Conserved (capsule-bearing) extents the indicator pins the strip to: lineExtent over the EFFECTIVE sizes.
-    // When there is room they equal the natural extents (the strip is pinned to the same value it sizes to today).
     function test_stripLengthMatchesFormula() {
         const m = makeMetrics({ dotSizeRequest: 10, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 2 });
-        const expected = Logic.lineExtent(4, m.dotSize, m.dotSpacing, m.pillWidth);   // a full capsule-bearing line
+        const expected = Logic.lineExtent(4, m.dotSize, m.dotSpacing, m.pillWidth);
         fuzzyCompare(m.stripLength, expected, 0.001, "stripLength == lineExtent(perLine, dot, gap, pillWidth)");
         fuzzyCompare(m.stripLength, m.naturalStripLength, 0.001, "== naturalStripLength when there is room");
     }
@@ -144,8 +125,7 @@ TestCase {
         fuzzyCompare(m.crossThickness, m.naturalCrossThickness, 0.001, "== naturalCrossThickness when there is room");
     }
 
-    // stripLength tracks the EFFECTIVE (shrunk) size, not natural — so the pinned strip fits a compressed panel
-    // (a full capsule line at the effective dot exactly fills the allocation, the inverse of lineExtent).
+    // Pinned to a natural length, the strip would overflow a panel that squeezed the dots.
     function test_stripLengthTracksEffectiveUnderShrink() {
         const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         m.availableCross = m.naturalCrossThickness * 2;     // cross unconstrained
@@ -155,9 +135,7 @@ TestCase {
         verify(m.stripLength < m.naturalStripLength, "and is below the natural strip length");
     }
 
-    // Symmetric to the above on the CROSS axis: crossThickness tracks the EFFECTIVE size, so the pinned strip fits a
-    // thin panel. pillSizeRequest 0 (ratio 1) → the cross fit is the exact inverse of naturalCrossThickness, so a
-    // full stack of lines at the effective dot exactly fills the compressed cross allocation.
+    // An auto pill keeps the cross fit the exact inverse of the line stack, so the fill is exact.
     function test_crossThicknessTracksEffectiveUnderShrink() {
         const m = makeMetrics({ dotSizeRequest: 16, pillSizeRequest: 0, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 1, lineCount: 4 });
         m.availableMajor = m.naturalStripLength * 2;        // major unconstrained
@@ -167,10 +145,7 @@ TestCase {
         verify(m.crossThickness < m.naturalCrossThickness, "and is below the natural cross thickness");
     }
 
-    // --- hover-background clearance: the room the strip asks for AROUND itself (all 0 when off) ---
-
-    // Zero factors — what the indicator feeds when the background is switched off — collapse every clearance
-    // output to zero and leave the padded extents bare: the byte-for-byte pre-feature geometry.
+    // Zero factors are what the indicator passes while the hover background is off.
     function test_hoverClearanceOffCollapsesToBareExtents() {
         const m = makeMetrics({ dotSizeRequest: 10, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1, hoverLengthFactor: 0, hoverThicknessFactor: 0 });
         compare(m.hoverPadding, 0, "no length clearance");
@@ -180,7 +155,6 @@ TestCase {
         fuzzyCompare(m.paddedCrossThickness, m.naturalCrossThickness, 0.001, "padded thickness == the bare strip");
     }
 
-    // On, each axis grows by its own factor × ONE LINE's thickness (not the whole strip), at BOTH ends.
     function test_hoverClearanceGrowsTheHintExtents() {
         const m = makeMetrics({
             dotSizeRequest: 10, pillSizeRequest: 30, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 2,
@@ -193,8 +167,7 @@ TestCase {
         fuzzyCompare(m.paddedCrossThickness, m.naturalCrossThickness + 2 * m.hoverCrossPadding, 0.001, "and on both sides");
     }
 
-    // The natural/effective split, the invariant that keeps the Layout hints out of a binding loop: under
-    // scale-to-fit the RENDER-side clearance shrinks with the dots while the HINT-side pair does not move.
+    // A hint that moved with the rendered dots would close a binding loop through the allocation.
     function test_hoverHintClearanceIsGeometryIndependent() {
         const m = makeMetrics({ dotSizeRequest: 16, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 6, lineCount: 1 });
         m.availableCross = m.naturalCrossThickness * 2;
@@ -210,13 +183,12 @@ TestCase {
         compare(m.paddedStripLength, paddedLength, "so the advertised extent never follows the RENDERED dot");
     }
 
-    // The background's cross extent GROWS from the strip and is then capped at the cell — deriving it by
-    // insetting the cell instead collapses it onto the strip the moment the padding exceeds the room.
+    // Insetting the cell instead collapsed the background onto the strip once the padding outgrew the room.
     function test_hoverCrossExtentGrowsThenCaps() {
         const m = makeMetrics({ dotSizeRequest: 10, spacingFactor: 0.5, pillWidthFactor: 3, perLine: 4, lineCount: 1 });
         m.availableMajor = m.naturalStripLength * 2;
 
-        m.availableCross = m.naturalCrossThickness * 10;   // room to spare: strip + clearance, NOT the whole cell
+        m.availableCross = m.naturalCrossThickness * 10;   // room to spare, which the background mustn't fill
         fuzzyCompare(m.hoverCrossExtent, m.crossThickness + 2 * m.hoverCrossPaddingEffective, 0.001, "strip plus its clearance");
         verify(m.hoverCrossExtent < m.availableCross, "and keeps its proportion instead of filling the panel");
 

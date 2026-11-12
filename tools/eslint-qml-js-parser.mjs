@@ -1,30 +1,13 @@
 /*
- * ESLint custom parser: make QML ".pragma library" / ".import ... as X" JS files lintable.
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * QML's JS "library" modules begin with engine directives that are NOT valid JavaScript:
+ * Lets ESLint read QML's JavaScript libraries, whose `.pragma library` and `.import "x.js" as X`
+ * lines aren't JavaScript. Each becomes a comment on the same line, so every reported position stays
+ * true, and an import becomes a `global X` directive, so no-undef knows the binding QML injects.
  *
- *     .pragma library
- *     .import "logic.js" as Logic
- *
- * espree (ESLint's default parser) rejects the leading ".". This is a thin wrapper around espree
- * that rewrites those two directive forms to equivalent JS comments BEFORE parsing, on the SAME
- * line (no lines added or removed), so every reported line/column still matches the real source:
- *
- *     .pragma library              ->  / * qml directive: .pragma library * /
- *     .import "logic.js" as Logic  ->  / * global Logic * /
- *
- * The ".import" rewrite emits an ESLint `/ * global NAME * /` directive, so no-undef sees the
- * cross-module binding the QML engine injects (Logic, TreeWalk) without a false positive. Only the
- * 1-2 directive lines change, so positions are exact everywhere else.
- *
- * A custom parser (languageOptions.parser) is used rather than a flat-config processor because a
- * processor emits a nested VIRTUAL filename (e.g. "logic.js/0_qml.js") that the config's `files`
- * globs do not match, so the rules silently never run on the extracted block. A parser transforms
- * the text in place, so `files`/`rules` apply directly to the real file. This is the mechanism
- * ESLint documents for custom parsing (parseForESLint -> { ast, scopeManager, visitorKeys }).
+ * A parser rather than a flat-config processor: a processor's virtual filename (`logic.js/0_qml.js`)
+ * matches none of the config's `files` globs, so its rules would never run.
  */
 import { parse as espreeParse } from 'espree';
 

@@ -5,13 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# One in-flight run per PR branch; a new push supersedes the old run.
 concurrency:
   group: pr-validation-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-# Minimal posture — this job only reads the tree (no PR comments, no release writes).
-# Matches the security note in .github/CODEOWNERS about workflow scope.
+# The jobs only read the tree.
 permissions:
   contents: read
 
@@ -24,9 +22,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
-      # Install before checkout so git is present for a real clone (avoids the
-      # checkout REST-API fallback). dnf5 on fedora:latest; one install covers
-      # lint and tests since they share the QML-module surface.
+      # Before checkout, so it finds git and clones rather than falling back to the REST API.
       - name: Install Qt6 + Plasma 6 QML toolchain
         run: >-
           dnf -y install
@@ -38,20 +34,14 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v5
 
-      # qmllint-qt6 over UI + config pages + tests; warnings are errors (project rule).
       - name: qmllint
         run: make lint
 
-      # qmltestrunner-qt6 (offscreen) over tests/unit + tests/integration.
-      # dbus-run-session gives org.kde.plasma.core (the ToolTipArea plugin that
-      # WorkspaceDot imports) a session bus, since the container has none.
+      # ToolTipArea's plugin wants a session bus, and the container has none.
       - name: Headless QML tests (unit + integration)
         run: dbus-run-session -- make check
 
-  # Separate, parallel job: a plain Node runner is far cheaper than booting the Fedora/Qt
-  # container, and ESLint only needs Node. Lints the pure-JS tier (logic.js/coordinator.js +
-  # tests/shared/*.js) with strict, warnings-as-errors rules; the .qml is covered by the qmllint
-  # job above. CI mirrors the Makefile target (make lint-js -> eslint . --max-warnings 0).
+  # ESLint needs only Node, which is far cheaper than the Fedora container.
   js-lint:
     name: ESLint (strict, JS tier)
     runs-on: ubuntu-latest

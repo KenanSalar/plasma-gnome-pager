@@ -1,12 +1,10 @@
 /*
- * Plasma Gnome Pager — ConfigPageBase.qml (shared settings-page base)
- *
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Shared skeleton for every settings page: a Kirigami.ScrollablePage for the KDE header + scrolling, plus
- * the "Defaults" button the Plasma footer lacks (defined ONCE here). A derived page only declares its
- * `configKeys` { n, t } list; the modified-check and the Defaults reset are bound off it here, once.
+ * The base of both settings pages: a ScrollablePage for the dialog's title header and scrolling, plus
+ * the Defaults action the dialog's footer lacks. A page lists its keys in configKeys, and both the
+ * modified check and the reset run off that list.
  */
 import QtQuick
 import org.kde.kirigami as Kirigami
@@ -16,21 +14,17 @@ import "../logic.js" as Logic
 Kirigami.ScrollablePage {
     id: root
 
-    // The derived page's keys + compare kind ({ n, t }); drives both isModified and the Defaults reset.
+    // { n, t }: the key, and bool, int, real, string or color for how it compares.
     property var configKeys: []
 
-    // True when any key differs from its default (gates the Defaults action). Bound off configKeys here
-    // so a derived page need only declare the list; empty configKeys ⇒ false (unmodified).
     property bool isModified: configKeys.some(k => root.fieldChanged(root, k.n, k.t))
 
-    // Field-column width for non-slider fields; the shared metric, so every row lines up (ConfigSlider's
-    // track and ConfigHint's wrap width measure against the same one).
+    // For combos and text fields, so they line up with the slider tracks.
     readonly property int fieldWidth: Kirigami.Units.gridUnit * Logic.CONFIG_FIELD_WIDTH_UNITS
 
-    // Tolerance for real-valued "differs from default": SnapAlways can land a value a ULP off the default.
+    // SnapAlways can land a real a rounding error away from its default.
     readonly property real epsilon: 1e-9
 
-    // Does cfg_<name> differ from cfg_<name>Default? Type-aware: reals within epsilon, colours via Qt.colorEqual, else exact.
     function fieldChanged(page, name, kind) {
         var a = page["cfg_" + name];
         var b = page["cfg_" + name + "Default"];
@@ -41,12 +35,10 @@ Kirigami.ScrollablePage {
         return a !== b;
     }
 
-    // Reset cfg_<name> to its injected schema default.
     function resetField(page, name) {
         page["cfg_" + name] = page["cfg_" + name + "Default"];
     }
 
-    // Raised by the Defaults action; resets every configKeys entry to its injected schema default.
     signal defaultsRequested()
     onDefaultsRequested: configKeys.forEach(k => root.resetField(root, k.n))
 
