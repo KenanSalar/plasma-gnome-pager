@@ -12,9 +12,9 @@ The settings pages are exempt: the dialog builds them on demand.
 - **Keep binding expressions trivial.** A binding re-runs on every dependency change; a heavy one
   goes into a `readonly property` the others read, or into `logic.js`. The `Array.from` copies of
   `desktopIds` and `desktopNames` are the deliberate exception, a handful of strings per change.
-- **Work the window model does is filtered at the source**: a `dataChanged` that touches only
-  roles nobody reads (window focus fires constantly) doesn't rebuild, a burst of changes
-  coalesces into one `Qt.callLater`, and an output that didn't change isn't reassigned.
+- **Filter the window model's churn at the source**: a `dataChanged` that touches only roles no
+  consumer reads (window focus fires constantly) doesn't rebuild, a burst of changes coalesces
+  into one `Qt.callLater`, and an output that didn't change isn't reassigned.
 - **Draw with `Rectangle` and its `radius`**, never `Canvas`. `clip` and `layer.enabled` each add
   an offscreen buffer and a render pass, and nothing here overflows.
 - **Drop what isn't shown**: the hover background is `visible: opacity > 0`, and the occupancy

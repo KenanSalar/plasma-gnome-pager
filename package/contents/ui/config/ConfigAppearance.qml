@@ -12,6 +12,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
 
+import "../logic.js" as Logic
+
 ConfigPageBase {
     id: root
 
@@ -84,9 +86,8 @@ ConfigPageBase {
         { n: "hoverBackgroundColor", t: "color" }
     ]
 
-    // In Logic.DOT_STYLE's order.
-    readonly property bool pillStyle: dotStyle.currentIndex === 0
-    readonly property bool ringStyle: dotStyle.currentIndex === 1
+    readonly property bool pillStyle: dotStyle.currentIndex === Logic.DOT_STYLE.Pill
+    readonly property bool ringStyle: Logic.isRingStyle(dotStyle.currentIndex)
 
     Kirigami.FormLayout {
         // It decides which of the groups below apply, so it leads the page on its own.
@@ -96,10 +97,10 @@ ConfigPageBase {
             // The index is the stored value, in Logic.DOT_STYLE's order.
             model: [i18n("Sliding pill"), i18n("Filled & ring")]
             Layout.preferredWidth: root.fieldWidth
-            // A ring-style dot is already a ring, so a stored Hollow ring (2) marker becomes Filled (0).
+            // A ring-style dot is already a ring, so a stored Hollow ring marker becomes Filled.
             onActivated: {
-                if (root.ringStyle && occupancyStyle.currentIndex === 2)
-                    occupancyStyle.currentIndex = 0;
+                if (root.ringStyle && occupancyStyle.currentIndex === Logic.OCCUPANCY.Ring)
+                    occupancyStyle.currentIndex = Logic.OCCUPANCY.Filled;
             }
         }
 
@@ -221,14 +222,14 @@ ConfigPageBase {
             Layout.preferredWidth: root.fieldWidth
             // The index is the stored value, in Logic.OCCUPANCY's order.
             model: [i18n("Filled"), i18n("Inner dot"), i18n("Hollow ring")]
-            // A ring-style dot is already a ring, so Hollow ring (2) can't be picked there.
+            // A ring-style dot is already a ring, so Hollow ring can't be picked there.
             delegate: QQC2.ItemDelegate {
                 id: occStyleItem
                 required property int index
                 required property string modelData
                 width: occupancyStyle.width
                 text: occStyleItem.modelData
-                enabled: !(root.ringStyle && occStyleItem.index === 2)
+                enabled: !(root.ringStyle && occStyleItem.index === Logic.OCCUPANCY.Ring)
                 highlighted: occupancyStyle.highlightedIndex === occStyleItem.index
             }
         }

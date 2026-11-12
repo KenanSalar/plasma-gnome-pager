@@ -46,6 +46,10 @@ Item {
     readonly property color resolvedActive: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.activeColor
     readonly property color resolvedInactive: dot.followThemeColors ? Kirigami.Theme.textColor : dot.inactiveColor
     readonly property color resolvedOccupied: dot.followThemeColors ? Kirigami.Theme.highlightColor : dot.occupiedColor
+    readonly property int body: Logic.dotBody(dot.active, dot.occupied, dot.occupancyStyle)
+    readonly property var bodyColors: ({ active: dot.resolvedActive, inactive: dot.resolvedInactive, occupied: dot.resolvedOccupied })
+    // Grouped once here, so the opacity binding, which re-runs on every hover, allocates nothing.
+    readonly property var bodyOpacities: ({ inactive: dot.inactiveOpacity, hover: dot.hoverOpacity, occupied: dot.occupiedOpacity })
     readonly property bool showInnerDot: Logic.innerDotVisible(dot.active, dot.occupied, dot.occupancyStyle)
     readonly property bool showRing: Logic.ringOverlayVisible(dot.active, dot.occupied, dot.occupancyStyle, dot.dotStyle)
 
@@ -92,11 +96,11 @@ Item {
             anchors.centerIn: parent
             color: dot.bodyIsHollow ? "transparent"
                  : dot.ringFilled ? dot.filledBodyColor
-                 : Logic.dotColor(dot.active, dot.occupied, dot.occupancyStyle, dot.resolvedActive, dot.resolvedInactive, dot.resolvedOccupied)
+                 : Logic.dotColor(dot.body, dot.bodyColors)
             border.width: dot.hasRing ? Logic.ringThickness(dot.dotSize) : 0
             border.color: dot.resolvedInactive
             // The ring style draws at full opacity for crisp rings; its occupied fill carries its own.
-            opacity: dot.ringStyle ? 1.0 : Logic.dotOpacity(dot.active, mouseArea.containsMouse, dot.occupied, dot.occupancyStyle, dot.inactiveOpacity, dot.hoverOpacity, dot.occupiedOpacity)
+            opacity: dot.ringStyle ? 1.0 : Logic.dotOpacity(dot.body, mouseArea.containsMouse, dot.bodyOpacities)
 
             Behavior on width {
                 enabled: dot.morphEnabled

@@ -56,37 +56,28 @@ tests, holds no duplication, says what it means, and has no more parts than that
 **Signatures**
 
 - **Few parameters** - none, one or two read at a glance; three is worth a second look and
-  four wants an options object, as `Logic.reduceWindowSnapshot` takes its feature switches in
-  `opts`. A list long enough to count is usually two functions, or one shape that hasn't been
-  named yet; `Logic.dotOpacity`'s seven positional arguments are that debt.
+  four wants a parameter object. A list long enough to count is usually two functions, or one
+  type that hasn't been named yet. A binding that re-runs often reads that object from a property
+  of its own, so the binding itself allocates nothing.
 - **No flag parameters** - a `bool` argument splits the body before the reader reaches it, and
   `f(path, true)` says nothing at the call site. Ship the two functions the branches already
-  are; where it genuinely is one operation, name the choice with a frozen table such as
-  `Logic.OCCUPANCY`.
+  are; where it genuinely is one operation, name the choice with a frozen constant table.
 - **Meaning belongs in the type or the name, not the primitive** - a QML property is typed
-  `int`, `real`, `bool`, `color` or `string`, and `var` is kept for arrays and objects. JavaScript
-  has no types, so a unit goes in the name (`busyFallbackMs`, `wheelNotchDelta`), and a stored
-  index maps through its frozen table (`Logic.PILL_CLICK_ACTION.None`), never a bare `0`.
-- **Parse at the boundary, once** - a value from outside the widget becomes plain data in one
-  place: `WindowAggregator.rebuild` turns `TasksModel` rows into `{ title, desktops, screen, … }`
-  with the UUID wrappers stringified and the `QRect` flattened, and `main.qml` resolves each
-  setting with `??` once. Past that point code trusts the shape.
-- **Take the value, not its holder** - a component takes the plain values it reads, never
-  `Plasmoid.configuration` or the representation they came from: `WindowAggregator` takes
-  `screenRect`, not the `WorkspaceIndicator` that measured it.
+  `int`, `real`, `bool`, `color` or `string`, and `var` holds only arrays and objects.
+  JavaScript has no types, so a unit goes in the name (`…Ms`), and a stored index is compared
+  through its frozen table, never to a bare number.
 - **Command or query, never both** - a function either changes state or answers a question.
   One that does both leaves every call site working out whether calling it twice is safe.
 - **Don't reach through** - `a.b().c().d()` couples the caller to the shape of everything in
   the middle, and `a?.b?.c?.d` is the same coupling with `?.` between the links. Ask the
   neighbour for the answer instead of walking its internals.
-- **A function that reads no component state goes in `logic.js`**, where `tst_logic.qml` can
-  call it without building a component.
 
 **Reading order**
 
-- **Newspaper order** - a component opens with its inputs, then what it derives from them, its
-  signals and functions, and its child items last. A `.js` module puts what the QML calls above
-  the helpers those call; related functions sit together.
+- **Newspaper order** - a file opens with what it is and descends into detail. A component
+  lists its inputs, then what it derives from them, its signals and functions, and its child
+  items last; a `.js` module puts each caller above its callee. Related functions sit together,
+  and blank lines separate concepts rather than decorating them.
 - **Declare close to first use** - a binding introduced far above the line that reads it is
   state the reader has to carry until then.
 - **Name the sub-expression** - lift a dense condition or a nested call into a `const` or a
@@ -97,19 +88,16 @@ tests, holds no duplication, says what it means, and has no more parts than that
 
 **Vocabulary and shape**
 
-- **One word per concept** - *desktop* is a KWin virtual desktop; *workspace* survives only in
-  the component names and GNOME's "dynamic workspaces". The current desktop's element is the
-  *pill* (`capsule` is just the id of the Rectangle that draws it). Reads come from `vdi`, writes
-  are a `*Spec` handed to `dispatch`. Rename a stray synonym; never add one.
+- **One word per concept** - `get`, `fetch` and `load` for the same act, or two names for one
+  thing, force the reader to check whether the difference means something. Here *desktop* is a
+  KWin virtual desktop and *pill* the current desktop's element; *workspace* stays in the
+  component names and GNOME's "dynamic workspaces". Rename a stray synonym; never add one.
 - **A distinction that isn't in the name isn't a distinction** - `data`, `info`, `manager`,
-  `helper` and a trailing `2` name nothing. If two things need telling apart, the names do it,
-  as `desktopOccupancy` and `screenOccupancy` do.
+  `helper` and a trailing `2` name nothing. If two things need telling apart, the names do it.
 - **One home per boundary condition** - the cap, the clamp, the off-by-one. A named place that
-  owns it beats the literal repeated at each call: `Logic.canRemoveDesktop`,
-  `Logic.CONFIG_FIELD_WIDTH_UNITS`, `ringThickness`'s factor.
-- **A dispatch repeated is a table missing** - the same `switch` spelled in two files wants one
-  function or one frozen table. `main.qml`'s `toDBusArg` is the one switch on a spec argument's
-  type letter, and `Logic.pillClickSpec` the one on the click action.
+  owns it beats the literal repeated at each call: tuning is one edit, reviewing is one read.
+- **A dispatch repeated is a function missing** - the same `switch` spelled in two files wants
+  one function or one frozen table. Adding a value should break one file, not find three.
 
 Test practice, including what all of this means for a test, is `.claude/rules/testing.md`.
 
@@ -125,9 +113,8 @@ each earn its place, and re-read every comment before moving on.
   the line it explains. QML has no doc form here (see the table).
 - **Prefer self-documenting code** - clear names and small functions beat comments. If a comment
   has to explain "step 1… step 2…", the function is too big — split it instead.
-- **No redundant comments** - never restate a name, type, or the obvious:
-  `// Inputs (bound by WorkspaceIndicator).`, `property string desktopName: "" // tooltip
-  mainText`, `// Reset cfg_<name> to its injected schema default.` above `resetField`.
+- **No redundant comments** - never restate a name, type, or the obvious (`// increment i` over
+  `i++`; `// the desktop's name` over `desktopName`).
 - **Be terse** - one line where one line works; no decorative banners, ASCII art, or boilerplate.
 - **No capitals for emphasis** - `NOT`, `ONE`, `NEVER`, `PER-SCREEN` shout without adding
   meaning. The sentence carries the stress, or the name does.
@@ -138,7 +125,7 @@ each earn its place, and re-read every comment before moving on.
 - **Double-check every comment** - confirm it is accurate and *still* true. When you touch code,
   update or delete the comments around it; a stale or wrong comment is worse than none.
 - **Comment the genuinely non-obvious** - a Plasma, KWin or Qt behaviour the code works around
-  (link the issue: `#35`), an empty `catch`, a magic constant, a non-trivial regex, and ordering
+  (link the issue), an empty `catch`, a magic constant, a non-trivial regex, and ordering
   assumptions such as a `Qt.callLater` deferral, a synchronous rebuild, or config `onChanged`
   firing before `Component.onCompleted`.
 - **No commented-out code** - delete it; version control remembers.
@@ -198,6 +185,6 @@ cloc --by-file <new files>
 | Language | Doc syntax | Notes |
 |----------|-----------|-------|
 | JavaScript (`.js`, `.mjs`) | `/** */` (JSDoc) | Read in an editor's hover; nothing generates docs and ESLint runs no JSDoc plugin. One-sentence summary first; `@param name - text`, with the hyphen and no `{type}`, only for a parameter its name leaves unexplained; `@returns` only when the summary doesn't say it. A module opens with the same `/* */` SPDX header as a QML file |
-| QML | `//` | Nothing runs qdoc here, so the global `/*! */` QDoc convention doesn't apply: a `//` above a property, signal or function says what its name and type can't. Each file opens with a `/* */` header holding the SPDX lines and the component's contract |
+| QML | `//` | Nothing runs qdoc here, so a `//` above a property, signal or function says what its name and type can't. Each file opens with a `/* */` header holding the SPDX lines and the component's contract |
 | XML (`main.xml`) | `<!-- -->` | One per `<entry>`: what the setting does and what its sentinel or index means |
 | Makefile, YAML | `#` | Why a target or step is shaped the way it is; `make help` already says what each target does |

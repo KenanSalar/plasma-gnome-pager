@@ -65,21 +65,23 @@ function toStringOrEmpty(value) {
     return (value === undefined || value === null) ? "" : String(value);
 }
 
-/** `currentIndex` moved `delta` steps, clamped or wrapped into range; -1 when it is out of range itself. */
-function stepIndex(currentIndex, count, delta, wrap) {
-    if (count <= 0)
+/** `currentIndex` moved `delta` steps and held at either end; -1 when it is out of range itself. */
+function clampedStep(currentIndex, count, delta) {
+    if (!isValidIndex(currentIndex, count))
         return -1;
-    if (currentIndex < 0 || currentIndex >= count)
-        return -1;
+    return Math.max(0, Math.min(count - 1, currentIndex + delta));
+}
 
+/** `currentIndex` moved `delta` steps, wrapping past either end; -1 when it is out of range itself. */
+function wrappedStep(currentIndex, count, delta) {
+    if (!isValidIndex(currentIndex, count))
+        return -1;
     var i = currentIndex + delta;
-    if (wrap)
-        return ((i % count) + count) % count;        // % keeps the dividend's sign
-    if (i < 0)
-        return 0;
-    if (i > count - 1)
-        return count - 1;
-    return i;
+    return ((i % count) + count) % count;        // % keeps the dividend's sign
+}
+
+function isValidIndex(index, count) {
+    return index >= 0 && index < count;
 }
 
 /** False at the last desktop, which always stays. */
@@ -109,15 +111,32 @@ function accumulateWheel(accumulated, deltaY, threshold) {
     return { steps: steps, remainder: total - steps * t };
 }
 
-/** Full when current, then hover, then occupied for a `Filled` marker, else dim. */
-function dotOpacity(active, hovered, occupied, style, inactiveOpacity, hoverOpacity, occupiedOpacity) {
+/** What a dot's body shows, which decides its colour and opacity. */
+var DOT_BODY = Object.freeze({ Inactive: 0, Occupied: 1, Active: 2 });
+
+/** `Occupied` only for the `Filled` marker; the other markers draw over an inactive body. */
+function dotBody(active, occupied, occupancyStyle) {
     if (active)
+        return DOT_BODY.Active;
+    if (occupied && occupancyStyle === OCCUPANCY.Filled)
+        return DOT_BODY.Occupied;
+    return DOT_BODY.Inactive;
+}
+
+/** Full when current, then hover, then the body's own, out of `{ inactive, hover, occupied }`. */
+function dotOpacity(body, hovered, opacities) {
+    if (body === DOT_BODY.Active)
         return 1.0;
     if (hovered)
-        return hoverOpacity;
-    if (occupied && style === OCCUPANCY.Filled)
-        return occupiedOpacity;
-    return inactiveOpacity;
+        return opacities.hover;
+    return body === DOT_BODY.Occupied ? opacities.occupied : opacities.inactive;
+}
+
+/** The body's colour out of `{ active, inactive, occupied }`, which the caller resolves against the theme. */
+function dotColor(body, colors) {
+    if (body === DOT_BODY.Active)
+        return colors.active;
+    return body === DOT_BODY.Occupied ? colors.occupied : colors.inactive;
 }
 
 /**
@@ -147,15 +166,6 @@ function hoverPadding(lineThickness, factor) {
  */
 function hoverCrossExtent(cell, crossThickness, padding) {
     return Math.min(cell, crossThickness + 2 * padding);
-}
-
-/** Active when current, occupied for a `Filled` marker, else inactive; the caller resolves the theme. */
-function dotColor(active, occupied, style, activeColor, inactiveColor, occupiedColor) {
-    if (active)
-        return activeColor;
-    if (occupied && style === OCCUPANCY.Filled)
-        return occupiedColor;
-    return inactiveColor;
 }
 
 /** The ring's border width for a dot of `dotSize`, shared by the ring style's outline and the `Ring` marker. */

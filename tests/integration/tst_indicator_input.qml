@@ -189,7 +189,7 @@ IndicatorTestCase {
         activeSpy.target = single;
         activeSpy.clear();
 
-        single.handleWheel(-120);   // 1 desktop + wrap: stepIndex stays put
+        single.handleWheel(-120);   // one desktop with wrap: the step lands back on it
         compare(activeSpy.count, 0, "wrap on a single desktop never fires the pill action");
         compare(switchSpy.count, 0, "and emits no switch either");
     }

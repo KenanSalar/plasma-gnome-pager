@@ -34,7 +34,7 @@ cost of the always-on widget, `code-style.md` the comment format.
 - **A capitalised model role isn't a valid property name**: read it off `model`
   (`model.VirtualDesktops`), and only a lowercase role like `display` can be `required`.
 - **Don't name an input after an `Item` property**: `enabled`, `visible` and `state` already
-  exist, which is why the controller's switch is `dynamicEnabled`.
+  exist. Name it for what it switches, as `dynamicEnabled` does.
 - **A binding loop means a rendered value feeds back into what sizes it**; qmllint and the
   console both report one.
 
@@ -52,6 +52,9 @@ cost of the always-on widget, `code-style.md` the comment format.
 - **`Loader.item` and `Instantiator.objectAt()` are `QObject`**: cast them to the named type
   (`tooltipLoader.item as WindowAggregator`, `objectAt(i) as WindowRow`) before reading a property,
   or qmllint reports `missing-property`.
+- **`.contextProperties.ini` declares the `i18n*` and `Plasmoid` globals**, which Plasma injects at
+  runtime. If they start warning as unqualified, qmllint isn't finding that file; it isn't a code
+  defect.
 
 ## Layout and instantiation
 
@@ -59,8 +62,8 @@ cost of the always-on widget, `code-style.md` the comment format.
   set `width: parent.width` and anchor the same axis.
 - **A `Repeater` builds the dots**, a handful of eager delegates; a `ListView` would add a
   flickable and recycling for nothing.
-- **`visible: false` keeps an item's cost; a `Loader` drops it.** The window model and the
-  occupancy overlay sit behind `Loader`s for that reason.
+- **`visible: false` keeps an item's cost; a `Loader` drops it.** A subtree most configurations
+  never show goes behind one, as the window model and the occupancy overlay do.
 
 ## Tooling
 

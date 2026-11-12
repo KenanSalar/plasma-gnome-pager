@@ -41,7 +41,7 @@ The seven ISTQB principles, as they bear on writing a test:
   the test is invisible. Table-drive with a `test_<name>_data()` function instead, each row
   carrying a `tag` and its expected value written out: each row fails under its own tag.
 - **Independent and order-free.** No shared mutable state, no reliance on another test
-  having run: run alone (`qmltestrunner-qt6 -input <file> Logic::test_stepIndex`), a test gives
+  having run: run alone (`qmltestrunner-qt6 -input <file> Logic::test_wrappedStep`), a test gives
   the file's verdict.
 - **Deterministic.** A test that fails once in fifty is worse than no test: it trains the
   team to re-run rather than to read.
@@ -106,9 +106,8 @@ Each walk owes five things, none of which a passing run can show:
   set and the count of schema entries checked are compared exactly, so one key going is seen.
 - **Unreadable input fails the test, never skips the entry.** A file that won't read is
   indistinguishable from one holding nothing, which is why the read is asserted non-empty first.
-- **Commented-out text can't answer for the real thing.** A pattern over source text has to
-  skip `<!-- -->` and `//`, or a disabled entry passes for a live one; the `main.xml` walk
-  doesn't yet.
+- **Commented-out text can't answer for the real thing.** A pattern over source text strips
+  `<!-- -->` and `//` first, or a disabled entry passes for a live one.
 - **An exemption held to an exact count**, each entry asserted to still be exempt:
   `wheelNotchDelta` is the one `DEFAULTS` key with no schema entry, pinned by the `- 1`.
 
@@ -181,8 +180,7 @@ Each walk owes five things, none of which a passing run can show:
   no assertion on it is not tested. Nothing here measures QML coverage, so this is judgement.
 - **The check that a pin works is breaking the code deliberately** and watching that test,
   and only that test, fail. A pin that cannot fail is worse than no pin, because it reads as
-  coverage. Dropping `nextHoveredIndex`'s own-index guard is the kind of mutation that proved
-  the hover walk.
+  coverage. A walk over a file is checked the same way, on a scratch copy of the tree.
 - **Prefer an equality to a lower bound** wherever the thing under test can shrink; a floor
   keeps passing while its subject disappears.
 

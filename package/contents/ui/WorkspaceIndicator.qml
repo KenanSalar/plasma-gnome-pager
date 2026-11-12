@@ -191,7 +191,8 @@ Item {
             return;
         // Wheel up is positive and goes to the previous desktop.
         const dir = indicator.invertScroll ? acc.steps : -acc.steps;
-        const next = Logic.stepIndex(indicator.activeIndex, indicator.desktopIds.length, dir, indicator.scrollWrap);
+        const step = indicator.scrollWrap ? Logic.wrappedStep : Logic.clampedStep;
+        const next = step(indicator.activeIndex, indicator.desktopIds.length, dir);
         if (next < 0 || next === indicator.activeIndex)
             return;
         const uuid = indicator.desktopIds[next];

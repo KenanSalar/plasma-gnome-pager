@@ -9,6 +9,8 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
+import "../logic.js" as Logic
+
 ConfigPageBase {
     id: root
 
@@ -85,7 +87,7 @@ ConfigPageBase {
         QQC2.CheckBox {
             id: pillClickAnywhere
             text: i18n("Trigger it from anywhere on the widget")
-            enabled: pillClickAction.currentIndex !== 0   // Nothing
+            enabled: pillClickAction.currentIndex !== Logic.PILL_CLICK_ACTION.None
         }
         ConfigHint {
             text: i18n("Click the space around the dots, not just the highlighted desktop.")

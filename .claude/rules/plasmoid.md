@@ -14,39 +14,36 @@ is the reference for canonical patterns, minus its `org.kde.plasma.private.pager
 
 ## Representations
 
-- **A `fullRepresentation` is mandatory.** An applet with only a `compactRepresentation`
-  instantiates neither, renders nothing and logs nothing. `main.qml` makes `WorkspaceIndicator`
-  the full representation and forces it inline with `preferredRepresentation`.
-- **The representation root advertises its extent through `Layout.*` on both axes.** With only
-  an implicit size the panel hands it a square cell about the panel's thickness: the dots draw
-  over the neighbouring widgets and only that cell takes input. Wrapping the root in an item that
-  doesn't forward the hints, a `ToolTipArea` included, brings the square cell back.
+- **Keep a `fullRepresentation`.** An applet with only a `compactRepresentation` builds neither,
+  renders nothing and logs nothing; `preferredRepresentation` keeps the strip inline.
+- **The representation root advertises its extent through `Layout.*` on both axes, and nothing
+  wraps it**, a `ToolTipArea` included. With only an implicit size the panel hands it a square
+  cell about the panel's thickness: the dots draw over the neighbouring widgets and only that cell
+  takes input.
 - **A representation's properties are never `required`**: Plasma's loader fails to create it
   without a word. Default to `null` and guard.
-- **`Screen.*` is valid only on the placed representation**, so `main.qml` reads `screenRect` off
-  `fullRepresentationItem`, and it is a zero rect until the panel places it.
-- **`plasmawindowed` renders the full representation**, which makes `make test` a fair smoke test
-  of the dots; a panel is still the only test of placement and sizing.
-- **"Applet didn't load" and "representation didn't render" look the same.** A `console.warn` in
-  the root's `Component.onCompleted` against one in the representation's tells them apart.
+- **Read `Screen.*` on the placed representation**, never on the root. `main.qml` takes
+  `screenRect` from `fullRepresentationItem`, a zero rect until the panel places it.
+- **`make test` checks the dots, a real panel checks placement and sizing**: `plasmawindowed`
+  renders the full representation in a window of its own.
+- **Tell "applet didn't load" from "representation didn't render"** with a `console.warn` in each
+  one's `Component.onCompleted`; both otherwise show an empty panel.
 
 ## Decoration
 
-- **`Plasmoid.status` is `PassiveStatus` and `backgroundHints` is `NoBackground`**: the dots sit
-  on the panel without a frame.
-- **Context-menu entries are `PlasmaCore.Action`s in `Plasmoid.contextualActions`.** Plasma adds
-  "Configure Workspaces…" for this widget's own settings; "Configure Virtual Desktops…" is ours
-  and opens the system page through `KCM.KCMLauncher.openSystemSettings`, whose module name
-  differs between Wayland and X11.
+- **The applet draws no frame of its own** (`NoBackground`) and stays `PassiveStatus`.
+- **A context-menu entry is a `PlasmaCore.Action` in `Plasmoid.contextualActions`.** Plasma adds
+  "Configure Workspaces…" itself, so it never goes in the list. The system's Virtual Desktops page
+  opens through `KCM.KCMLauncher.openSystemSettings`, whose module name differs between Wayland
+  and X11.
 - **A popup is a `PlasmaCore.Dialog` declared directly with `visible: false`**, not inside a
-  `Loader`: it is a top-level window that realises no surface until shown. The parent sets
-  `visualParent` and `location`, and `hideOnWindowDeactivate` makes clicking away cancel.
+  `Loader`: a top-level window realises no surface until shown. The parent sets `visualParent` and
+  `location`, and `hideOnWindowDeactivate` makes clicking away cancel.
 
 ## metadata.json
 
-- **`KPlugin.Id` is the install folder name and names the catalog domain**,
-  `plasma_applet_<Id>`, which Plasma binds to the bare `i18n()` calls with no wiring in QML.
-- **`X-Plasma-Provides: org.kde.plasma.virtualdesktops`** offers the widget as a pager
-  alternative, and **`X-Plasma-API-Minimum-Version: 6.0`** makes an older shell refuse it rather
-  than half-load it.
-- **`KPlugin.Version` is the release version**; `ci-packaging.md` says what reads it.
+- **`KPlugin.Id` is the install folder and the catalog domain `plasma_applet_<Id>`**, which Plasma
+  binds to the bare `i18n()` calls with no wiring in QML.
+- **`X-Plasma-Provides: org.kde.plasma.virtualdesktops` stays**, offering the widget as a pager
+  alternative, and **`X-Plasma-API-Minimum-Version` stays at the oldest Plasma the imports
+  support**, so an older shell refuses the widget rather than half-loading it.

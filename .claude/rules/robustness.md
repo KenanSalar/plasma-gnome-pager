@@ -26,9 +26,9 @@ the transient-state guard. This file holds the detail behind them.
   and shipped by every Plasma from the `X-Plasma-API-Minimum-Version` up. A `private` segment is
   never public.
 - **Imports are versionless**: `import QtQuick`, not `import QtQuick 2.15`.
-- **`WorkspaceIndicator.qml` and `IndicatorMetrics.qml` import nothing from `org.kde.plasma`**, and
-  `WorkspaceDot.qml` only `PlasmaCore` for `ToolTipArea`, which loads offscreen. That is what keeps
-  them headless-testable.
+- **`WorkspaceIndicator.qml` and `IndicatorMetrics.qml` take nothing from `org.kde.plasma`, and
+  `WorkspaceDot.qml` only `PlasmaCore.ToolTipArea`**, which loads offscreen. Anything more takes
+  them out of the headless tests.
 
 ## What KF6 removed
 
@@ -67,5 +67,6 @@ the applet loads, renders nothing and logs nothing.
 
 ## After a Plasma, Qt or KF6 upgrade
 
-`make verify`, then `make dev && make test` and `make restart`, watching
-`journalctl --user -f -t plasmashell`. Some failures show only in a real panel.
+- **Run `make verify`, then `make dev && make test` and `make restart`** while watching
+  `journalctl --user -f -t plasmashell`, before assuming the widget still works. Some failures
+  show only in a real panel.

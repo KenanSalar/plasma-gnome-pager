@@ -12,44 +12,50 @@ TestCase {
     id: testCase
     name: "Logic"
 
-    function test_stepIndex_data() {
+    function test_clampedStep_data() {
         return [
-            // wrap across the ends, in both directions and by more than one
-            { tag: "wrap-forward-over-end", cur: 2, count: 3, delta: 1, wrap: true, exp: 0 },
-            { tag: "wrap-backward-over-start", cur: 0, count: 3, delta: -1, wrap: true, exp: 2 },
-            { tag: "wrap-forward-multi", cur: 0, count: 3, delta: 4, wrap: true, exp: 1 },
-            { tag: "wrap-backward-multi", cur: 0, count: 3, delta: -4, wrap: true, exp: 2 },
-
-            // clamp at the ends (scrolling past the edge is a no-op step)
-            { tag: "clamp-high", cur: 2, count: 3, delta: 1, wrap: false, exp: 2 },
-            { tag: "clamp-low", cur: 0, count: 3, delta: -1, wrap: false, exp: 0 },
-            { tag: "clamp-high-multi", cur: 1, count: 3, delta: 5, wrap: false, exp: 2 },
-
-            // a normal mid-range step
-            { tag: "mid-step", cur: 0, count: 3, delta: 1, wrap: false, exp: 1 },
-
-            // a single desktop: every step stays put, wrap or not
-            { tag: "single-clamp-up", cur: 0, count: 1, delta: 1, wrap: false, exp: 0 },
-            { tag: "single-wrap-up", cur: 0, count: 1, delta: 1, wrap: true, exp: 0 },
-            { tag: "single-wrap-down", cur: 0, count: 1, delta: -1, wrap: true, exp: 0 },
+            // past either end is a step that goes nowhere
+            { tag: "high", cur: 2, count: 3, delta: 1, exp: 2 },
+            { tag: "low", cur: 0, count: 3, delta: -1, exp: 0 },
+            { tag: "high-multi", cur: 1, count: 3, delta: 5, exp: 2 },
+            { tag: "low-multi", cur: 1, count: 3, delta: -5, exp: 0 },
+            { tag: "mid-step", cur: 0, count: 3, delta: 1, exp: 1 },
+            { tag: "single-up", cur: 0, count: 1, delta: 1, exp: 0 },
+            { tag: "single-down", cur: 0, count: 1, delta: -1, exp: 0 },
+            { tag: "delta-zero", cur: 1, count: 3, delta: 0, exp: 1 },
 
             // states the caller ignores: an empty list, a current not in it, a current out of range
-            { tag: "empty-clamp", cur: -1, count: 0, delta: 1, wrap: false, exp: -1 },
-            { tag: "empty-wrap", cur: -1, count: 0, delta: 1, wrap: true, exp: -1 },
-            { tag: "unknown-current-clamp", cur: -1, count: 3, delta: 1, wrap: false, exp: -1 },
-            { tag: "unknown-current-wrap", cur: -1, count: 3, delta: 1, wrap: true, exp: -1 },
-            { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, wrap: false, exp: -1 },
-            // The range guards run before the wrap, so an out-of-range current is -1 even with wrap.
-            { tag: "out-of-range-current-wrap", cur: 5, count: 3, delta: 1, wrap: true, exp: -1 },
-            { tag: "negative-count", cur: 0, count: -2, delta: 1, wrap: false, exp: -1 },
-
-            // delta 0 is a no-op that returns the current index (not -1)
-            { tag: "delta-zero-clamp", cur: 1, count: 3, delta: 0, wrap: false, exp: 1 },
-            { tag: "delta-zero-wrap", cur: 1, count: 3, delta: 0, wrap: true, exp: 1 }
+            { tag: "empty", cur: -1, count: 0, delta: 1, exp: -1 },
+            { tag: "unknown-current", cur: -1, count: 3, delta: 1, exp: -1 },
+            { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, exp: -1 },
+            { tag: "negative-count", cur: 0, count: -2, delta: 1, exp: -1 }
         ];
     }
-    function test_stepIndex(data) {
-        compare(Logic.stepIndex(data.cur, data.count, data.delta, data.wrap), data.exp, data.tag);
+    function test_clampedStep(data) {
+        compare(Logic.clampedStep(data.cur, data.count, data.delta), data.exp, data.tag);
+    }
+
+    function test_wrappedStep_data() {
+        return [
+            // across the ends, in both directions and by more than a lap
+            { tag: "forward-over-end", cur: 2, count: 3, delta: 1, exp: 0 },
+            { tag: "backward-over-start", cur: 0, count: 3, delta: -1, exp: 2 },
+            { tag: "forward-multi", cur: 0, count: 3, delta: 4, exp: 1 },
+            { tag: "backward-multi", cur: 0, count: 3, delta: -4, exp: 2 },
+            { tag: "mid-step", cur: 0, count: 3, delta: 1, exp: 1 },
+            { tag: "single-up", cur: 0, count: 1, delta: 1, exp: 0 },
+            { tag: "single-down", cur: 0, count: 1, delta: -1, exp: 0 },
+            { tag: "delta-zero", cur: 1, count: 3, delta: 0, exp: 1 },
+
+            // the range check runs before the wrap, so these stay -1 rather than wrapping into range
+            { tag: "empty", cur: -1, count: 0, delta: 1, exp: -1 },
+            { tag: "unknown-current", cur: -1, count: 3, delta: 1, exp: -1 },
+            { tag: "out-of-range-current", cur: 5, count: 3, delta: 1, exp: -1 },
+            { tag: "negative-count", cur: 0, count: -2, delta: 1, exp: -1 }
+        ];
+    }
+    function test_wrappedStep(data) {
+        compare(Logic.wrappedStep(data.cur, data.count, data.delta), data.exp, data.tag);
     }
 
     function test_canRemoveDesktop_data() {
@@ -131,35 +137,44 @@ TestCase {
         fuzzyCompare(r.remainder, data.rem, 0.001, data.tag + " remainder");
     }
 
-    function test_dotOpacity_data() {
+    function test_dotBody_data() {
         var F = Logic.OCCUPANCY.Filled;
         return [
-            { tag: "idle", active: false, hovered: false, occupied: false, style: F, exp: 0.45 },
-            { tag: "hovered", active: false, hovered: true, occupied: false, style: F, exp: 0.8 },
-            { tag: "active-not-hovered", active: true, hovered: false, occupied: false, style: F, exp: 1.0 },
-            { tag: "active-and-hovered", active: true, hovered: true, occupied: false, style: F, exp: 1.0 },
-            { tag: "occupied-filled", active: false, hovered: false, occupied: true, style: F, exp: 0.7 },
-            { tag: "occupied-and-hovered", active: false, hovered: true, occupied: true, style: F, exp: 0.8 },
-            { tag: "occupied-and-active", active: true, hovered: false, occupied: true, style: F, exp: 1.0 },
-            // InnerDot and Ring keep a dim body; their markers carry the occupied opacity themselves.
-            { tag: "occupied-ring-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: 0.45 },
-            { tag: "occupied-innerdot-body-stays-dim", active: false, hovered: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: 0.45 }
+            { tag: "empty", active: false, occupied: false, style: F, exp: Logic.DOT_BODY.Inactive },
+            { tag: "active", active: true, occupied: false, style: F, exp: Logic.DOT_BODY.Active },
+            { tag: "active-beats-occupied", active: true, occupied: true, style: F, exp: Logic.DOT_BODY.Active },
+            { tag: "filled-occupied", active: false, occupied: true, style: F, exp: Logic.DOT_BODY.Occupied },
+            // InnerDot and Ring keep an inactive body; their markers carry the occupied look themselves.
+            { tag: "innerdot-occupied", active: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: Logic.DOT_BODY.Inactive },
+            { tag: "ring-occupied", active: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: Logic.DOT_BODY.Inactive }
+        ];
+    }
+    function test_dotBody(data) {
+        compare(Logic.dotBody(data.active, data.occupied, data.style), data.exp, data.tag);
+    }
+
+    function test_dotOpacity_data() {
+        var B = Logic.DOT_BODY;
+        return [
+            { tag: "inactive", body: B.Inactive, hovered: false, exp: 0.45 },
+            { tag: "inactive-hovered", body: B.Inactive, hovered: true, exp: 0.8 },
+            { tag: "occupied", body: B.Occupied, hovered: false, exp: 0.7 },
+            { tag: "occupied-hovered", body: B.Occupied, hovered: true, exp: 0.8 },
+            { tag: "active", body: B.Active, hovered: false, exp: 1.0 },
+            { tag: "active-hovered", body: B.Active, hovered: true, exp: 1.0 }
         ];
     }
     function test_dotOpacity(data) {
-        fuzzyCompare(Logic.dotOpacity(data.active, data.hovered, data.occupied, data.style, 0.45, 0.8, 0.7), data.exp, 0.001, data.tag);
+        const opacities = { inactive: 0.45, hover: 0.8, occupied: 0.7 };
+        fuzzyCompare(Logic.dotOpacity(data.body, data.hovered, opacities), data.exp, 0.001, data.tag);
     }
 
     function test_dotOpacityCustomRatios() {
-        var F = Logic.OCCUPANCY.Filled;
-        fuzzyCompare(Logic.dotOpacity(false, false, false, F, 0.2, 0.9, 0.6), 0.2, 0.001, "idle uses the given inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, true, false, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover uses the given hoverOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, false, true, F, 0.2, 0.9, 0.6), 0.6, 0.001, "occupied (Filled) uses occupiedOpacity");
-        fuzzyCompare(Logic.dotOpacity(false, true, true, F, 0.2, 0.9, 0.6), 0.9, 0.001, "hover beats occupied");
-        fuzzyCompare(Logic.dotOpacity(true, false, false, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active is full strength, ignoring inactiveOpacity");
-        fuzzyCompare(Logic.dotOpacity(true, true, true, F, 0.2, 0.9, 0.6), 1.0, 0.001, "active beats hover and occupied");
-        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.Ring, 0.2, 0.9, 0.6), 0.2, 0.001, "Ring body stays dim (the ring overlay carries the opacity)");
-        fuzzyCompare(Logic.dotOpacity(false, false, true, Logic.OCCUPANCY.InnerDot, 0.2, 0.9, 0.6), 0.2, 0.001, "InnerDot body stays dim (the inner dot carries the opacity)");
+        const opacities = { inactive: 0.2, hover: 0.9, occupied: 0.6 };
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Inactive, false, opacities), 0.2, 0.001, "inactive uses the given inactive opacity");
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Inactive, true, opacities), 0.9, 0.001, "hover uses the given hover opacity");
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Occupied, false, opacities), 0.6, 0.001, "occupied uses the given occupied opacity");
+        fuzzyCompare(Logic.dotOpacity(Logic.DOT_BODY.Active, false, opacities), 1.0, 0.001, "active is full strength whatever is configured");
     }
 
     function test_nextHoveredIndex_data() {
@@ -235,19 +250,16 @@ TestCase {
 
     // Strings stand in for the colours, so each branch shows by name.
     function test_dotColor_data() {
-        var F = Logic.OCCUPANCY.Filled;
+        var B = Logic.DOT_BODY;
         return [
-            { tag: "active", active: true, occupied: false, style: F, exp: "active" },
-            { tag: "empty-inactive", active: false, occupied: false, style: F, exp: "inactive" },
-            // Filled colours the body itself
-            { tag: "filled-occupied", active: false, occupied: true, style: F, exp: "occupied" },
-            // InnerDot and Ring leave the body inactive and draw their marker over it
-            { tag: "innerdot-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.InnerDot, exp: "inactive" },
-            { tag: "ring-occupied-body", active: false, occupied: true, style: Logic.OCCUPANCY.Ring, exp: "inactive" }
+            { tag: "active", body: B.Active, exp: "active" },
+            { tag: "inactive", body: B.Inactive, exp: "inactive" },
+            { tag: "occupied", body: B.Occupied, exp: "occupied" }
         ];
     }
     function test_dotColor(data) {
-        compare(Logic.dotColor(data.active, data.occupied, data.style, "active", "inactive", "occupied"), data.exp, data.tag);
+        const colors = { active: "active", inactive: "inactive", occupied: "occupied" };
+        compare(Logic.dotColor(data.body, colors), data.exp, data.tag);
     }
 
     // A stored index has to keep meaning the same style, action or look.
@@ -1072,12 +1084,14 @@ TestCase {
         xhr.send();
         var xml = xhr.responseText;
         verify(xml && xml.length > 0, "main.xml is readable");
+        // A commented-out entry isn't in the schema, so it mustn't be counted as one.
+        var schema = xml.replace(/<!--[\s\S]*?-->/g, "");
 
         // Non-greedy, so each entry pairs with its own <default>; an empty one gives "".
         var re = /<entry\s+name="([^"]+)"\s+type="([^"]+)"\s*>[\s\S]*?<default>([\s\S]*?)<\/default>/g;
         var seen = 0;
         var m;
-        while ((m = re.exec(xml)) !== null) {
+        while ((m = re.exec(schema)) !== null) {
             var name = m[1], type = m[2], raw = m[3];
             ++seen;
             verify(Logic.DEFAULTS.hasOwnProperty(name), "main.xml entry '" + name + "' exists in Logic.DEFAULTS");

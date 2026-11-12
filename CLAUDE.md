@@ -1,39 +1,19 @@
 # CLAUDE.md
 
 Plasma Gnome Pager (`com.github.kenansalar.plasma-gnome-pager`), a GNOME-style virtual-desktop
-pager for KDE Plasma 6 panels: one dim dot per desktop, the current one morphed into a highlighted
-pill. It is a pure-QML KPackage plasmoid (Qt 6, KF6 Kirigami, `X-Plasma-API-Minimum-Version` 6.0)
-that plasmashell interprets directly, so there is no build step: "building" means symlinking or
-installing `package/`. Branching logic lives in two `.pragma library` JavaScript files, linted by
-ESLint 10; the QML is linted by qmllint and tested headless by qmltestrunner.
-
-- **`main.qml` is the only file that touches the Plasma session.** The root `PlasmoidItem` reads
-  every setting, owns the `TaskManager.VirtualDesktopInfo`, the KWin DBus writes and the
-  context-menu actions, and passes plain values down, which keeps every other component
-  headless-testable.
-- **Desktops are read from `VirtualDesktopInfo` and written through KWin's DBus.** Bindings read
-  the live UUID lists. A switch, add, remove or rename is `dispatch(Logic.<x>Spec(…))`, an async
-  fire-and-forget call whose result comes back through those same bindings.
-- **`WorkspaceIndicator.qml` is the full representation**, forced inline by
-  `preferredRepresentation`. It lays out one `WorkspaceDot` per desktop and handles scrolling,
-  handing the size math to `IndicatorMetrics.qml` and this monitor's current desktop to
-  `ScreenCurrentDesktop.qml`.
-- **`WindowAggregator.qml` holds the one `TasksModel`**, loaded only while the window-list
-  tooltip, the occupied-dot markers or dynamic workspaces need it. `Logic.reduceWindowSnapshot`
-  turns its snapshot into the tooltip text, a per-screen occupancy for the markers, and a global
-  occupancy for `DynamicWorkspacesController.qml`.
-- **`coordinator.js` is shared by every pager in the plasmashell process**, since a
-  `.pragma library` loads once per engine. Through it only one instance adds or removes desktops,
-  and the dynamic-workspaces settings stay one value across panels.
-
-`package/contents/config/main.xml` is the settings schema and `package/contents/config/config.qml`
-lists the two pages, which live in `package/contents/ui/config/` because `ConfigCategory.source`
-resolves against `contents/ui/`.
+pager for KDE Plasma 6 panels: one dim dot per desktop, the current one grown into a highlighted
+pill. Pure QML on Qt 6 and KF6 Kirigami, with its decisions in two `.pragma library` JavaScript
+files; plasmashell interprets the package as it is, so there is no build step. `main.qml` is the
+only file that touches the Plasma session: it reads the settings and the desktops and passes plain
+values down to components that load headless. Desktops are read from
+`TaskManager.VirtualDesktopInfo` and written through KWin's DBus, fire and forget, the result
+coming back through the same bindings.
 
 ## Where things go
 
-A rule with a `paths:` glob loads only when Claude reads a matching file, never on a grep hit or a
-failing test, so this table finds them.
+Rules load only when Claude *reads* a file their `paths:` glob matches, never on a grep hit or a
+failing test, so this table finds them. A rule missed where needed gets a wider glob, never a copy
+here.
 
 | file | covers |
 |------|--------|
@@ -43,19 +23,23 @@ failing test, so this table finds them.
 | `.claude/rules/windows.md` | the one `TasksModel` and its three outputs, matching a window's screen, dynamic workspaces, the coordinator's election and setting sync |
 | `.claude/rules/dot-strip.md` | the reflow look, natural against effective sizes, neutralising a feature at the input, the pinned strip, the row grid and orientation, input and hover |
 | `.claude/rules/settings.md` | the page base and `configKeys`, `cfg_` names, combo indices, the shared slider, hint and section controls, greying dependent rows |
-| `.claude/rules/qml.md` | QML as this tree writes it: files and imports, properties and bindings, connections, casts qmllint needs, positioners and `Loader`s |
+| `.claude/rules/qml.md` | QML as this tree writes it: files and imports, properties and bindings, connections, what qmllint can't see, positioners and `Loader`s |
 | `.claude/rules/kirigami.md` | units, durations, theme colours, settings-page forms |
 | `.claude/rules/qml-performance.md` | keeping the always-on widget cheap: bindings, the window model's churn, drawing, dropping hidden items, animation |
-| `.claude/rules/ci-packaging.md` | the two PR jobs, the version's one home, the publish workflow, what the `.plasmoid` holds, the ESLint parser |
+| `.claude/rules/ci-packaging.md` | a new QML module in CI, where the version and the plugin Id are spelled, compiling catalogs before packing, what ships, the ESLint parser |
 | `.claude/rules/code-style.md` | writing code and comments, the comment budget and its audit, the doc-comment format for each language |
 | `.claude/rules/testing.md` | testing practice: the ISTQB principles, case design, levels, QtTest organisation, the `main.xml` walk, timing and events, assertions, doubles and seams, naming |
 | `tests/README.md` | the unit, integration and manual e2e tiers, what each one mocks, adding a test |
 
-- **A fact goes at its anchor**, the comment on the code it constrains. A rule names that code
-  rather than restating it, and holds only what crosses files.
-- **A code comment never cites a rule or this file**; it states its own reason.
-- **Re-read `.claude/rules/code-style.md` before writing comments, and run its "Auditing a
-  change" before reporting the work done**: only this file survives `/compact`.
+- **A fact goes at its anchor**, the comment on the code it constrains. A coupling across files
+  goes in a rule, and a prohibition violable from anywhere here.
+- **File headers and doc comments are the most current tier: link, don't restate.** Two copies of
+  one argument is the failure mode, and a rule restating a comment holds the copy to delete.
+- **A code comment never cites a rule or this file.** Every comment states its own reason; the
+  pointing runs the other way, a rule naming the code.
+- **Re-read `.claude/rules/code-style.md` before writing comments, and audit each one a change
+  adds against its "Auditing a change" before reporting the work done**: only this file survives
+  `/compact`. Explain why, never what; be terse; never narrate or write a changelog.
 
 ## Commands
 
@@ -72,26 +56,18 @@ make package      # dist/<id>-<version>.plasmoid
 QT_QPA_PLATFORM=offscreen QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input tests/unit/tst_logic.qml
 ```
 
-- **The Qt tools are `qmllint-qt6`, `qmltestrunner-qt6` and `qmlformat-qt6`** on this Fedora
-  system; the unsuffixed names aren't on `PATH`.
-- **`.contextProperties.ini` declares the `i18n*` and `Plasmoid` globals** for qmllint. If they
-  start warning as unqualified, that file isn't being found; it isn't a code defect.
-- **`.pragma library` and `.import` aren't JavaScript**, so `tools/eslint-qml-js-parser.mjs`
-  rewrites them to comments before espree parses. The same directives rule out `tsc` and Prettier.
-- **QML errors from the panel are in `journalctl --user -f -t plasmashell`**, which filters out
-  `console.log`: debug with `console.warn`. `rm -rf ~/.cache/plasmashell/qmlcache` clears a stale
-  compile that `make restart` didn't.
+The Qt tools carry Fedora's `-qt6` suffix; `CONTRIBUTING.md` says how to match it elsewhere and
+which packages a fresh system needs. QML errors from the panel reach
+`journalctl --user -f -t plasmashell`, which drops `console.log`, so debug with `console.warn`.
+`rm -rf ~/.cache/plasmashell/qmlcache` clears a stale compile that `make restart` didn't.
 
 ## Prohibitions violable from anywhere
 
 ### Robustness
 
-- **Public QML imports only, never `org.kde.plasma.private.*`, and no compiled C++ plugin.**
-  Private modules and C++ ABIs break on Plasma, Qt and KF6 point releases, and surviving those is
-  why this widget exists. `robustness.md` holds the allowlist.
-- **What the always-on widget instantiates imports only from that allowlist.** A config page may
-  also use `org.kde.kquickcontrols`: the dialog loads it on demand, so a break there can't take
-  the panel down.
+- **Public QML imports only, from `robustness.md`'s table, never `org.kde.plasma.private.*`, and no
+  compiled C++ plugin.** Private modules and C++ ABIs break on Plasma, Qt and KF6 point releases,
+  and surviving those is why this widget exists.
 - **Guard every index and UUID.** `desktopIds`, `desktopNames`, `currentDesktop` and the
   aggregator's arrays go briefly empty, or lag one another, during an add, a remove or a shell
   reload. A `Logic.*Spec` builder returns `null` for such input, and `dispatch(null)` does nothing.
@@ -108,9 +84,8 @@ QT_QPA_PLATFORM=offscreen QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input tes
   `configKeys` entry on its page, and the component property it feeds.
 - **A default that depends on the theme or the display scale is `0 = auto` in `main.xml`**,
   resolved inside the component that renders it. A px or ms literal would lose HiDPI scaling.
-- **A KWin write is a pure `*Spec` builder in `logic.js`, pinned by value in `tst_logic.qml`**,
-  and goes out through `main.qml`'s `dispatch`. `toDBusArg` is the only code that builds a `DBus.*`
-  argument; `new DBus.variant` wraps a plain value, never another `DBus.*` wrapper.
+- **A KWin write is a pure `*Spec` builder in `logic.js`, pinned by value in `tst_logic.qml`**, and
+  goes out through `main.qml`'s `dispatch`.
 - **Branching logic goes in `logic.js`**, free of Plasma, Qt and i18n so `tst_logic.qml` runs it
   headless. The QML calls it and stays thin.
 - **`logic.js` holds no mutable state**: every pager in the process shares one instance of it.
@@ -129,7 +104,7 @@ QT_QPA_PLATFORM=offscreen QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input tes
 - **A popup is a `PlasmaCore.Dialog`, never a `Kirigami.Dialog` or `PromptDialog`**: those parent
   to `applicationWindow().overlay`, which a plasmoid doesn't have, and clip to the panel.
 
-### Internationalization
+## Internationalization
 
 - **Every user-visible string is wrapped in `i18n`, `i18nc`, `i18np` or `i18ncp` in the QML.**
   `logic.js` returns raw strings for `main.qml` to format, since the `i18n*` globals don't exist
@@ -141,22 +116,14 @@ QT_QPA_PLATFORM=offscreen QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input tes
 - **`metadata.json`'s `Description` is translated by `Description[<lang>]` keys**, not the
   catalog. `Name` is the product name and stays untranslated.
 
-### Tests
+## Testing and CI
 
-- **A test is `tst_<thing>.qml`**, the only name qmltestrunner finds: one component or the JS tier
-  in `tests/unit/`, composed components on `tests/shared/VdiMock.qml` in `tests/integration/`.
-- **Any warning fails an indicator test** (`failOnWarning` in `tests/shared/IndicatorTestCase.qml`).
-- **A Plasma import added to a tested component has to load under offscreen qmltestrunner**;
-  anything needing a live KWin or session bus stays in `main.qml`.
-- **`main.qml`, the config pages and `RenameDialog.qml` are e2e-only**: check them with
-  `make dev`, `make test` and `make restart`, then switch desktops by keyboard to confirm the
-  bindings are live.
-
-### Git and releases
-
-- **PRs go into `main`. A release is a pushed `v*.*.*` tag equal to `metadata.json`'s
-  `KPlugin.Version`, never a merge.** `publish.yml` drafts the GitHub release with the
-  `.plasmoid`, which is published by hand; the KDE Store upload is manual too.
+- **A change to `main.qml`, the settings pages or `RenameDialog.qml` is checked in the shell**:
+  `make dev`, `make test` and `make restart`, then switching desktops by keyboard to see the
+  bindings follow. Nothing headless can build them.
+- **PRs go into `main`, and a release is a pushed `v*.*.*` tag equal to `metadata.json`'s
+  `KPlugin.Version`, never a merge.** `publish.yml` leaves a draft that is published by hand; the
+  KDE Store upload is manual too.
 - **The required check is "Lint & headless tests"**, with "ESLint (strict, JS tier)" beside it.
 - **Conventional Commits, PR titles included**: the release notes are generated from merged PR
   titles. Branches are `feat/`, `fix/`, `refactor/`, `perf/` or `docs/`, with the issue number
@@ -165,15 +132,12 @@ QT_QPA_PLATFORM=offscreen QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input tes
 ## Known gaps
 
 - **A desktop reorder doesn't re-notify `desktopIds` or `desktopNames`**: libtaskmanager emits
-  only `desktopPositionsChanged` (Plasma 6.5+). `WorkspaceIndicator` and `WindowAggregator`
-  re-read on it; a new binding on either list anywhere else keeps the old order until a desktop is
-  added or removed. Check one in-shell with an Overview Grid desktop drag.
+  only `desktopPositionsChanged` (Plasma 6.5+), and `virtual-desktops.md` says what a binding on
+  either list owes. Check one in the shell with an Overview Grid desktop drag.
 - **KWin drops a mistyped DBus call, and a `createDesktop` with an empty name, without an error.**
   Nothing reaches the journal and nothing changes, which is why the specs are pinned by value.
 - **There is no public per-output switch.** A switch sets KWin's one global `current`, which KWin
   routes to the active output; the stock pager's `requestActivateOnScreen` is C++-only.
-- **`currentDesktopByScreenName` is a method with a signal, not a property**, so a binding to it
-  evaluates once. `ScreenCurrentDesktop.qml` recomputes it on the signals.
 - **`metadata.json`'s `Icon` has to be an icon-theme name.** Add Widgets resolves it only
   through the icon theme, and neither kpackagetool6, the `.plasmoid` nor the KDE Store installs a
   bundled SVG into one. `virtual-desktops` resolves on any theme through KDE's Breeze fallback.
