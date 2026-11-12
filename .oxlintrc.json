@@ -28,7 +28,7 @@
                 "caughtErrorsIgnorePattern": "^_"
             }
         ],
-        // A leading `_` names the state behind an accessor, as `_enabled` is behind `globalEnabled()`.
+        // A leading `_` marks a module's mutable state, as coordinator.mjs's `_enabled` and `_seq`.
         "no-underscore-dangle": "off"
     }
 }

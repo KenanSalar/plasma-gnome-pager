@@ -18,8 +18,8 @@ cost of the always-on widget, `code-style.md` the comment format.
 - **Imports are aliased and every use qualified** (`Kirigami.Units.smallSpacing`); `logic.mjs`
   comes in `as Logic`, one directory up from the settings pages.
 - **The JavaScript is ES modules (`.mjs`), never `.pragma library` scripts**: oxlint and oxfmt
-  parse only standard JavaScript, which `.pragma` and `.import` aren't. Qt evaluates a module once
-  per engine, the same sharing, and the QML sees only what it `export`s.
+  parse only standard JavaScript, which `.pragma` and `.import` aren't. The QML sees only what a
+  module `export`s; `coordinator.mjs`'s header says why every pager shares its state.
 
 ## Properties and bindings
 

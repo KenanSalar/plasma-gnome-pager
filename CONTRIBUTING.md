@@ -58,6 +58,9 @@ make test     # run it standalone; QML errors print to the terminal
 make restart  # reload the panel; plasmashell caches QML, so saving a file isn't enough
 ```
 
+While that symlink is in place, don't install or update the widget from **Get New Widgets**: it
+deletes `package/` through the link, uncommitted work included. Run `make dev-undev` first.
+
 The rest of the targets are in the [README](README.md#development).
 
 ## Two rules that aren't negotiable
@@ -116,8 +119,8 @@ of the tests exist only to hold that line.
 
 - **Target `main`**, the only long-lived branch. Merging ships nothing on its own: a release is a
   pushed `v*.*.*` tag.
-- **Name the branch for the kind of work**: `feat/`, `fix/`, `refactor/`, `perf/` or `docs/`, with
-  the issue number ahead of the slug where there is one, like
+- **Name the branch for the kind of work**: `feat/`, `fix/`, `refactor/`, `perf/`, `docs/` or
+  `chore/`, with the issue number ahead of the slug where there is one, like
   `feat/23-match-desktop-grid-orientation`.
 - **Write commit messages and the PR title as
   [Conventional Commits](https://www.conventionalcommits.org/)**, scope optional:

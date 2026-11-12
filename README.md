@@ -169,8 +169,8 @@ make i18n               # compile po/*.po into the package
 make package            # build a .plasmoid into dist/
 ```
 
-`lint-js`, `format` and `verify` need `npm ci` once first. Nothing from Node ships in the
-`.plasmoid`.
+`lint-js`, `format`, `format-check` and `verify` need `npm ci` once first. Nothing from Node ships
+in the `.plasmoid`.
 
 ## Translations
 

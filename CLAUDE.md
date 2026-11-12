@@ -128,8 +128,8 @@ which packages a fresh system needs. QML errors from the panel reach
 - **The required check is "Lint & headless tests"**, with "Oxlint (JS tier)" and "Oxfmt (format
   check)" beside it.
 - **Conventional Commits, PR titles included**: the release notes are generated from merged PR
-  titles. Branches are `feat/`, `fix/`, `refactor/`, `perf/` or `docs/`, with the issue number
-  ahead of the slug (`feat/23-match-desktop-grid-orientation`).
+  titles. Branches are `feat/`, `fix/`, `refactor/`, `perf/`, `docs/` or `chore/`, with the issue
+  number ahead of the slug (`feat/23-match-desktop-grid-orientation`).
 
 ## Known gaps
 
