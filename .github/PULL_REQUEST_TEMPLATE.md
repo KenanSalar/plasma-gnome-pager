@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] `make verify` passes locally (qmllint + ESLint + headless tests)
+- [ ] `make verify` passes locally (qmllint, oxlint, oxfmt and the headless tests)
 - [ ] New behaviour has a test, or it's something that can't be tested headlessly
 - [ ] New user-visible strings are `i18n()`-wrapped and `make messages` has been run
 - [ ] Screenshot attached, if it changes how the widget looks

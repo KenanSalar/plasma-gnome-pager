@@ -2,14 +2,14 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * DynamicWorkspacesController on VdiMock and the real coordinator.js, its writes caught off its signals.
+ * DynamicWorkspacesController on VdiMock and the real coordinator.mjs, its writes caught off its signals.
  * The coordinator's state is shared by every test here, so each publishes the global setting it needs;
  * tst_coordinator.qml runs in another qmltestrunner process and shares none of it.
  */
 import QtQuick
 import QtTest
 import "../../package/contents/ui" as Pager
-import "../../package/contents/ui/coordinator.js" as Coordinator
+import "../../package/contents/ui/coordinator.mjs" as Coordinator
 import "../shared"
 
 TestCase {

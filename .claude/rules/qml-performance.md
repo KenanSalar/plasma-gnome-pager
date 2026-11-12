@@ -10,7 +10,7 @@ The settings pages are exempt: the dialog builds them on demand.
 
 - **Measure before optimising.** A guess about cost is not a reason to complicate a binding.
 - **Keep binding expressions trivial.** A binding re-runs on every dependency change; a heavy one
-  goes into a `readonly property` the others read, or into `logic.js`. The `Array.from` copies of
+  goes into a `readonly property` the others read, or into `logic.mjs`. The `Array.from` copies of
   `desktopIds` and `desktopNames` are the deliberate exception, a handful of strings per change.
 - **Filter the window model's churn at the source**: a `dataChanged` that touches only roles no
   consumer reads (window focus fires constantly) doesn't rebuild, a burst of changes coalesces

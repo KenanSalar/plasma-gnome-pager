@@ -15,7 +15,7 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 PlasmaCore.Dialog {
     id: renameDialog

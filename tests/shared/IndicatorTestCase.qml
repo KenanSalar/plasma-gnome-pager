@@ -8,8 +8,8 @@
 import QtQuick
 import QtTest
 import "../../package/contents/ui" as Pager
-import "treewalk.js" as TreeWalk
-import "elements.js" as Elements
+import "treewalk.mjs" as TreeWalk
+import "elements.mjs" as Elements
 
 TestCase {
     id: root

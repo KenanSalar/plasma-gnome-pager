@@ -2,11 +2,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * coordinator.js imported directly. Its state outlives any one test, so this is one ordered scenario
+ * coordinator.mjs imported directly. Its state outlives any one test, so this is one ordered scenario
  * that leaves every token it joins. The sharing between real panels is checked only in the shell.
  */
 import QtTest
-import "../../package/contents/ui/coordinator.js" as Coordinator
+import "../../package/contents/ui/coordinator.mjs" as Coordinator
 
 TestCase {
     id: testCase

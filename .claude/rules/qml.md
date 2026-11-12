@@ -15,8 +15,11 @@ cost of the always-on widget, `code-style.md` the comment format.
 - **The widget's components open with `pragma ComponentBehavior: Bound`**, which scopes delegate
   ids and `required property` bindings and lets the engine compile more ahead of time. A settings
   page needs it once a delegate reads an outer id, as `ConfigAppearance`'s combo delegate does.
-- **Imports are aliased and every use qualified** (`Kirigami.Units.smallSpacing`); `logic.js`
+- **Imports are aliased and every use qualified** (`Kirigami.Units.smallSpacing`); `logic.mjs`
   comes in `as Logic`, one directory up from the settings pages.
+- **The JavaScript is ES modules (`.mjs`), never `.pragma library` scripts**: oxlint and oxfmt
+  parse only standard JavaScript, which `.pragma` and `.import` aren't. Qt evaluates a module once
+  per engine, the same sharing, and the QML sees only what it `export`s.
 
 ## Properties and bindings
 
@@ -45,7 +48,7 @@ cost of the always-on widget, `code-style.md` the comment format.
 - **`Connections` use function handlers** (`function onDesktopIdsChanged() {}`). A handler for a
   signal the target may lack goes in its own block with `ignoreUnknownSignals: true`.
 - **Handlers stay thin**: anything with a branch calls a named function, and a pure branch lives
-  in `logic.js`.
+  in `logic.mjs`.
 
 ## Types qmllint can't see
 

@@ -1,7 +1,6 @@
 ---
 paths:
   - "**/*.qml"
-  - "**/*.js"
   - "**/*.mjs"
   - package/contents/config/main.xml
   - Makefile
@@ -76,7 +75,7 @@ tests, holds no duplication, says what it means, and has no more parts than that
 
 - **Newspaper order** - a file opens with what it is and descends into detail. A component
   lists its inputs, then what it derives from them, its signals and functions, and its child
-  items last; a `.js` module puts each caller above its callee. Related functions sit together,
+  items last; a JavaScript module puts each caller above its callee. Related functions sit together,
   and blank lines separate concepts rather than decorating them.
 - **Declare close to first use** - a binding introduced far above the line that reads it is
   state the reader has to carry until then.
@@ -131,7 +130,7 @@ each earn its place, and re-read every comment before moving on.
 - **No commented-out code** - delete it; version control remembers.
 - **Match the file** - follow the surrounding code's existing comment *style*. Not its density:
   a dense neighbour is not a budget, and the rules above outrank it.
-- **Document the exported surface** - each `logic.js` and `coordinator.js` function or constant
+- **Document the exported surface** - each `logic.mjs` and `coordinator.mjs` function or constant
   the QML calls gets a one-sentence JSDoc that says what its name can't. A QML input property
   gets a `//` only for what its name and type leave out: a unit, a sentinel such as `0 = auto`,
   or which side sets it. One its name already explains gets none, rather than a rephrasing.
@@ -165,12 +164,12 @@ plain one sits well below. It shows drift and is never an allowance; a comment t
 don't justify goes whatever the count says. `main.xml` is outside it, its per-entry comment
 being the setting's one documented meaning.
 
-**Auditing a change.** After `make lint` and `make lint-js` pass, and before the work is reported
-done (neither linter reads a comment):
+**Auditing a change.** After `make lint`, `make lint-js` and `make format-check` pass, and before
+the work is reported done (none of them reads a comment for sense):
 
 ```bash
 # every comment line the change adds; `main...` in place of `HEAD` for a whole branch
-git diff -U0 HEAD -- '*.qml' '*.js' '*.mjs' '*.xml' Makefile '*.yml' |
+git diff -U0 HEAD -- '*.qml' '*.mjs' '*.xml' Makefile '*.yml' |
   rg '^\+\s*(//|/\*|\*|<!--|#)'
 # each file the change created, against the budget
 cloc --by-file <new files>
@@ -184,7 +183,7 @@ cloc --by-file <new files>
 
 | Language | Doc syntax | Notes |
 |----------|-----------|-------|
-| JavaScript (`.js`, `.mjs`) | `/** */` (JSDoc) | Read in an editor's hover; nothing generates docs and ESLint runs no JSDoc plugin. One-sentence summary first; `@param name - text`, with the hyphen and no `{type}`, only for a parameter its name leaves unexplained; `@returns` only when the summary doesn't say it. A module opens with the same `/* */` SPDX header as a QML file |
+| JavaScript (`.mjs`) | `/** */` (JSDoc) | Read in an editor's hover; nothing generates docs and oxlint runs no JSDoc plugin. One-sentence summary first; `@param name - text`, with the hyphen and no `{type}`, only for a parameter its name leaves unexplained; `@returns` only when the summary doesn't say it. A module opens with the same `/* */` SPDX header as a QML file |
 | QML | `//` | Nothing runs qdoc here, so a `//` above a property, signal or function says what its name and type can't. Each file opens with a `/* */` header holding the SPDX lines and the component's contract |
 | XML (`main.xml`) | `<!-- -->` | One per `<entry>`: what the setting does and what its sentinel or index means |
 | Makefile, YAML | `#` | Why a target or step is shaped the way it is; `make help` already says what each target does |

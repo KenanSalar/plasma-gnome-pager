@@ -1,0 +1,34 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["unicorn", "oxc", "import"],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "error"
+    },
+    "options": {
+        "denyWarnings": true,
+        "reportUnusedDisableDirectives": "error"
+    },
+    "rules": {
+        // ESLint's recommended rules that the categories above leave off.
+        "no-case-declarations": "error",
+        "no-empty": "error",
+        "no-fallthrough": "error",
+        "no-prototype-builtins": "error",
+        "no-redeclare": "error",
+        "no-regex-spaces": "error",
+        "no-undef": "error",
+        "no-useless-assignment": "error",
+        "no-unused-vars": [
+            "error",
+            {
+                "args": "after-used",
+                "argsIgnorePattern": "^_",
+                "caughtErrors": "all",
+                "caughtErrorsIgnorePattern": "^_"
+            }
+        ],
+        // A leading `_` names the state behind an accessor, as `_enabled` is behind `globalEnabled()`.
+        "no-underscore-dangle": "off"
+    }
+}

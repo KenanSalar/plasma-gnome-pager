@@ -8,7 +8,7 @@
 import QtQuick                        // Text.RichText + the Accessible attached property
 import org.kde.kirigami as Kirigami
 import "../shared"
-import "../shared/elements.js" as Elements
+import "../shared/elements.mjs" as Elements
 
 IndicatorTestCase {
     id: contentCase

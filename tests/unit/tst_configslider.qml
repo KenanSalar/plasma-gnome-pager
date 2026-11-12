@@ -10,7 +10,7 @@ import QtTest
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui/config" as Config
-import "../../package/contents/ui/logic.js" as Logic
+import "../../package/contents/ui/logic.mjs" as Logic
 
 TestCase {
     id: testCase

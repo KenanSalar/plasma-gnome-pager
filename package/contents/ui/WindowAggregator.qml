@@ -4,7 +4,7 @@
  *
  * The widget's one TasksModel, filtered by neither desktop nor activity, reduced per desktop into the
  * tooltip text and two occupancy arrays. Each consumer switches its own reduction on. The tooltip text
- * is translated and marked up here, since logic.js has no i18n.
+ * is translated and marked up here, since logic.mjs has no i18n.
  */
 pragma ComponentBehavior: Bound
 
@@ -12,7 +12,7 @@ import QtQuick
 import QtQml
 import org.kde.taskmanager as TaskManager
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 Item {
     id: aggregator
@@ -129,7 +129,7 @@ Item {
         Qt.callLater(aggregator.rebuild);
     }
 
-    // The UUID lists arrive as variant wrappers, so they're stringified before logic.js compares them.
+    // The UUID lists arrive as variant wrappers, so they're stringified before logic.mjs compares them.
     function rebuild() {
         let windows = [];
         for (let i = 0; i < winInstantiator.count; ++i) {

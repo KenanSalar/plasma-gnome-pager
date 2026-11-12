@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * GNOME-style dynamic workspaces: keeps one empty desktop at the end, one KWin write at a time. The
- * desktops are shared by every panel, so coordinator.js lets one instance write and keeps the setting
+ * desktops are shared by every panel, so coordinator.mjs lets one instance write and keeps the setting
  * the same everywhere. The writes and the config go out as signals for main.qml to carry out.
  */
 pragma ComponentBehavior: Bound
 
 import QtQuick
 
-import "logic.js" as Logic
-import "coordinator.js" as Coordinator
+import "logic.mjs" as Logic
+import "coordinator.mjs" as Coordinator
 
 Item {
     id: controller

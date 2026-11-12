@@ -15,7 +15,7 @@ paths:
 - **Each key needs a `cfg_<key>` alias and a `cfg_<key>Default` property with no initializer**,
   both named exactly as the `main.xml` entry. The dialog injects the default from the schema, and
   a misspelled name loads and saves nothing without an error.
-- **A combo's `currentIndex` is the stored value**: its item order, the frozen table in `logic.js`
+- **A combo's `currentIndex` is the stored value**: its item order, the frozen table in `logic.mjs`
   (`PILL_CLICK_ACTION`, `DOT_STYLE`, `OCCUPANCY`) and the `main.xml` comment change together, and
   the page compares the index through that table.
 - **A numeric row is a `ConfigSlider`, an opacity row a `ConfigPercentSlider`**, and a sentinel's

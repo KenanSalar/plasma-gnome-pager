@@ -9,7 +9,7 @@
 import QtQuick
 import org.kde.kirigami as Kirigami
 
-import "../logic.js" as Logic
+import "../logic.mjs" as Logic
 
 Kirigami.ScrollablePage {
     id: root

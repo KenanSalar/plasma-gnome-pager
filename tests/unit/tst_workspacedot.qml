@@ -9,9 +9,9 @@ import QtQuick
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
-import "../../package/contents/ui/logic.js" as Logic
-import "../shared/treewalk.js" as TreeWalk
-import "../shared/elements.js" as Elements
+import "../../package/contents/ui/logic.mjs" as Logic
+import "../shared/treewalk.mjs" as TreeWalk
+import "../shared/elements.mjs" as Elements
 
 TestCase {
     id: testCase

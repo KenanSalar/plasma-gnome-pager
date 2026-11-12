@@ -73,11 +73,11 @@ The seven ISTQB principles, as they bear on writing a test:
 - **Pyramid, not ice cream cone.** Many fast unit tests, fewer integration, fewest
   end-to-end. Higher levels are slower, flakier and worse at localising a defect.
 - **Push each question to the lowest level that can answer it.** A rule a pure function can
-  decide belongs in `logic.js` with its case in `tst_logic.qml`, not behind a built indicator.
+  decide belongs in `logic.mjs` with its case in `tst_logic.qml`, not behind a built indicator.
 - **A level that cannot answer a question honestly should not fake it.** The integration tier
   runs against `VdiMock`: it pins how the components wire together, not what Plasma does with
   the result. The panel's allocation, the real KWin writes, tooltip placement, the AT-SPI tree,
-  `coordinator.js` shared across real panels and the settings pages answer only in-shell.
+  `coordinator.mjs` shared across real panels and the settings pages answer only in-shell.
 
 ## QtTest: organizing tests
 
@@ -90,7 +90,7 @@ The seven ISTQB principles, as they bear on writing a test:
 - **`tests/shared/VdiMock.qml` is the one `VirtualDesktopInfo` double**, duck-typed to exactly
   the members the code reads. A new member the code reads goes there, with a default that keeps
   every existing test's meaning.
-- **Find an item by what it carries, never by child order** (`tests/shared/elements.js`): the
+- **Find an item by what it carries, never by child order** (`tests/shared/elements.mjs`): the
   dots sit inside tooltips and nested positioners whose shape changes with the layout.
 - **Build what a test owns with `createTemporaryObject`**, which destroys it after that test, and
   copy a shared fixture array before handing it over (`VdiMock.reorder` re-sorts in place).
@@ -135,7 +135,7 @@ Each walk owes five things, none of which a passing run can show:
 - **Reals compare with `fuzzyCompare` and a stated delta**, geometry within half a pixel; an int,
   a bool or a string compares exactly with `compare`.
 - **A spec or other plain object compares as `JSON.stringify`** of both sides, which pins key
-  order too. That order is part of the `*Spec` contract, so `logic.js` builds every spec with its
+  order too. That order is part of the `*Spec` contract, so `logic.mjs` builds every spec with its
   keys in one order.
 - **`failOnWarning(/.?/)` in `init()` turns any warning into a failure**, as the indicator base
   does: a binding error during a re-layout, or a `Connections` handler a source has no signal
@@ -147,7 +147,7 @@ Each walk owes five things, none of which a passing run can show:
 ## QtTest: doubles and seams
 
 - **Prefer the real collaborator.** The indicator suites build real `WorkspaceDot` delegates and
-  call the real `logic.js`; the only double is the platform, which needs a Plasma session.
+  call the real `logic.mjs`; the only double is the platform, which needs a Plasma session.
 - **Inject the seam as a property.** `virtualDesktopInfo`, `screenName`, `screenRect` and
   `desktopOccupancy` are plain inputs, and `DynamicWorkspacesController` hands its side effects
   out as signals, so a test sets values and spies signals with no module mock. New code takes
@@ -155,7 +155,7 @@ Each walk owes five things, none of which a passing run can show:
 - **A double for an older Plasma omits what that Plasma lacks**: the legacy double in
   `IndicatorTestCase` has no `currentDesktopByScreenName` and no `desktopPositionsChanged`, so the
   `typeof` guard and `ignoreUnknownSignals` are the path under test.
-- **A `.pragma library`'s state outlives the test that set it.** `coordinator.js` is shared by
+- **A module's state outlives the test that set it.** `coordinator.mjs` is shared by
   every test in the engine, so `tst_coordinator.qml` runs one ordered scenario and `leave()`s
   every token it joined.
 - **Reach the code through its inputs and outputs, not its internals.** If a value cannot be
@@ -206,7 +206,7 @@ Each walk owes five things, none of which a passing run can show:
 - **A `//` above a non-obvious test gives the why**, usually the defect that motivated it. It is
   bound by `code-style.md` like any other comment: argue the reason, do not narrate the body.
 - **A test file's header names what is under test and through which seam** (the real
-  `logic.js`, `VdiMock`, a built indicator), not "This file contains tests for…".
+  `logic.mjs`, `VdiMock`, a built indicator), not "This file contains tests for…".
 - **Name a prohibition test as the prohibition**, so a failure reads as the rule it enforces.
 
 ## The toolbox

@@ -17,7 +17,7 @@ QMLTEST     := QT_QPA_PLATFORM=offscreen QT_LOGGING_RULES="kf.plasma.quick.warni
 
 # Plasma binds the QML's i18n() calls to the plasma_applet_<Id> catalogs under contents/locale/.
 # The .po files are the source; the .pot and the .mo are generated and ignored. Only .qml is
-# scanned, since logic.js has no i18n.
+# scanned, since logic.mjs has no i18n.
 DOMAIN      := plasma_applet_$(PLASMOID_ID)
 PO_DIR      := po
 POT         := $(PO_DIR)/$(DOMAIN).pot
@@ -34,7 +34,7 @@ XGETTEXT    := xgettext --from-code=UTF-8 -C --kde \
 DIST_DIR      := dist
 PLASMOID_FILE := $(DIST_DIR)/$(PLASMOID_ID)-$(VERSION).plasmoid
 
-.PHONY: help install update uninstall package clean dev dev-undev test restart check check-unit check-integration lint lint-js verify messages i18n _no-dev-symlink
+.PHONY: help install update uninstall package clean dev dev-undev test restart check check-unit check-integration lint lint-js format format-check verify messages i18n _no-dev-symlink _node-modules
 
 help:
 	@echo "Targets:"
@@ -46,8 +46,10 @@ help:
 	@echo "  make check-unit Run only the unit tests (tests/unit)"
 	@echo "  make check-integration  Run only the integration tests (tests/integration)"
 	@echo "  make lint       qmllint the widget UI (clean — i18n globals resolved via .contextProperties.ini)"
-	@echo "  make lint-js    ESLint the pure-JS tier (logic.js/coordinator.js + tests/shared/*.js); run 'npm install' first"
-	@echo "  make verify     Run all static + headless gates: lint + lint-js + check"
+	@echo "  make lint-js    oxlint the JS modules (logic.mjs, coordinator.mjs, tests/shared/*.mjs); run 'npm ci' first"
+	@echo "  make format     oxfmt the JS, JSON and YAML in place"
+	@echo "  make format-check  Fail on any file oxfmt would change"
+	@echo "  make verify     Run all static + headless gates: lint + lint-js + format-check + check"
 	@echo "  make messages   Extract translatable strings into po/ (.pot template) and merge .po files"
 	@echo "  make i18n       Compile po/*.po into the package (contents/locale/.../*.mo)"
 	@echo "  make install    Install the package with kpackagetool6"
@@ -82,7 +84,7 @@ package: i18n
 	mkdir -p $(DIST_DIR)
 	rm -f $(PLASMOID_FILE)
 	cd $(PKG_DIR) && zip -r -X "$(CURDIR)/$(PLASMOID_FILE)" metadata.json contents \
-		-x '*.qmlc' -x '*.jsc' -x '.directory'
+		-x '*.qmlc' -x '*.jsc' -x '*.mjsc' -x '.directory'
 	@echo "Built $(PLASMOID_FILE)"
 
 clean:
@@ -128,11 +130,19 @@ lint:
 	qmllint-qt6 $(PKG_DIR)/contents/ui/*.qml $(PKG_DIR)/contents/ui/config/*.qml $(PKG_DIR)/contents/config/config.qml \
 		$(TESTS_DIR)/unit/*.qml $(TESTS_DIR)/integration/*.qml $(TESTS_DIR)/shared/*.qml
 
-lint-js:
-	@[ -d node_modules ] || { echo "==> node_modules/ missing — run 'npm install' (or 'npm ci') first"; exit 1; }
-	npx --no-install eslint . --max-warnings 0
+_node-modules:
+	@[ -d node_modules ] || { echo "==> node_modules/ missing: run 'npm ci' first"; exit 1; }
 
-verify: lint lint-js check
+lint-js: _node-modules
+	npm run --silent lint
+
+format: _node-modules
+	npm run --silent format
+
+format-check: _node-modules
+	npm run --silent format:check
+
+verify: lint lint-js format-check check
 
 messages:
 	$(XGETTEXT) -o $(POT) $$(find $(PKG_DIR)/contents -name '*.qml' | sort)

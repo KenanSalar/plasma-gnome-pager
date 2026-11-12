@@ -6,7 +6,7 @@
  * click asks for, and the scroll settings changing at runtime.
  */
 import "../shared"
-import "../shared/elements.js" as Elements
+import "../shared/elements.mjs" as Elements
 
 IndicatorTestCase {
     id: inputCase

@@ -17,7 +17,7 @@ import org.kde.taskmanager as TaskManager
 import org.kde.plasma.workspace.dbus as DBus
 import org.kde.kcmutils as KCM
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 PlasmoidItem {
     id: root
@@ -227,7 +227,7 @@ PlasmoidItem {
         renameDialog.openFor(uuid, names[ids.indexOf(uuid)] ?? "");
     }
 
-    // A window to open rather than a write to make, so it has no spec in logic.js.
+    // A window to open rather than a write to make, so it has no spec in logic.mjs.
     function openVirtualDesktopsKcm() {
         KCM.KCMLauncher.openSystemSettings(Qt.platform.pluginName.includes("wayland")
             ? "kcm_kwin_virtualdesktops"

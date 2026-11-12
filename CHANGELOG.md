@@ -14,6 +14,12 @@ Notable changes to Plasma Gnome Pager, newest first. Versions up to 1.8.2 are de
   the moment KWin changes it. This needs Plasma 6.5 or newer, since older versions don't announce a
   reorder.
 
+### Changed
+
+- **Behind-the-scenes cleanup.** The widget's code now uses standard JavaScript modules, which
+  lets the project check and format it with oxlint and oxfmt. Apart from the fix above, nothing
+  should look or behave differently.
+
 ### Known issues in KWin
 
 These come from KWin itself, so a pager update can't fix them. Both are still present in

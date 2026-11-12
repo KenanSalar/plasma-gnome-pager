@@ -3,8 +3,8 @@ paths:
   - package/contents/ui/main.qml
   - package/contents/ui/WindowAggregator.qml
   - package/contents/ui/DynamicWorkspacesController.qml
-  - package/contents/ui/coordinator.js
-  - package/contents/ui/logic.js
+  - package/contents/ui/coordinator.mjs
+  - package/contents/ui/logic.mjs
   - tests/unit/tst_coordinator.qml
   - tests/integration/tst_dynamicworkspacescontroller.qml
 ---

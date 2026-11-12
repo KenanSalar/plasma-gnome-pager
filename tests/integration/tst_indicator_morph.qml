@@ -6,8 +6,8 @@
  * and the morph between them.
  */
 import "../shared"
-import "../../package/contents/ui/logic.js" as Logic
-import "../shared/elements.js" as Elements
+import "../../package/contents/ui/logic.mjs" as Logic
+import "../shared/elements.mjs" as Elements
 
 IndicatorTestCase {
     id: morphCase

@@ -12,7 +12,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
 
-import "../logic.js" as Logic
+import "../logic.mjs" as Logic
 
 ConfigPageBase {
     id: root

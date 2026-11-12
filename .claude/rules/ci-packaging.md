@@ -4,8 +4,9 @@ paths:
   - Makefile
   - package/metadata.json
   - package.json
-  - eslint.config.mjs
-  - tools/**
+  - .oxlintrc.json
+  - .oxfmtrc.json
+  - .editorconfig
 ---
 
 # CI and packaging
@@ -18,13 +19,12 @@ Each workflow and Makefile target argues its own steps; this file holds what rea
 - **The version lives only in `metadata.json`'s `KPlugin.Version`.** The Makefile reads it for the
   `.plasmoid` name and the `.pot` header, and `publish.yml` refuses a tag other than `v<Version>`.
   A published release is never rebuilt, so releasing again means a new version.
-- **The plugin Id is spelled in `metadata.json`, the Makefile's `PLASMOID_ID`, `CLAUDE.md` and the
-  README's install and translation steps**, and nothing pins them together.
+- **The plugin Id is spelled in `metadata.json`, the Makefile's `PLASMOID_ID`, `CLAUDE.md`, the
+  README's install steps and CONTRIBUTING's translation steps**, and nothing pins them together.
 - **Every target that installs or packs compiles the catalogs first**, as `package`, `install`,
   `update` and `dev` do: kpackagetool6 ships the tree as it is.
 - **Only `package/` ships.** The `.plasmoid` is its `metadata.json` and `contents/`, without
-  `.qmlc`, `.jsc` or `.directory`.
-- **ESLint reads the `.pragma library` files through `tools/eslint-qml-js-parser.mjs`**, a parser
-  and not a flat-config processor, whose virtual filenames match no `files` glob. A `.js` file
-  outside `package/contents/ui/` and `tests/shared/` needs its own glob in `eslint.config.mjs`.
-  Stylistic rules stay off for the house style of `var` and braceless `if`s.
+  `.qmlc`, `.jsc`, `.mjsc` or `.directory`.
+- **oxfmt takes its indentation from `.editorconfig`**, four spaces for the JS and JSON and two
+  for the YAML; a `tabWidth` in `.oxfmtrc.json` would override both. Layout is oxfmt's, so
+  `.oxlintrc.json` turns on no stylistic rule.

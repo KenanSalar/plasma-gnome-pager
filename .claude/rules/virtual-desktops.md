@@ -4,7 +4,7 @@ paths:
   - package/contents/ui/WorkspaceIndicator.qml
   - package/contents/ui/ScreenCurrentDesktop.qml
   - package/contents/ui/WindowAggregator.qml
-  - package/contents/ui/logic.js
+  - package/contents/ui/logic.mjs
   - tests/shared/VdiMock.qml
 ---
 
@@ -53,7 +53,7 @@ the call shapes and what each asks of a change.
 - **An argument's `t` is one of `s`, `u`, `i` and `v`**, which `toDBusArg` maps to `new
   DBus.string`, `uint32`, `int32` and `variant`. Another type needs a case there first. There is no
   `DBus.QDBusVariant`: it evaluates to `undefined` and throws at the call.
-- **Shortcut names are KWin's DBus identifiers and stay untranslated in `logic.js`**: `"Show
+- **Shortcut names are KWin's DBus identifiers and stay untranslated in `logic.mjs`**: `"Show
   Desktop"`, `"Overview"` and `"Grid View"`, which the combo calls "Grid".
 - **Nothing here moves windows off a removed desktop**; `removeDesktop` does that itself.
 - **Check a call shape with `busctl` before suspecting the QML**:

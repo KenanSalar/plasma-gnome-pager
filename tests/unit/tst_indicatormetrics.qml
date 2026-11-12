@@ -2,14 +2,14 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * IndicatorMetrics on its own, with hand-set allocations. Expected sizes come from the logic.js
+ * IndicatorMetrics on its own, with hand-set allocations. Expected sizes come from the logic.mjs
  * formulas rather than literals, so they hold at any scale and theme.
  */
 import QtQuick
 import QtTest
 import org.kde.kirigami as Kirigami
 import "../../package/contents/ui" as Pager
-import "../../package/contents/ui/logic.js" as Logic
+import "../../package/contents/ui/logic.mjs" as Logic
 
 TestCase {
     id: testCase

@@ -12,7 +12,7 @@ import QtQuick
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.core as PlasmaCore
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 Item {
     id: dot

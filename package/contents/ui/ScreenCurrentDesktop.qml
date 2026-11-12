@@ -9,7 +9,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 Item {
     id: resolver

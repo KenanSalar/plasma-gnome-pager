@@ -2,11 +2,11 @@
  * SPDX-FileCopyrightText: 2026 Kenan Salar
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * logic.js imported directly, with nothing from Plasma or Kirigami: the cheapest place to pin a
+ * logic.mjs imported directly, with nothing from Plasma or Kirigami: the cheapest place to pin a
  * decision, so the most exhaustive.
  */
 import QtTest
-import "../../package/contents/ui/logic.js" as Logic
+import "../../package/contents/ui/logic.mjs" as Logic
 
 TestCase {
     id: testCase

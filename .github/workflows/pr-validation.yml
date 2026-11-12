@@ -32,7 +32,7 @@ jobs:
           plasma-workspace
 
       - name: Check out the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: qmllint
         run: make lint
@@ -41,23 +41,31 @@ jobs:
       - name: Headless QML tests (unit + integration)
         run: dbus-run-session -- make check
 
-  # ESLint needs only Node, which is far cheaper than the Fedora container.
-  js-lint:
-    name: ESLint (strict, JS tier)
+  # The oxc tools need only Node, which is far cheaper than the Fedora container.
+  lint-js:
+    name: Oxlint (JS tier)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
+        uses: ./.github/actions/setup-node
 
-      - name: Install dev tooling
-        run: npm ci
-
-      - name: ESLint
+      - name: Oxlint
         run: make lint-js
+
+  format:
+    name: Oxfmt (format check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: ./.github/actions/setup-node
+
+      - name: Oxfmt
+        run: make format-check

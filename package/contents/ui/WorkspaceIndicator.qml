@@ -12,7 +12,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-import "logic.js" as Logic
+import "logic.mjs" as Logic
 
 Item {
     id: indicator

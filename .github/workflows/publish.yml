@@ -7,7 +7,7 @@ name: Publish
 # Releasing: bump KPlugin.Version on main, push v<Version>, wait for the draft, publish it.
 on:
   push:
-    tags: ['v*.*.*']
+    tags: ["v*.*.*"]
   workflow_dispatch:
 
 # One group for every run, not one per ref: a tag push and a dispatch of the same version share one
@@ -29,7 +29,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 

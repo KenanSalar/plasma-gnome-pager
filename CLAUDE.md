@@ -2,8 +2,8 @@
 
 Plasma Gnome Pager (`com.github.kenansalar.plasma-gnome-pager`), a GNOME-style virtual-desktop
 pager for KDE Plasma 6 panels: one dim dot per desktop, the current one grown into a highlighted
-pill. Pure QML on Qt 6 and KF6 Kirigami, with its decisions in two `.pragma library` JavaScript
-files; plasmashell interprets the package as it is, so there is no build step. `main.qml` is the
+pill. Pure QML on Qt 6 and KF6 Kirigami, with its decisions in two JavaScript modules;
+plasmashell interprets the package as it is, so there is no build step. `main.qml` is the
 only file that touches the Plasma session: it reads the settings and the desktops and passes plain
 values down to components that load headless. Desktops are read from
 `TaskManager.VirtualDesktopInfo` and written through KWin's DBus, fire and forget, the result
@@ -23,10 +23,10 @@ here.
 | `.claude/rules/windows.md` | the one `TasksModel` and its three outputs, matching a window's screen, dynamic workspaces, the coordinator's election and setting sync |
 | `.claude/rules/dot-strip.md` | the reflow look, natural against effective sizes, neutralising a feature at the input, the pinned strip, the row grid and orientation, input and hover |
 | `.claude/rules/settings.md` | the page base and `configKeys`, `cfg_` names, combo indices, the shared slider, hint and section controls, greying dependent rows |
-| `.claude/rules/qml.md` | QML as this tree writes it: files and imports, properties and bindings, connections, what qmllint can't see, positioners and `Loader`s |
+| `.claude/rules/qml.md` | QML as this tree writes it: files and imports, the JavaScript as ES modules, properties and bindings, connections, what qmllint can't see, positioners and `Loader`s |
 | `.claude/rules/kirigami.md` | units, durations, theme colours, settings-page forms |
 | `.claude/rules/qml-performance.md` | keeping the always-on widget cheap: bindings, the window model's churn, drawing, dropping hidden items, animation |
-| `.claude/rules/ci-packaging.md` | a new QML module in CI, where the version and the plugin Id are spelled, compiling catalogs before packing, what ships, the ESLint parser |
+| `.claude/rules/ci-packaging.md` | a new QML module in CI, where the version and the plugin Id are spelled, compiling catalogs before packing, what ships, where oxfmt takes its indentation |
 | `.claude/rules/code-style.md` | writing code and comments, the comment budget and its audit, the doc-comment format for each language |
 | `.claude/rules/testing.md` | testing practice: the ISTQB principles, case design, levels, QtTest organisation, the `main.xml` walk, timing and events, assertions, doubles and seams, naming |
 | `tests/README.md` | the unit, integration and manual e2e tiers, what each one mocks, adding a test |
@@ -48,9 +48,10 @@ make dev          # compile catalogs, symlink package/ into ~/.local/share/plasm
 make test         # plasmawindowed: the widget standalone, QML errors in the terminal
 make restart      # reload the real panel; plasmashell caches QML, so an edit alone shows nothing
 make lint         # qmllint-qt6 over the UI, config pages and tests; a warning fails it
-make lint-js      # ESLint over logic.js, coordinator.js and tests/shared/*.js; `npm ci` once first
+make lint-js      # oxlint over the .mjs modules; `npm ci` once first
+make format       # oxfmt over the JS, JSON and YAML; format-check fails on a file it would change
 make check        # headless qmltestrunner-qt6; check-unit / check-integration run one tier
-make verify       # lint + lint-js + check: what CI runs
+make verify       # lint + lint-js + format-check + check: what CI runs
 make messages     # re-extract the .pot from the QML and msgmerge every po/*.po
 make package      # dist/<id>-<version>.plasmoid
 QT_QPA_PLATFORM=offscreen QML_XHR_ALLOW_FILE_READ=1 qmltestrunner-qt6 -input tests/unit/tst_logic.qml
@@ -84,12 +85,12 @@ which packages a fresh system needs. QML errors from the panel reach
   `configKeys` entry on its page, and the component property it feeds.
 - **A default that depends on the theme or the display scale is `0 = auto` in `main.xml`**,
   resolved inside the component that renders it. A px or ms literal would lose HiDPI scaling.
-- **A KWin write is a pure `*Spec` builder in `logic.js`, pinned by value in `tst_logic.qml`**, and
+- **A KWin write is a pure `*Spec` builder in `logic.mjs`, pinned by value in `tst_logic.qml`**, and
   goes out through `main.qml`'s `dispatch`.
-- **Branching logic goes in `logic.js`**, free of Plasma, Qt and i18n so `tst_logic.qml` runs it
+- **Branching logic goes in `logic.mjs`**, free of Plasma, Qt and i18n so `tst_logic.qml` runs it
   headless. The QML calls it and stays thin.
-- **`logic.js` holds no mutable state**: every pager in the process shares one instance of it.
-  State shared across pagers lives only in `coordinator.js`.
+- **`logic.mjs` holds no mutable state**: every pager in the process shares one instance of it.
+  State shared across pagers lives only in `coordinator.mjs`.
 - **Anything a pager draws per monitor reads `WorkspaceIndicator.currentDesktop`**, never
   `vdi.currentDesktop`, which follows whichever monitor switched last when KWin switches desktops
   per screen.
@@ -107,7 +108,7 @@ which packages a fresh system needs. QML errors from the panel reach
 ## Internationalization
 
 - **Every user-visible string is wrapped in `i18n`, `i18nc`, `i18np` or `i18ncp` in the QML.**
-  `logic.js` returns raw strings for `main.qml` to format, since the `i18n*` globals don't exist
+  `logic.mjs` returns raw strings for `main.qml` to format, since the `i18n*` globals don't exist
   under qmltestrunner.
 - **Never translate DBus identifiers, KWin shortcut names (`"Overview"`, `"Grid View"`), KCM
   module names, icon names or theme tokens.**
@@ -124,7 +125,8 @@ which packages a fresh system needs. QML errors from the panel reach
 - **PRs go into `main`, and a release is a pushed `v*.*.*` tag equal to `metadata.json`'s
   `KPlugin.Version`, never a merge.** `publish.yml` leaves a draft that is published by hand; the
   KDE Store upload is manual too.
-- **The required check is "Lint & headless tests"**, with "ESLint (strict, JS tier)" beside it.
+- **The required check is "Lint & headless tests"**, with "Oxlint (JS tier)" and "Oxfmt (format
+  check)" beside it.
 - **Conventional Commits, PR titles included**: the release notes are generated from merged PR
   titles. Branches are `feat/`, `fix/`, `refactor/`, `perf/` or `docs/`, with the issue number
   ahead of the slug (`feat/23-match-desktop-grid-orientation`).
